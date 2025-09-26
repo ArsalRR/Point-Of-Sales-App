@@ -1,261 +1,183 @@
 import { useState, useEffect } from 'react'
 import { ShoppingCart, Scan, Trash2, Plus, Minus, CreditCard, Search, X, Printer } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { postKasir,getTransaksi } from '@/api/Kasirapi'
+import { postKasir, getTransaksi } from '@/api/Kasirapi'
 import { getProfile } from '@/api/Userapi'
 import Swal from 'sweetalert2'
-const PrintReceipt = ({ transactionData, onClose }) => {
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      window.print()
-      setTimeout(() => {
-        onClose()
-      }, 1000)
-    }, 500)
-
-    return () => clearTimeout(timer)
-  }, [onClose])
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('id-ID').format(amount)
+import NotaPembelian from '../Kasir/NotaPembelian'
+const getCurrentPrice = (item) => {
+  const satuan = item.satuan_terpilih || "satuan"
+  
+  switch (satuan) {
+    case "renteng":
+      return item.harga_renteng || item.harga
+    case "dus":
+      return item.harga_dus || item.harga
+    case "pack":
+      return item.harga_pack || item.harga
+    case "grosir":
+      return item.harga_grosir || item.harga
+    case "satuan":
+    default:
+      return item.harga
   }
-
-  const currentDate = new Date().toLocaleString('id-ID', {
-    day: '2-digit',
-    month: '2-digit', 
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-
-  return (
-    <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
-      <div className="w-full max-w-sm mx-auto p-4">
-        {/* Print styles */}
-        <style jsx>{`
-          @media print {
-            body * {
-              visibility: hidden;
-            }
-            .print-area, .print-area * {
-              visibility: visible;
-            }
-            .print-area {
-              position: absolute;
-              left: 0;
-              top: 0;
-              width: 100%;
-            }
-            .no-print {
-              display: none !important;
-            }
-          }
-          @page {
-            size: 58mm auto;
-            margin: 0;
-            padding: 0;
-          }
-          .receipt-content {
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.2;
-            width: 160px;
-            margin: 0 auto;
-          }
-          .receipt-table {
-            width: 100%;
-            border-collapse: collapse;
-          }
-          .receipt-table th,
-          .receipt-table td {
-            border-top: 1px solid #000;
-            padding: 2px;
-            font-size: 10px;
-          }
-          .text-center { text-align: center; }
-          .text-right { text-align: right; }
-        `}</style>
-
-        <div className="print-area">
-          <div className="receipt-content">
-            <div className="text-center mb-4">
-              <strong>TOKO IFA</strong><br />
-              Jl. Perumahan Limas No. 08<br />
-              Telp: 085868287956<br />
-              {currentDate}<br />
-              No Trans: {transactionData.no_transaksi}
-            </div>
-
-            <table className="receipt-table">
-              <thead>
-                <tr>
-                  <th style={{width: '20%'}}>Jml</th>
-                  <th style={{width: '50%'}}>Produk</th>
-                  <th style={{width: '30%'}} className="text-right">Rp</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactionData.items.map((item, index) => (
-                  <tr key={index}>
-                    <td>{item.jumlah}</td>
-                    <td>{item.nama_barang}</td>
-                    <td className="text-right">{formatCurrency(item.jumlah * item.harga)}</td>
-                  </tr>
-                ))}
-                <tr>
-                  <td></td>
-                  <td>Subtotal</td>
-                  <td className="text-right">Rp {formatCurrency(transactionData.subtotal)}</td>
-                </tr>
-                <tr>
-                  <td></td>
-                  <td>Diskon</td>
-                  <td className="text-right">Rp {formatCurrency(transactionData.diskon)}</td>
-                </tr>
-                <tr>
-                  <td></td>
-                  <td><strong>Total</strong></td>
-                  <td className="text-right"><strong>Rp {formatCurrency(transactionData.total)}</strong></td>
-                </tr>
-                <tr>
-                  <td></td>
-                  <td>Jumlah Uang</td>
-                  <td className="text-right">Rp {formatCurrency(transactionData.total_uang)}</td>
-                </tr>
-                <tr>
-                  <td></td>
-                  <td>Kembalian</td>
-                  <td className="text-right">Rp {formatCurrency(transactionData.kembalian)}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div className="text-center mt-4">
-              Terima Kasih<br />
-              Atas Kunjungan Anda
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
 }
+const getSatuanInfo = (item) => {
+  const satuan = item.satuan_terpilih || "satuan"
+  const basePrice = item.harga
 
+  if (satuan === "satuan" || !basePrice || basePrice === 0) return ""
+
+  switch (satuan) {
+    case "renteng":
+      return item.jumlah_lainnya
+        ? `1 renteng = ${item.jumlah_lainnya} pcs`
+        : "Harga renteng"
+    case "dus":
+      return item.jumlah_lainnya
+        ? `1 dus = ${item.jumlah_lainnya} pcs`
+        : "Harga dus"
+    case "pack":
+      return item.jumlah_lainnya
+        ? `1 pack = ${item.jumlah_lainnya} pcs`
+        : "Harga pack"
+    case "grosir":
+      return "Harga grosir"
+    default:
+      return ""
+  }
+}
 export default function ListKasir() {
-  const [transaksi, setTransaksi] = useState([]);
+  const [transaksi, setTransaksi] = useState([])
   const [formData, setFormData] = useState({
     produk_id: '',
     jumlah_terjual_per_hari: '',
-
     diskon: '',
     total_uang: '',
     kembalian: 0
-  });
-  const [scan, setScan] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const [cart, setCart] = useState([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showPrint, setShowPrint] = useState(false);
-  const [printData, setPrintData] = useState(null);
-  const [user, setUser] = useState(null); 
+  })
+  const [scan, setScan] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showSearchResults, setShowSearchResults] = useState(false)
+  const [cart, setCart] = useState([])
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [showPrint, setShowPrint] = useState(false)
+  const [printData, setPrintData] = useState(null)
+  const [user, setUser] = useState(null)
 
- useEffect(() => {
-    fetchTransaksi();
-    fetchUser(); // ambil data user
-  }, []);
+  useEffect(() => {
+    fetchTransaksi()
+    fetchUser()
+  }, [])
 
   const fetchUser = async () => {
     try {
-      const res = await getProfile();
-      setUser(res.data); 
+      const res = await getProfile()
+      setUser(res.data)
     } catch (error) {
-      console.error("Gagal ambil user:", error);
+      console.error("Gagal ambil user:", error)
     }
-  };
+  }
 
-   const fetchTransaksi = async () => {
+  const fetchTransaksi = async () => {
     try {
-      const res = await getTransaksi();
-      setTransaksi(Array.isArray(res.data) ? res.data : []); 
-    } catch (error) {}
-  };
+      const res = await getTransaksi()
+      setTransaksi(Array.isArray(res.data) ? res.data : [])
+    } catch (error) {
+      console.error("Gagal ambil transaksi:", error)
+    }
+  }
 
+  const handleChangeSatuan = (kode_barang, satuan) => {
+    setCart((prevCart) =>
+      prevCart.map((item) =>
+        item.kode_barang === kode_barang
+          ? { 
+              ...item, 
+              satuan_terpilih: satuan,
+              jumlah: 1
+            }
+          : item
+      )
+    )
+  }
 
   const postTransaksi = async (data) => {
     try {
-      setIsProcessing(true);
-      const res = await postKasir(data);
-      const subtotal = cart.reduce((s, i) => s + (i.harga * i.jumlah), 0);
-      const diskon = parseFloat(formData.diskon) || 0;
-      const total = subtotal - diskon;
-      const total_uang = parseFloat(formData.total_uang) || 0;
-      const kembalian = total_uang - total;
+      setIsProcessing(true)
+      const res = await postKasir(data)
+      const subtotal = cart.reduce((s, i) => s + (getCurrentPrice(i) * i.jumlah), 0)
+      const diskon = parseFloat(formData.diskon) || 0
+      const total = subtotal - diskon
+      const total_uang = parseFloat(formData.total_uang) || 0
+      const kembalian = total_uang - total
 
       const transactionData = {
         no_transaksi: res.no_transaksi,
         items: cart.map(item => ({
           jumlah: item.jumlah,
           nama_barang: item.nama_barang,
-          harga: item.harga,
-        
+          harga: getCurrentPrice(item), 
+          satuan: item.satuan_terpilih || item.satuan,
         })),
         subtotal: subtotal,
         diskon: diskon,
         total: total,
         total_uang: total_uang,
         kembalian: kembalian
-      };
+      }
 
-      setPrintData(transactionData);
-    
-    Swal.fire({
-  title: "Berhasil",
-  text: "Transaksi Berhasil",
-  icon: "success",
-  toast: true,
-  position: "top-end",
-  showConfirmButton: false,
-  timer: 3000
-});
-      setCart([]);
+      setPrintData(transactionData)
+      
+      Swal.fire({
+        title: "Berhasil",
+        text: "Transaksi Berhasil",
+        icon: "success",
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: 3000
+      })
+      
+      setCart([])
       setFormData({
         produk_id: '',
         jumlah_terjual_per_hari: '',
         diskon: '',
         total_uang: '',
         kembalian: 0
-      });
-      setShowPrint(true);
+      })
+      setShowPrint(true)
       
     } catch (error) {
-      console.error('Error posting transaksi:', error);
-    Swal.fire({
-  title: "Berhasil",
-  text: "Sedang Memperosess",
-  icon: "success",
-  toast: true,
-  position: "top-end",
-  showConfirmButton: false,
-  timer: 3000
-});
+      console.error('Error posting transaksi:', error)
+      Swal.fire({
+        title: "Gagal",
+        text: "Terjadi kesalahan saat memproses transaksi",
+        icon: "error",
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: 3000
+      })
     } finally {
-      setIsProcessing(false);
+      setIsProcessing(false)
     }
-  };
+  }
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
+    const { name, value } = e.target
+    setFormData({ ...formData, [name]: value })
+  }
 
-   const handleSubmit = (e) => {
-    e.preventDefault();
+  const handleSubmit = (e) => {
+    e.preventDefault()
     if (!user) {
       Swal.fire({
         title: "Gagal",
@@ -265,8 +187,8 @@ export default function ListKasir() {
         position: "top-end",
         showConfirmButton: false,
         timer: 3000
-      });
-      return;
+      })
+      return
     }
     if (cart.length === 0) {
       Swal.fire({
@@ -277,125 +199,122 @@ export default function ListKasir() {
         position: "top-end",
         showConfirmButton: false,
         timer: 3000
-      }); 
-      return;
+      })
+      return
     }
 
     const payload = {
       produk_id: cart.map((i) => i.kode_barang),
       jumlah_terjual_per_hari: cart.map((i) => i.jumlah),
-      satuan: cart.map((i) => i.satuan),
-      users_id: user.id, // otomatis ambil dari user login
+      satuan: cart.map((i) => i.satuan_terpilih || i.satuan),
+      users_id: user.id,
       diskon: formData.diskon,
-    };
-    postTransaksi(payload);
-  };
+    }
+    postTransaksi(payload)
+  }
 
   const lookupProduct = (kode) => {
-    if (!Array.isArray(transaksi)) return null;
-    const product = transaksi.find(item => item.kode_barang === kode);
-    return product || null;
-  };
+    if (!Array.isArray(transaksi)) return null
+    const product = transaksi.find(item => item.kode_barang === kode)
+    return product || null
+  }
 
   const searchProducts = (query) => {
-    if (!query.trim() || !Array.isArray(transaksi)) return [];
-    const lowercaseQuery = query.toLowerCase();
+    if (!query.trim() || !Array.isArray(transaksi)) return []
+    const lowercaseQuery = query.toLowerCase()
     return transaksi.filter(item => 
       item.nama_barang.toLowerCase().includes(lowercaseQuery) ||
       item.kode_barang.toLowerCase().includes(lowercaseQuery)
-    ).slice(0, 5); 
-  };
+    ).slice(0, 5)
+  }
 
   const addProductToCart = (product) => {
-    if (!product) return;
+    if (!product) return
 
-    const exist = cart.find((c) => c.kode_barang === product.kode_barang);
+    const exist = cart.find((c) => c.kode_barang === product.kode_barang)
     if (exist) {
       setCart(cart.map((c) => 
         c.kode_barang === product.kode_barang 
           ? { ...c, jumlah: c.jumlah + 1 } 
           : c
-      ));
+      ))
     } else {
-      setCart([...cart, { ...product, jumlah: 1, potongan_harga: 0 }]);
+      setCart([...cart, { 
+        ...product, 
+        jumlah: 1, 
+        satuan_terpilih: "satuan" // Default satuan
+      }])
     }
     
     Swal.fire({
-  title: "Berhasil",
-  text: `${product.nama_barang} ditambahkan ke keranjang`,
-  icon: "success",
-  toast: true,
-  position: "top-end",
-  showConfirmButton: false,
-  timer: 3000
-});
-  };
-
-  const onAddByScan = () => {
-    if (!scan) return;
-    const prod = lookupProduct(scan);
-    if (!prod) {
-      Swal.fire({
-  title: "Gagal",
-  text: "Kode barang yang Anda masukkan tidak ditemukan",
-  icon: "error",
-  toast: true,
-  position: "top-end",
-  showConfirmButton: false,
-  timer: 3000
-});
-      return;
-    }
-
-    addProductToCart(prod);
-    setScan('');
-  };
-
-  const handleScanKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      onAddByScan();
-    }
-  };
+      title: "Berhasil",
+      text: `${product.nama_barang} ditambahkan ke keranjang`,
+      icon: "success",
+      toast: true,
+      position: "top-end",
+      showConfirmButton: false,
+      timer: 3000
+    })
+  }
 
   const handleSearchSelect = (product) => {
-    addProductToCart(product);
-    setSearchQuery('');
-    setShowSearchResults(false);
-  };
+    // Langsung cek apakah ini kode barang yang exact match
+    const exactProduct = transaksi.find(
+      (p) => p.kode_barang.trim() === searchQuery.trim()
+    )
+
+    if (exactProduct && searchQuery.length >= 3) {
+      // Kemungkinan barcode scan - langsung add
+      setTimeout(() => {
+        if (searchQuery === searchQuery) {
+          addProductToCart(exactProduct)
+          setSearchQuery("")
+          setShowSearchResults(false)
+        }
+      }, 50)
+      return
+    }
+
+    // Manual selection
+    addProductToCart(product)
+    setSearchQuery('')
+    setShowSearchResults(false)
+  }
 
   const updateQty = (kode, qty) => {
     if (qty <= 0) {
-      removeItem(kode);
-      return;
+      removeItem(kode)
+      return
     }
-    setCart(cart.map((c) => c.kode_barang === kode ? { ...c, jumlah: qty } : c));
-  };
+    setCart(cart.map((c) => c.kode_barang === kode ? { ...c, jumlah: qty } : c))
+  }
 
-const removeItem = (kode) => {
-  const item = cart.find(c => c.kode_barang === kode);
-  setCart(cart.filter((c) => c.kode_barang !== kode));
-};
+  const removeItem = (kode) => {
+    setCart(cart.filter((c) => c.kode_barang !== kode))
+  }
 
+  // Hitung subtotal berdasarkan harga satuan yang dipilih
   const subtotal = (item) => {
-    const basePrice = item.harga * item.jumlah;
-    const discount = parseFloat(formData.diskon) || 0;
-    return Math.max(0, basePrice - (discount / cart.length));
-  };
+    return getCurrentPrice(item) * item.jumlah
+  }
   
-  const total = cart.reduce((s, i) => s + subtotal(i), 0);
-  const searchResults = searchProducts(searchQuery);
+  // Hitung total keranjang
+  const cartSubtotal = cart.reduce((s, i) => s + subtotal(i), 0)
+  const diskon = parseFloat(formData.diskon) || 0
+  const total = cartSubtotal - diskon
+  const searchResults = searchProducts(searchQuery)
 
   // Show print component if needed
   if (showPrint && printData) {
     return (
-      <PrintReceipt 
+      <NotaPembelian 
         transactionData={printData} 
         onClose={() => {
-          setShowPrint(false);
-          setPrintData(null);
+          setShowPrint(false)
+          setPrintData(null)
         }} 
       />
-    );
+    )
   }
 
   return (
@@ -408,7 +327,7 @@ const removeItem = (kode) => {
                 <ShoppingCart className="w-6 h-6 text-white" />
               </div>
               <div>
-                <CardTitle className="text-2xl font-bold text-gray-900">Point of Sale</CardTitle>
+                <CardTitle className="text-2xl font-bold text-gray-900">Kasir Toko IFA</CardTitle>
                 <p className="text-gray-600 mt-1">Sistem Kasir Terpadu</p>
               </div>
             </div>
@@ -426,51 +345,76 @@ const removeItem = (kode) => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="relative">
-                  <Label htmlFor="scan" className="text-sm font-medium text-gray-700 mb-2 block">
-                    Scan Barcode
+                  <Label htmlFor="unified-search" className="text-sm font-medium text-gray-700 mb-2 block">
+                    Scan Barcode / Cari Produk
                   </Label>
                   <div className="relative flex gap-3">
                     <Input 
-                      id="scan"
-                      value={scan} 
-                      onChange={(e) => setScan(e.target.value)}
-                      onKeyPress={handleScanKeyPress}
-                      placeholder="Scan atau ketik kode barang..." 
-                      className="flex-1"
-                      autoComplete="off"
-                    />
-                    <Button onClick={onAddByScan} disabled={!scan}>
-                      Tambah
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="relative">
-                  <Label htmlFor="search" className="text-sm font-medium text-gray-700 mb-2 block">
-                    Cari Produk
-                  </Label>
-                  <div className="relative">
-                    <Input 
-                      id="search"
-                      value={searchQuery} 
+                      id="unified-search"
+                      value={searchQuery}
                       onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        setShowSearchResults(e.target.value.length > 0);
+                        const value = e.target.value
+                        setSearchQuery(value)
+
+                        // Langsung cek apakah ini kode barang yang exact match
+                        const exactProduct = transaksi.find(
+                          (p) => p.kode_barang.trim() === value.trim()
+                        )
+
+                        if (exactProduct && value.length >= 3) {
+                          // Kemungkinan barcode scan - langsung add dengan delay kecil
+                          setTimeout(() => {
+                            if (searchQuery === value) {
+                              handleSearchSelect(exactProduct)
+                              return
+                            }
+                          }, 50)
+                          return // Jangan tampilkan dropdown
+                        }
+
+                        // Untuk pencarian manual, tampilkan dropdown
+                        setShowSearchResults(value.length > 0)
                       }}
-                      onFocus={() => setShowSearchResults(searchQuery.length > 0)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          const product = transaksi.find(
+                            (p) => p.kode_barang.trim() === searchQuery.trim()
+                          )
+                          if (product) {
+                            handleSearchSelect(product)
+                            setSearchQuery("")
+                            setShowSearchResults(false)
+                            return 
+                          }
+                          
+                          // Jika tidak ada exact match, pilih yang pertama dari search results
+                          if (searchResults.length > 0) {
+                            handleSearchSelect(searchResults[0])
+                          }
+                        }
+                        
+                        if (e.key === "Escape") {
+                          setShowSearchResults(false)
+                        }
+                      }}
+                      onFocus={() => {
+                        if (searchQuery.length > 0) setShowSearchResults(true)
+                      }}
                       onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
-                      placeholder="Ketik nama produk untuk mencari..." 
+                      placeholder="Scan barcode atau ketik nama produk..."
                       className="pl-10 pr-10"
                       autoComplete="off"
                     />
+
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                     {searchQuery && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          setSearchQuery('');
-                          setShowSearchResults(false);
+                          setSearchQuery("")
+                          setShowSearchResults(false)
                         }}
                         className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
                       >
@@ -478,14 +422,22 @@ const removeItem = (kode) => {
                       </Button>
                     )}
                   </div>
+
+                  {/* Dropdown untuk pencarian manual */}
                   {showSearchResults && searchResults.length > 0 && (
                     <Card className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-auto shadow-lg">
                       <CardContent className="p-0">
-                        {searchResults.map((product) => (
+                        {searchResults.map((product, index) => (
                           <button
                             key={product.kode_barang}
-                            onClick={() => handleSearchSelect(product)}
-                            className="w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                            onClick={() => {
+                              handleSearchSelect(product)
+                              setSearchQuery("")
+                              setShowSearchResults(false)
+                            }}
+                            className={`w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors ${
+                              index === 0 ? 'bg-blue-50' : ''
+                            }`}
                           >
                             <div className="flex justify-between items-start">
                               <div className="flex-1 min-w-0">
@@ -499,7 +451,10 @@ const removeItem = (kode) => {
                                   </span>
                                 </div>
                               </div>
-                              <Badge variant={product.stok > 10 ? "default" : "destructive"} className="ml-2">
+                              <Badge
+                                variant={product.stok > 10 ? "default" : "destructive"}
+                                className="ml-2"
+                              >
                                 Stok: {product.stok}
                               </Badge>
                             </div>
@@ -512,7 +467,13 @@ const removeItem = (kode) => {
                   {showSearchResults && searchQuery && searchResults.length === 0 && (
                     <Card className="absolute top-full left-0 right-0 z-50 mt-1 shadow-lg">
                       <CardContent className="p-4 text-center text-gray-500">
-                        Tidak ada produk yang ditemukan
+                        <div className="flex flex-col items-center gap-2">
+                          <Search className="w-8 h-8 text-gray-300" />
+                          <p>Tidak ada produk yang ditemukan</p>
+                          <p className="text-xs text-gray-400">
+                            Coba gunakan kata kunci yang berbeda atau scan barcode produk
+                          </p>
+                        </div>
                       </CardContent>
                     </Card>
                   )}
@@ -553,13 +514,42 @@ const removeItem = (kode) => {
                                   {item.kode_barang}
                                 </Badge>
                                 <span className="text-sm text-gray-600">
-                                  Rp {item.harga.toLocaleString()} / {item.satuan}
+                                  Rp {getCurrentPrice(item).toLocaleString()} / {item.satuan_terpilih || item.satuan}
                                 </span>
                               </div>
                             </div>
-                            
+
+                            {/* Unit Selector */}
+                            <div className="flex flex-col gap-1">
+                              <Label className="text-xs text-gray-500">Satuan</Label>
+                              <Select
+                                value={item.satuan_terpilih || "satuan"}
+                                onValueChange={(value) => handleChangeSatuan(item.kode_barang, value)}
+                              >
+                                <SelectTrigger className="w-24 h-8 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="satuan">Satuan</SelectItem>
+                                  {item.harga_renteng && (
+                                    <SelectItem value="renteng">Renteng</SelectItem>
+                                  )}
+                                  {item.harga_dus && (
+                                    <SelectItem value="dus">Dus</SelectItem>
+                                  )}
+                                  {item.harga_pack && (
+                                    <SelectItem value="pack">Pack</SelectItem>
+                                  )}
+                                  {item.harga_grosir && (
+                                    <SelectItem value="grosir">Grosir</SelectItem>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* Quantity Controls */}
                             <div className="flex items-center gap-2">
-                              <Button 
+                              <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => updateQty(item.kode_barang, item.jumlah - 1)}
@@ -567,14 +557,14 @@ const removeItem = (kode) => {
                               >
                                 <Minus className="w-4 h-4" />
                               </Button>
-                              <Input 
-                                type="number" 
-                                value={item.jumlah} 
-                                onChange={(e) => updateQty(item.kode_barang, Math.max(1, Number(e.target.value)))} 
+                              <Input
+                                type="number"
+                                value={item.jumlah}
+                                onChange={(e) => updateQty(item.kode_barang, Math.max(1, Number(e.target.value)))}
                                 className="w-16 text-center h-8 px-2"
                                 min="1"
                               />
-                              <Button 
+                              <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => updateQty(item.kode_barang, item.jumlah + 1)}
@@ -583,14 +573,21 @@ const removeItem = (kode) => {
                                 <Plus className="w-4 h-4" />
                               </Button>
                             </div>
-                            
+
+                            {/* Subtotal */}
                             <div className="text-right min-w-0">
                               <div className="font-bold text-gray-900">
                                 Rp {subtotal(item).toLocaleString()}
                               </div>
+                              {item.satuan_terpilih && item.satuan_terpilih !== "satuan" && (
+                                <div className="text-xs text-blue-600">
+                                  {getSatuanInfo(item)}
+                                </div>
+                              )}
                             </div>
-                            
-                            <Button 
+
+                            {/* Delete Button */}
+                            <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => removeItem(item.kode_barang)}
@@ -607,6 +604,7 @@ const removeItem = (kode) => {
               </CardContent>
             </Card>
           </div>
+          
           <div className="space-y-6">
             <Card>
               <CardHeader className="pb-4">
@@ -617,7 +615,7 @@ const removeItem = (kode) => {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Subtotal ({cart.length} item)</span>
                     <span className="font-medium">
-                      Rp {cart.reduce((s, i) => s + (i.harga * i.jumlah), 0).toLocaleString()}
+                      Rp {cartSubtotal.toLocaleString()}
                     </span>
                   </div>
                   
@@ -662,13 +660,13 @@ const removeItem = (kode) => {
                       name="total_uang" 
                       value={formData.total_uang} 
                       onChange={(e) => {
-                        handleChange(e);
-                        const totalUang = parseFloat(e.target.value) || 0;
-                        const kembalian = totalUang - total;
+                        handleChange(e)
+                        const totalUang = parseFloat(e.target.value) || 0
+                        const kembalian = totalUang - total
                         setFormData(prev => ({
                           ...prev,
                           kembalian: kembalian >= 0 ? kembalian : 0
-                        }));
+                        }))
                       }}
                       placeholder="Masukkan total uang"
                       className="mt-1"
@@ -689,15 +687,15 @@ const removeItem = (kode) => {
                   </div>
                 </div>
 
-                 <Button 
-                onClick={handleSubmit}
-                disabled={cart.length === 0 || isProcessing}
-                className="w-full h-12 text-base font-semibold"
-                size="lg"
-              >
-                <CreditCard className="w-5 h-5 mr-2" />
-                {isProcessing ? 'Memproses...' : 'Proses Pembayaran'}
-              </Button>
+                <Button 
+                  onClick={handleSubmit}
+                  disabled={cart.length === 0 || isProcessing}
+                  className="w-full h-12 text-base font-semibold"
+                  size="lg"
+                >
+                  <CreditCard className="w-5 h-5 mr-2" />
+                  {isProcessing ? 'Memproses...' : 'Proses Pembayaran'}
+                </Button>
               </CardContent>
             </Card>
 
@@ -709,10 +707,10 @@ const removeItem = (kode) => {
                 <Button 
                   variant="outline"
                   onClick={() => {
-                    if (cart.length === 0) return;
+                    if (cart.length === 0) return
                     
                     if (confirm('Semua item dalam keranjang akan dihapus. Apakah Anda yakin?')) {
-                      setCart([]);
+                      setCart([])
                       Swal.fire({
                         title: "Berhasil",
                         text: "Keranjang berhasil dikosongkan",
@@ -721,7 +719,7 @@ const removeItem = (kode) => {
                         position: "top-end",
                         showConfirmButton: false,
                         timer: 3000
-                      });
+                      })
                     }
                   }}
                   disabled={cart.length === 0}
@@ -733,9 +731,9 @@ const removeItem = (kode) => {
                 <Button 
                   variant="outline"
                   onClick={() => {
-                    setScan('');
-                    setSearchQuery('');
-                    setShowSearchResults(false);
+                    setScan('')
+                    setSearchQuery('')
+                    setShowSearchResults(false)
                   }}
                   className="w-full"
                 >
