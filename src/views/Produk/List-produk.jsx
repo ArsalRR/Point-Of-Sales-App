@@ -7,14 +7,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select'
-import { 
   Search, 
+  DollarSign,
+  Archive,
+  ShoppingCart,
+  Tag,
   Plus, 
   Filter, 
   ChevronLeft, 
@@ -165,265 +162,344 @@ export default function ListProduk() {
       return <Badge variant="default">Tersedia</Badge>
     }
   }
-
+const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('id-ID', { 
+      style: 'currency', 
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
   if (loading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-12">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="flex items-center justify-center py-12">
           <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">Memuat data produk...</p>
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-gray-400" />
+            <p className="text-gray-500">Memuat data produk...</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     )
   }
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-12">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="flex items-center justify-center py-12">
           <div className="text-center">
-            <AlertCircle className="h-8 w-8 mx-auto mb-4 text-destructive" />
-            <p className="text-destructive mb-4">{error}</p>
-            <Button onClick={() => window.location.reload()}>Coba Lagi</Button>
+            <AlertCircle className="h-8 w-8 mx-auto mb-4 text-red-500" />
+            <p className="text-red-600 mb-4">{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            >
+              Coba Lagi
+            </button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        {/* Header */}
+        <div className="border-b border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Package className="h-5 w-5" />
-              <CardTitle>List Produk</CardTitle>
-              <Badge variant="secondary">{filteredAndSortedProduk.length} produk</Badge>
+              <h2 className="text-xl font-semibold">List Produk</h2>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                {filteredAndSortedProduk.length} produk
+              </span>
             </div>
-            <Link to="/produk/create">
+           <Link to="/produk/create">
               <Button className="gap-2">
                 <Plus className="h-4 w-4" />
                 Tambah Produk
               </Button>
             </Link>
           </div>
-        </CardHeader>
+        </div>
 
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
+        <div className="p-6">
+          {/* Controls */}
+          <div className="flex flex-col gap-4 mb-6">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <input
+                type="text"
                 placeholder="Cari berdasarkan nama, kode, atau satuan..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
 
-            {/* Sort By */}
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="Urutkan berdasarkan" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="nama_barang">Nama Barang</SelectItem>
-                <SelectItem value="kode_barang">Kode Barang</SelectItem>
-                <SelectItem value="harga">Harga</SelectItem>
-                <SelectItem value="stok">Stok</SelectItem>
-                <SelectItem value="harga_renteng">Harga Renteng</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Filters and Sort */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <select 
+                value={sortBy} 
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="nama_barang">Nama Barang</option>
+                <option value="kode_barang">Kode Barang</option>
+                <option value="harga">Harga</option>
+                <option value="stok">Stok</option>
+              </select>
 
-            {/* Sort Order */}
-            <Select value={sortOrder} onValueChange={setSortOrder}>
-              <SelectTrigger className="w-full md:w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="asc">A-Z / Rendah</SelectItem>
-                <SelectItem value="desc">Z-A / Tinggi</SelectItem>
-              </SelectContent>
-            </Select>
+              <select 
+                value={sortOrder} 
+                onChange={(e) => setSortOrder(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="asc">A-Z / Rendah</option>
+                <option value="desc">Z-A / Tinggi</option>
+              </select>
 
-            {/* Filter Stock */}
-            <Select value={filterStok} onValueChange={setFilterStok}>
-              <SelectTrigger className="w-full md:w-[150px]">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Stok</SelectItem>
-                <SelectItem value="in-stock">Tersedia</SelectItem>
-                <SelectItem value="low-stock">Stok Sedikit</SelectItem>
-                <SelectItem value="out-of-stock">Habis</SelectItem>
-              </SelectContent>
-            </Select>
+              <select 
+                value={filterStok} 
+                onChange={(e) => setFilterStok(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">Semua Stok</option>
+                <option value="in-stock">Tersedia</option>
+                <option value="low-stock">Stok Sedikit</option>
+                <option value="out-of-stock">Habis</option>
+              </select>
+
+              <select 
+                value={itemsPerPage.toString()} 
+                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="5">5 item</option>
+                <option value="10">10 item</option>
+                <option value="25">25 item</option>
+                <option value="50">50 item</option>
+              </select>
+            </div>
           </div>
 
-          {/* Items Per Page */}
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-sm text-muted-foreground">Tampilkan:</span>
-            <Select 
-              value={itemsPerPage.toString()} 
-              onValueChange={(value) => setItemsPerPage(Number(value))}
-            >
-              <SelectTrigger className="w-20">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">5</SelectItem>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="text-sm text-muted-foreground">item per halaman</span>
-          </div>
-
-          {/* Table */}
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-16">No</TableHead>
-                  <TableHead>Kode Barang</TableHead>
-                  <TableHead>Nama Barang</TableHead>
-                  <TableHead className="text-right">Harga</TableHead>
-                  <TableHead className="text-right">Harga Rentengan</TableHead>
-                  <TableHead className="text-center">Stok</TableHead>
-                  <TableHead>Satuan Jual</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-center">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {currentItems.length > 0 ? (
-                  currentItems.map((item, index) => (
-                    <TableRow key={item.id} className="hover:bg-muted/50">
-                      <TableCell className="font-medium">
-                        {startIndex + index + 1}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {item.kode_barang}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {item.nama_barang}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {new Intl.NumberFormat('id-ID', { 
-                          style: 'currency', 
-                          currency: 'IDR' 
-                        }).format(item.harga)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {new Intl.NumberFormat('id-ID', { 
-                          style: 'currency', 
-                          currency: 'IDR' 
-                        }).format(item.harga_renteng)}
-                      </TableCell>
-                      <TableCell className="text-center font-medium">
-                        {item.stok}
-                      </TableCell>
-                      <TableCell>{item.satuan_barang}</TableCell>
-                      <TableCell className="text-center">
-                        {getStockBadge(item.stok)}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <Link to={`/produk/edit/${item.id}`}>
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                          <Button 
-                            variant="destructive" 
-                            size="sm"
-                            onClick={() => {
-                              Swal.fire({
-                                title: 'Apakah anda yakin?',
-                                text: "Data produk akan dihapus permanen!",
-                                icon: 'warning',
-                                showCancelButton: true,
-                                confirmButtonColor: '#3085d6', 
-                                cancelButtonColor: '#d33',
-                                confirmButtonText: 'Ya, hapus!',
-                                cancelButtonText: 'Batal'
-                              }).then((result) => {
-                                if (result.isConfirmed) {
-                                  hapusData(item.id)
+          {/* Desktop Table View */}
+          <div className="hidden lg:block">
+            <div className="rounded-md border border-gray-200 overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">No</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kode Barang</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Barang</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Harga</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Harga Renteng</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Stok</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Satuan</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {currentItems.length > 0 ? (
+                    currentItems.map((item, index) => (
+                      <tr key={item.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {startIndex + index + 1}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
+                          {item.kode_barang}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {item.nama_barang}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                          {formatCurrency(item.harga)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                          {formatCurrency(item.harga_renteng)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
+                          {item.stok}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.satuan_barang}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          {getStockBadge(item.stok)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button className="p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded">
+                              <Edit className="h-4 w-4" />
+                            </button>
+                            <button 
+                              onClick={() => {
+                                if (confirm('Apakah Anda yakin ingin menghapus produk ini?')) {
+                                  hapusData(item.id);
                                 }
-                              })
-                            }}
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
+                              }}
+                              className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
+                            >
+                              <Trash className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={9} className="px-6 py-12 text-center">
+                        <div className="text-gray-500">
+                          <Package className="h-8 w-8 mx-auto mb-4 opacity-50" />
+                          <p>Tidak ada produk yang ditemukan</p>
+                          <p className="text-sm">Coba ubah kriteria pencarian</p>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12">
-                      <div className="text-muted-foreground">
-                        <Package className="h-8 w-8 mx-auto mb-4 opacity-50" />
-                        <p>Tidak ada produk yang ditemukan</p>
-                        <p className="text-sm">Coba ubah kriteria pencarian</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="lg:hidden space-y-4">
+            {currentItems.length > 0 ? (
+              currentItems.map((item, index) => (
+                <div key={item.id} className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                  <div className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
+                            #{startIndex + index + 1}
+                          </span>
+                          <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-mono font-medium bg-blue-100 text-blue-800">
+                            {item.kode_barang}
+                          </span>
+                        </div>
+                        <h3 className="font-semibold text-lg leading-tight text-gray-900">
+                          {item.nama_barang}
+                        </h3>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                      <div className="flex gap-1">
+                        <button className="p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded">
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if (confirm('Apakah Anda yakin ingin menghapus produk ini?')) {
+                              hapusData(item.id);
+                            }
+                          }}
+                          className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
+                        >
+                          <Trash className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 mb-3">
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-2">
+                          <DollarSign className="h-4 w-4 text-gray-400 mt-0.5" />
+                          <div>
+                            <p className="text-sm text-gray-500">Harga Satuan</p>
+                            <p className="font-semibold text-gray-900">{formatCurrency(item.harga)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Archive className="h-4 w-4 text-gray-400 mt-0.5" />
+                          <div>
+                            <p className="text-sm text-gray-500">Stok</p>
+                            <p className="font-semibold text-gray-900">{item.stok} {item.satuan_barang}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-2">
+                          <ShoppingCart className="h-4 w-4 text-gray-400 mt-0.5" />
+                          <div>
+                            <p className="text-sm text-gray-500">Harga Renteng</p>
+                            <p className="font-semibold text-gray-900">{formatCurrency(item.harga_renteng)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Tag className="h-4 w-4 text-gray-400 mt-0.5" />
+                          <div>
+                            <p className="text-sm text-gray-500">Status</p>
+                            <div className="mt-1">
+                              {getStockBadge(item.stok)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="bg-white border border-gray-200 rounded-lg">
+                <div className="text-center py-12">
+                  <div className="text-gray-500">
+                    <Package className="h-8 w-8 mx-auto mb-4 opacity-50" />
+                    <p>Tidak ada produk yang ditemukan</p>
+                    <p className="text-sm">Coba ubah kriteria pencarian</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6">
-              <div className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+              <div className="text-sm text-gray-500">
                 Menampilkan {startIndex + 1}-{Math.min(endIndex, filteredAndSortedProduk.length)} dari {filteredAndSortedProduk.length} produk
               </div>
               
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
+                <button
                   onClick={() => goToPage(currentPage - 1)}
                   disabled={currentPage === 1}
+                  className="inline-flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft className="h-4 w-4" />
-                  Sebelumnya
-                </Button>
+                  <span className="hidden sm:inline">Sebelumnya</span>
+                </button>
                 
                 <div className="flex gap-1">
                   {getPageNumbers().map(page => (
-                    <Button
+                    <button
                       key={page}
-                      variant={page === currentPage ? "default" : "outline"}
-                      size="sm"
                       onClick={() => goToPage(page)}
-                      className="w-10"
+                      className={`w-10 h-10 rounded-md text-sm font-medium ${
+                        page === currentPage 
+                          ? 'bg-blue-500 text-white' 
+                          : 'border border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                      }`}
                     >
                       {page}
-                    </Button>
+                    </button>
                   ))}
                 </div>
                 
-                <Button
-                  variant="outline"
-                  size="sm"
+                <button
                   onClick={() => goToPage(currentPage + 1)}
                   disabled={currentPage === totalPages}
+                  className="inline-flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Selanjutnya
+                  <span className="hidden sm:inline">Selanjutnya</span>
                   <ChevronRight className="h-4 w-4" />
-                </Button>
+                </button>
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
-  )
+  );
 }

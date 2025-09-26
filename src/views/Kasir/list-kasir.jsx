@@ -298,13 +298,11 @@ export default function ListKasir() {
     return getCurrentPrice(item) * item.jumlah
   }
   
-  // Hitung total keranjang
+
   const cartSubtotal = cart.reduce((s, i) => s + subtotal(i), 0)
   const diskon = parseFloat(formData.diskon) || 0
   const total = cartSubtotal - diskon
   const searchResults = searchProducts(searchQuery)
-
-  // Show print component if needed
   if (showPrint && printData) {
     return (
       <NotaPembelian 

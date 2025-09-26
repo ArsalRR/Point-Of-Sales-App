@@ -1,6 +1,6 @@
 import {useState, useEffect} from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getProdukById, editProduk } from '../../api/Produkapi';
+import { editProduk,getProdukById } from '@/api/Produkapi';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -61,7 +61,8 @@ export default function EditProduk() {
   useEffect(() => {
     const fetchProduk = async () => {
       try {
-        const response = await getProdukById(id)
+        const response = await editProduk(id)
+        console.log(response.data)
         setProduk(response.data)
         setFormData({
           kode_barang: response.data.kode_barang,
