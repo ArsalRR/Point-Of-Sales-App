@@ -8,10 +8,14 @@ import ListKasir from "./views/Kasir/list-kasir"
 import Dashboard from "./views/Dasboard/dasboard"
 import LaporanHarian from "./views/Laporan/laporan-harian"
 import ProtectedRoute from "./middleware/ProtectRoutes"
+import LaporanBulanan from "./views/Laporan/laporan-bulanan"
+import NetworkNotifier from "./hooks/NetworkNotifier"
 
 function App() {
   return (
     <>
+    <NetworkNotifier>
+    </NetworkNotifier>
       <Routes>
       
         <Route path="/" element={<Login />} />
@@ -71,6 +75,16 @@ function App() {
             <ProtectedRoute>
               <DashboardLayout>
                 <LaporanHarian />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/laporanbulanan"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <LaporanBulanan />
               </DashboardLayout>
             </ProtectedRoute>
           }

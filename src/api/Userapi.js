@@ -8,7 +8,6 @@ export const login = async (email, password) => {
     localStorage.setItem('token', token);
     return response.data;
   } catch (error) {
-    console.error('Error logging in:', error);
     throw error;
   }
 };
@@ -28,7 +27,6 @@ export const logout = async () => {
 
     localStorage.removeItem("token") 
   } catch (error) {
-    console.error("Error logging out:", error)
     throw error
   }
 }
@@ -43,7 +41,6 @@ export const getProfile = async () => {
     })
     return response.data 
   } catch (error) {
-    console.error("Error fetching profile:", error)
     throw error
   }
 }

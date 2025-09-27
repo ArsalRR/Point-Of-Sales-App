@@ -25,7 +25,7 @@ export const getlaporanbulanan = async () => {
     const token = localStorage.getItem("token");
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     const response = await axios.get(
-      `${import.meta.env.VITE_API_URL}/penjualan-bulanan`,
+      `${import.meta.env.VITE_API_URL}penjualan-bulanan`,
       { headers }
     );
     return response.data.data || response.data; 

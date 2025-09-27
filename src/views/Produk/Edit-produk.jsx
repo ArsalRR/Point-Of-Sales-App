@@ -1,6 +1,6 @@
-import {useState, useEffect} from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { editProduk,getProdukById } from '@/api/Produkapi';
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import { editProduk, getProdukById } from '@/api/Produkapi'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -20,28 +20,27 @@ import {
   Hash,
   AlertCircle,
   Loader2,
-  Calculator,
   Box,
-  TrendingUp
 } from "lucide-react"
 import Swal from "sweetalert2"
 
 export default function EditProduk() {
   const [produk, setProduk] = useState({})
-  const {id} = useParams()
+  const { id } = useParams()
   const navigate = useNavigate()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
-  const [success, setSuccess] = useState(false)
+  const [submitting, setSubmitting] = useState(false) // Pisahkan loading state
   const [errors, setErrors] = useState({})
+
   const initialFormData = {
     kode_barang: "",
     nama_barang: "",
     harga: "",
     harga_renteng: "",
-    stok: "",
+    stok: 0,
     satuan_barang: "",
-    limit_stok: "",
+    limit_stok: 0,
   }
   const [formData, setFormData] = useState(initialFormData)
 
@@ -59,98 +58,140 @@ export default function EditProduk() {
   ]
 
   useEffect(() => {
-    const fetchProduk = async () => {
+    const fetchData = async () => {
       try {
-        const response = await editProduk(id)
-        console.log(response.data)
-        setProduk(response.data)
+        setLoading(true)
+        const data = await getProdukById(id)
+        console.log('Fetched data:', data) // Debug log
+        
+        setProduk(data)
         setFormData({
-          kode_barang: response.data.kode_barang,
-          nama_barang: response.data.nama_barang,
-          harga: response.data.harga,
-          harga_renteng: response.data.harga_renteng,
-          stok: response.data.stok,
-          satuan_barang: response.data.satuan_barang,
-          limit_stok: response.data.limit_stok,
+          kode_barang: data.kode_barang || "",
+          nama_barang: data.nama_barang || "",
+          harga: data.harga ? data.harga.toString() : "",
+          harga_renteng: data.harga_renteng ? data.harga_renteng.toString() : "",
+          stok: Number(data.stok) || 0,
+          satuan_barang: data.satuan_barang || "",
+          limit_stok: Number(data.limit_stok) || 0,
         })
-        setLoading(false)
-      } catch (error) {
-        setError('Gagal mengambil data produk')
+        setError('') // Clear any previous errors
+      } catch (err) {
+        console.error("Gagal ambil produk:", err)
+        setError("Gagal memuat data produk")
+      } finally {
         setLoading(false)
       }
     }
-    fetchProduk()
+    
+    if (id) {
+      fetchData()
+    }
   }, [id])
 
   const validateForm = () => {
     const newErrors = {}
-
-    if (!formData.kode_barang.trim()) {
+    
+    if (!formData.kode_barang?.trim()) {
       newErrors.kode_barang = "Kode barang harus diisi"
     }
-
-    if (!formData.nama_barang.trim()) {
+    
+    if (!formData.nama_barang?.trim()) {
       newErrors.nama_barang = "Nama barang harus diisi"
     }
-
-    if (!formData.harga || formData.harga <= 0) {
+    
+    const hargaNum = parseCurrency(formData.harga)
+    if (!hargaNum || hargaNum <= 0) {
       newErrors.harga = "Harga harus lebih dari 0"
     }
-
-    if (!formData.stok || formData.stok < 0) {
+    
+    if (Number(formData.stok) < 0) {
       newErrors.stok = "Stok tidak boleh negatif"
     }
-
-    if (!formData.limit_stok || formData.limit_stok < 0) {
-      newErrors.limit_stok = "Limit stok harus diisi dan tidak boleh negatif"
+    
+    if (Number(formData.limit_stok) < 0) {
+      newErrors.limit_stok = "Limit stok tidak boleh negatif"
     }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }))
+    setFormData((prev) => ({ ...prev, [name]: value }))
+    
+    // Clear error when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ""
-      }))
+      setErrors(prev => ({ ...prev, [name]: '' }))
     }
   }
 
   const handleSelectChange = (value) => {
-    if (value === "custom") {
-      return setFormData(prev => ({
-        ...prev,
-        satuan_barang: value,
-        limit_stok: "",
-      }))
+    setFormData(prev => ({ ...prev, satuan_barang: value }))
+  }
+
+  const formatCurrency = (value) => {
+    if (!value || value === "0") return ""
+    
+    // Remove non-numeric characters except comma
+    let val = value.toString().replace(/[^,\d]/g, "")
+    let split = val.split(",")
+    let remainder = split[0].length % 3
+    let rupiah = split[0].substr(0, remainder)
+    let thousands = split[0].substr(remainder).match(/\d{3}/gi)
+
+    if (thousands) {
+      let separator = remainder ? "." : ""
+      rupiah += separator + thousands.join(".")
     }
-    setFormData(prev => ({
-      ...prev,
-      satuan_barang: value
-    }))
+    
+    rupiah = split[1] !== undefined ? rupiah + "," + split[1] : rupiah
+    return rupiah ? "Rp " + rupiah : ""
+  }
+
+  const parseCurrency = (value) => {
+    if (!value) return 0
+    return parseInt(value.toString().replace(/[^0-9]/g, ""), 10) || 0
+  }
+
+  const handleCurrencyChange = (fieldName, value) => {
+    const numericValue = parseCurrency(value)
+    setFormData(prev => ({ ...prev, [fieldName]: numericValue.toString() }))
+    
+    // Clear error when user starts typing
+    if (errors[fieldName]) {
+      setErrors(prev => ({ ...prev, [fieldName]: '' }))
+    }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
+      console.log('Validation errors:', errors)
       return
     }
 
-    setLoading(true)
-    setSuccess(false)
-    
+    setSubmitting(true)
+    setErrors({}) // Clear previous errors
+
     try {
-      await editProduk(id, formData)
-      setSuccess(true)
-      
-      Swal.fire({
+      const payload = {
+        kode_barang: formData.kode_barang.trim(),
+        nama_barang: formData.nama_barang.trim(),
+        harga: parseCurrency(formData.harga).toString(), // Convert to string
+        harga_renteng: parseCurrency(formData.harga_renteng).toString(), // Convert to string
+        stok: Number(formData.stok), 
+        limit_stok: Number(formData.limit_stok),
+        satuan_barang: formData.satuan_barang || "pcs"
+      }
+
+      console.log('Submitting payload:', payload) // Debug log
+
+      const result = await editProduk(id, payload)
+      console.log('Update result:', result) // Debug log
+
+      await Swal.fire({
         title: "Berhasil!",
         text: "Produk berhasil diperbarui",
         icon: "success",
@@ -158,42 +199,55 @@ export default function EditProduk() {
         timer: 2000,
         timerProgressBar: true,
         toast: true,
-        position: "top-end",
-        didClose: () => {
-          navigate('/produk')
-        }
+        position: "top-end"
       })
+
+      navigate('/produk')
+      
     } catch (error) {
       console.error("Error updating product:", error)
-      setErrors({ submit: 'Gagal memperbarui produk. Silakan coba lagi.' })
-      setLoading(false)
+      
+      let errorMessage = 'Gagal memperbarui produk'
+      let fieldErrors = {}
+      
+      if (error.response?.data) {
+        if (error.response.data.errors) {
+          fieldErrors = error.response.data.errors
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message
+        }
+      }
+      
+      setErrors({ ...fieldErrors, submit: errorMessage })
+    } finally {
+      setSubmitting(false)
     }
   }
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6">
+        <Card className="max-w-4xl mx-auto">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin mb-4 text-muted-foreground" />
             <p className="text-muted-foreground">Memuat data produk...</p>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <AlertCircle className="h-8 w-8 mx-auto mb-4 text-destructive" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6">
+        <Card className="max-w-4xl mx-auto">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <AlertCircle className="h-8 w-8 mb-4 text-destructive" />
             <p className="text-destructive mb-4">{error}</p>
             <Button onClick={() => window.location.reload()}>Coba Lagi</Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
@@ -202,11 +256,9 @@ export default function EditProduk() {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Edit Produk</h1>
-              <p className="text-muted-foreground">Perbarui informasi produk di bawah ini</p>
-            </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Edit Produk</h1>
+            <p className="text-muted-foreground">Perbarui informasi produk: {produk.nama_barang}</p>
           </div>
           <Package className="w-12 h-12 text-blue-600" />
         </div>
@@ -220,206 +272,161 @@ export default function EditProduk() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
+          {/* Informasi Dasar */}
           <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Hash className="w-5 h-5" />
-                Informasi Dasar
+                <Hash className="w-5 h-5" /> Informasi Dasar
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="kode_barang" className="text-sm font-medium">
-                    Kode Barang *
-                  </Label>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <Label htmlFor="kode_barang">Kode Barang *</Label>
+                <Input
+                  id="kode_barang"
+                  name="kode_barang"
+                  value={formData.kode_barang}
+                  onChange={handleChange}
+                  placeholder="PRD001"
+                  className={errors.kode_barang ? 'border-red-500' : ''}
+                />
+                {errors.kode_barang && <p className="text-sm text-red-500 mt-1">{errors.kode_barang}</p>}
+              </div>
+              <div>
+                <Label htmlFor="nama_barang">Nama Barang *</Label>
+                <Input
+                  id="nama_barang"
+                  name="nama_barang"
+                  value={formData.nama_barang}
+                  onChange={handleChange}
+                  placeholder="Masukkan nama produk"
+                  className={errors.nama_barang ? 'border-red-500' : ''}
+                />
+                {errors.nama_barang && <p className="text-sm text-red-500 mt-1">{errors.nama_barang}</p>}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Informasi Harga */}
+          <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5" /> Informasi Harga
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <Label htmlFor="harga">Harga Jual *</Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="kode_barang"
-                    name="kode_barang"
-                    value={formData.kode_barang}
-                    onChange={handleChange}
-                    placeholder="PRD001"
-                    className={`h-12 ${errors.kode_barang ? 'border-red-500' : ''}`}
+                    id="harga"
+                    name="harga"
+                    type="text"
+                    value={formatCurrency(formData.harga)}
+                    onChange={(e) => handleCurrencyChange('harga', e.target.value)}
+                    placeholder="Masukkan Harga"
+                    className={`pl-10 ${errors.harga ? 'border-red-500' : ''}`}
                   />
-                  {errors.kode_barang && (
-                    <p className="text-sm text-red-500">{errors.kode_barang}</p>
-                  )}
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="nama_barang" className="text-sm font-medium">
-                    Nama Barang *
-                  </Label>
+                {errors.harga && <p className="text-sm text-red-500 mt-1">{errors.harga}</p>}
+              </div>
+              <div>
+                <Label htmlFor="harga_renteng">Harga Rentengan</Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="nama_barang"
-                    name="nama_barang"
-                    value={formData.nama_barang}
-                    onChange={handleChange}
-                    placeholder="Masukkan nama produk"
-                    className={`h-12 ${errors.nama_barang ? 'border-red-500' : ''}`}
+                    id="harga_renteng"
+                    name="harga_renteng"
+                    type="text"
+                    value={formatCurrency(formData.harga_renteng)}
+                    onChange={(e) => handleCurrencyChange('harga_renteng', e.target.value)}
+                    placeholder="Masukkan Harga Rentengan"
+                    className={`pl-10 ${errors.harga_renteng ? 'border-red-500' : ''}`}
                   />
-                  {errors.nama_barang && (
-                    <p className="text-sm text-red-500">{errors.nama_barang}</p>
-                  )}
                 </div>
+                {errors.harga_renteng && <p className="text-sm text-red-500 mt-1">{errors.harga_renteng}</p>}
               </div>
             </CardContent>
           </Card>
 
-          {/* Pricing Information */}
+          {/* Informasi Stok */}
           <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5" />
-                Informasi Harga
+                <Box className="w-5 h-5" /> Informasi Stok
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="harga" className="text-sm font-medium">
-                    Harga Satuan *
-                  </Label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="harga"
-                      name="harga"
-                      type="number"
-                      value={formData.harga}
-                      onChange={handleChange}
-                      placeholder="0"
-                      className={`h-12 pl-10 ${errors.harga ? 'border-red-500' : ''}`}
-                    />
-                  </div>
-                  {errors.harga && (
-                    <p className="text-sm text-red-500">{errors.harga}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="harga_renteng" className="text-sm font-medium">
-                    Harga Rentengan
-                  </Label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="harga_renteng"
-                      name="harga_renteng"
-                      type="number"
-                      value={formData.harga_renteng}
-                      onChange={handleChange}
-                      placeholder="0"
-                      className="h-12 pl-10"
-                    />
-                  </div>
-                </div>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <Label htmlFor="stok">Stok *</Label>
+                <Input
+                  id="stok"
+                  name="stok"
+                  type="number"
+                  min="0"
+                  value={formData.stok}
+                  onChange={handleChange}
+                  className={errors.stok ? 'border-red-500' : ''}
+                />
+                {errors.stok && <p className="text-sm text-red-500 mt-1">{errors.stok}</p>}
+              </div>
+              <div>
+                <Label htmlFor="limit_stok">Batas Minimum *</Label>
+                <Input
+                  id="limit_stok"
+                  name="limit_stok"
+                  type="number"
+                  min="0"
+                  value={formData.limit_stok}
+                  onChange={handleChange}
+                  className={errors.limit_stok ? 'border-red-500' : ''}
+                />
+                {errors.limit_stok && <p className="text-sm text-red-500 mt-1">{errors.limit_stok}</p>}
+              </div>
+              <div>
+                <Label htmlFor="satuan_barang">Satuan</Label>
+                <Select onValueChange={handleSelectChange} value={formData.satuan_barang}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih satuan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {satuanOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
 
-          {/* Inventory Information */}
-          <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Box className="w-5 h-5" />
-                Informasi Stok
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="stok" className="text-sm font-medium">
-                    Stok Saat Ini *
-                  </Label>
-                  <div className="relative">
-                    <Calculator className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="stok"
-                      name="stok"
-                      type="number"
-                      value={formData.stok}
-                      onChange={handleChange}
-                      placeholder="0"
-                      className={`h-12 pl-10 ${errors.stok ? 'border-red-500' : ''}`}
-                    />
-                  </div>
-                  {errors.stok && (
-                    <p className="text-sm text-red-500">{errors.stok}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="limit_stok" className="text-sm font-medium">
-                    Batas Minimum Stok *
-                  </Label>
-                  <div className="relative">
-                    <TrendingUp className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="limit_stok"
-                      name="limit_stok"
-                      type="number"
-                      value={formData.limit_stok}
-                      onChange={handleChange}
-                      placeholder="0"
-                      className={`h-12 pl-10 ${errors.limit_stok ? 'border-red-500' : ''}`}
-                    />
-                  </div>
-                  {errors.limit_stok && (
-                    <p className="text-sm text-red-500">{errors.limit_stok}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="satuan_barang" className="text-sm font-medium">
-                    Satuan Barang
-                  </Label>
-                  <Select onValueChange={handleSelectChange} value={formData.satuan_barang}>
-                    <SelectTrigger className="h-12">
-                      <SelectValue placeholder="Pilih satuan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {satuanOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {formData.satuan_barang === "custom" && (
-                    <Input
-                      name="satuan_barang"
-                      value={formData.satuan_barang}
-                      onChange={handleChange}
-                      placeholder="Masukkan satuan custom"
-                      className="mt-2"
-                    />
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <div className="flex gap-4 pt-6">
+          <div className="flex gap-4">
             <Link to="/produk" className="flex-1">
-              <Button variant="outline" className="w-full h-12" type="button">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full" 
+                disabled={submitting}
+              >
                 Batal
               </Button>
             </Link>
             <Button 
               type="submit" 
-              className="flex-2 h-12 gap-2" 
-              disabled={loading}
+              className="flex-1" 
+              disabled={submitting}
             >
-              {loading ? (
+              {submitting ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Menyimpan...
                 </>
               ) : (
                 <>
-                  <Save className="w-4 h-4" />
-                  Simpan Perubahan
+                  <Save className="w-4 h-4 mr-2" />
+                  Simpan
                 </>
               )}
             </Button>

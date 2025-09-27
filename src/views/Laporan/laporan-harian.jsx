@@ -273,7 +273,7 @@ const fetchLaporan = useCallback(async () => {
             </div>
             <div>
               <span className="block text-gray-500">Satuan</span>
-              <span className="font-medium">{item.satuan_barang || "-"}</span>
+              <span className="font-medium">{item.satuan || "-"}</span>
             </div>
             <div>
               <span className="block text-gray-500">Harga</span>

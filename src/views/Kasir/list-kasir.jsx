@@ -11,6 +11,7 @@ import { postKasir, getTransaksi } from '@/api/Kasirapi'
 import { getProfile } from '@/api/Userapi'
 import Swal from 'sweetalert2'
 import NotaPembelian from '../Kasir/NotaPembelian'
+
 const getCurrentPrice = (item) => {
   const satuan = item.satuan_terpilih || "satuan"
   
@@ -28,6 +29,7 @@ const getCurrentPrice = (item) => {
       return item.harga
   }
 }
+
 const getSatuanInfo = (item) => {
   const satuan = item.satuan_terpilih || "satuan"
   const basePrice = item.harga
@@ -53,6 +55,7 @@ const getSatuanInfo = (item) => {
       return ""
   }
 }
+
 export default function ListKasir() {
   const [transaksi, setTransaksi] = useState([])
   const [formData, setFormData] = useState({
@@ -94,6 +97,168 @@ export default function ListKasir() {
     }
   }
 
+  // Utility functions untuk parsing dan formatting Rupiah
+  const parseRupiah = (value) => {
+    if (!value && value !== 0) return 0
+    
+    // Convert to string and remove all non-digit characters
+    const numberString = value.toString().replace(/[^\d]/g, "")
+    
+    // Return 0 if empty string, otherwise parse as integer
+    return numberString === "" ? 0 : parseInt(numberString, 10)
+  }
+
+  const formatRupiah = (value) => {
+    // Handle null, undefined, empty string
+    if (!value && value !== 0) return ""
+    
+    const number = typeof value === 'string' ? parseRupiah(value) : value
+    
+    // Handle negative numbers
+    if (number < 0) return ""
+    
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(number)
+  }
+
+  // Helper function untuk format angka tanpa simbol currency (untuk kembalian)
+  const formatNumber = (value) => {
+    if (!value && value !== 0) return "0"
+    
+    const number = typeof value === 'string' ? parseRupiah(value) : value
+    
+    return new Intl.NumberFormat("id-ID", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(number)
+  }
+  const getTotalToBePaid = () => {
+    const subtotal = cart.reduce((sum, item) => {
+      const price = getCurrentPrice(item) || 0
+      const quantity = item.jumlah || 0
+      return sum + (price * quantity)
+    }, 0)
+    
+    const diskon = parseRupiah(formData.diskon)
+    return Math.max(0, subtotal - diskon)
+  }
+  const isPaymentSufficient = () => {
+    const totalUang = parseRupiah(formData.total_uang)
+    const totalToBePaid = getTotalToBePaid()
+    return totalUang >= totalToBePaid
+  }
+
+  const getPaymentStatus = () => {
+    const totalUang = parseRupiah(formData.total_uang)
+    const totalToBePaid = getTotalToBePaid()
+    
+    if (totalUang < totalToBePaid) {
+      const kurang = totalToBePaid - totalUang
+      return {
+        status: 'insufficient',
+        message: `Uang kurang ${formatRupiah(kurang)}`,
+        difference: kurang
+      }
+    }
+    
+    if (totalUang > totalToBePaid) {
+      const kembalian = totalUang - totalToBePaid
+      return {
+        status: 'overpaid',
+        message: `Kembalian ${formatRupiah(kembalian)}`,
+        difference: kembalian
+      }
+    }
+    
+    return {
+      status: 'exact',
+      message: 'Uang pas',
+      difference: 0
+    }
+  }
+
+  // --- Handler untuk Diskon ---
+  const handleDiskonChange = (e) => {
+    const rawValue = e.target.value
+    
+    // Allow empty input
+    if (rawValue === "") {
+      setFormData((prev) => ({
+        ...prev,
+        diskon: "",
+      }))
+      return
+    }
+    
+    // Parse and format the value
+    const numericValue = parseRupiah(rawValue)
+    
+    // Optional: Add maximum diskon validation
+    const subtotal = cart.reduce((sum, item) => sum + (getCurrentPrice(item) * item.jumlah), 0)
+    const maxDiskon = subtotal // Diskon tidak boleh lebih dari subtotal
+    
+    const finalDiskon = Math.min(numericValue, maxDiskon)
+    
+    setFormData((prev) => ({
+      ...prev,
+      diskon: formatRupiah(finalDiskon),
+    }))
+  }
+
+  // --- Handler untuk Total Uang + Kembalian ---
+  const handleTotalUangChange = (e) => {
+    const rawValue = e.target.value
+    
+    // Allow empty input
+    if (rawValue === "") {
+      setFormData((prev) => ({
+        ...prev,
+        total_uang: "",
+        kembalian: 0,
+      }))
+      return
+    }
+    
+    try {
+      const totalUangNumber = parseRupiah(rawValue)
+      
+      // Calculate subtotal
+      const subtotal = cart.reduce((sum, item) => {
+        const price = getCurrentPrice(item) || 0
+        const quantity = item.jumlah || 0
+        return sum + (price * quantity)
+      }, 0)
+      
+      // Calculate diskon
+      const diskonNumber = parseRupiah(formData.diskon)
+      
+      // Calculate total after discount
+      const totalSetelahDiskon = Math.max(0, subtotal - diskonNumber)
+      
+      // Calculate kembalian
+      const kembalian = Math.max(0, totalUangNumber - totalSetelahDiskon)
+      
+      setFormData((prev) => ({
+        ...prev,
+        total_uang: formatRupiah(totalUangNumber),
+        kembalian: kembalian,
+      }))
+      
+    } catch (error) {
+      console.error("Error calculating total uang:", error)
+      // Reset to safe values on error
+      setFormData((prev) => ({
+        ...prev,
+        total_uang: "",
+        kembalian: 0,
+      }))
+    }
+  }
+
   const handleChangeSatuan = (kode_barang, satuan) => {
     setCart((prevCart) =>
       prevCart.map((item) =>
@@ -113,9 +278,12 @@ export default function ListKasir() {
       setIsProcessing(true)
       const res = await postKasir(data)
       const subtotal = cart.reduce((s, i) => s + (getCurrentPrice(i) * i.jumlah), 0)
-      const diskon = parseFloat(formData.diskon) || 0
+      
+      // PERBAIKAN: Gunakan parseRupiah yang konsisten
+      const diskon = parseRupiah(formData.diskon)
+      const total_uang = parseRupiah(formData.total_uang)
+      
       const total = subtotal - diskon
-      const total_uang = parseFloat(formData.total_uang) || 0
       const kembalian = total_uang - total
 
       const transactionData = {
@@ -203,20 +371,27 @@ export default function ListKasir() {
       return
     }
 
+    if (!isPaymentSufficient()) {
+      Swal.fire({
+        title: "Gagal",
+        text: "Total uang tidak mencukupi",
+        icon: "error",
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: 3000
+      })
+      return
+    }
+
     const payload = {
       produk_id: cart.map((i) => i.kode_barang),
       jumlah_terjual_per_hari: cart.map((i) => i.jumlah),
       satuan: cart.map((i) => i.satuan_terpilih || i.satuan),
       users_id: user.id,
-      diskon: formData.diskon,
+      diskon: parseRupiah(formData.diskon),
     }
     postTransaksi(payload)
-  }
-
-  const lookupProduct = (kode) => {
-    if (!Array.isArray(transaksi)) return null
-    const product = transaksi.find(item => item.kode_barang === kode)
-    return product || null
   }
 
   const searchProducts = (query) => {
@@ -242,7 +417,7 @@ export default function ListKasir() {
       setCart([...cart, { 
         ...product, 
         jumlah: 1, 
-        satuan_terpilih: "satuan" // Default satuan
+        satuan_terpilih: "satuan" 
       }])
     }
     
@@ -297,12 +472,12 @@ export default function ListKasir() {
   const subtotal = (item) => {
     return getCurrentPrice(item) * item.jumlah
   }
-  
 
   const cartSubtotal = cart.reduce((s, i) => s + subtotal(i), 0)
-  const diskon = parseFloat(formData.diskon) || 0
-  const total = cartSubtotal - diskon
+  const total = getTotalToBePaid() // PERBAIKAN: Gunakan getTotalToBePaid untuk konsistensi
+  const paymentStatus = getPaymentStatus() // Untuk status pembayaran
   const searchResults = searchProducts(searchQuery)
+
   if (showPrint && printData) {
     return (
       <NotaPembelian 
@@ -353,24 +528,19 @@ export default function ListKasir() {
                       onChange={(e) => {
                         const value = e.target.value
                         setSearchQuery(value)
-
-                        // Langsung cek apakah ini kode barang yang exact match
                         const exactProduct = transaksi.find(
                           (p) => p.kode_barang.trim() === value.trim()
                         )
 
                         if (exactProduct && value.length >= 3) {
-                          // Kemungkinan barcode scan - langsung add dengan delay kecil
                           setTimeout(() => {
                             if (searchQuery === value) {
                               handleSearchSelect(exactProduct)
                               return
                             }
                           }, 50)
-                          return // Jangan tampilkan dropdown
+                          return 
                         }
-
-                        // Untuk pencarian manual, tampilkan dropdown
                         setShowSearchResults(value.length > 0)
                       }}
                       onKeyDown={(e) => {
@@ -385,8 +555,6 @@ export default function ListKasir() {
                             setShowSearchResults(false)
                             return 
                           }
-                          
-                          // Jika tidak ada exact match, pilih yang pertama dari search results
                           if (searchResults.length > 0) {
                             handleSearchSelect(searchResults[0])
                           }
@@ -616,16 +784,14 @@ export default function ListKasir() {
                       Rp {cartSubtotal.toLocaleString()}
                     </span>
                   </div>
-                  
                   {formData.diskon && (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Diskon</span>
                       <span className="font-medium text-green-600">
-                        -Rp {parseFloat(formData.diskon).toLocaleString()}
+                        -{formatRupiah(parseRupiah(formData.diskon))}
                       </span>
                     </div>
                   )}
-                  
                   <Separator />
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-semibold text-gray-900">Total</span>
@@ -640,10 +806,10 @@ export default function ListKasir() {
                     <Label htmlFor="diskon">Potongan Harga</Label>
                     <Input 
                       id="diskon"
-                      type="number" 
+                      type="text" 
                       name="diskon" 
                       value={formData.diskon} 
-                      onChange={handleChange} 
+                      onChange={handleDiskonChange} 
                       placeholder="Masukkan potongan harga"
                       className="mt-1"
                       autoComplete="off"
@@ -654,18 +820,10 @@ export default function ListKasir() {
                     <Label htmlFor="total_uang">Total Uang</Label>
                     <Input 
                       id="total_uang"
-                      type="number" 
+                      type="text" 
                       name="total_uang" 
                       value={formData.total_uang} 
-                      onChange={(e) => {
-                        handleChange(e)
-                        const totalUang = parseFloat(e.target.value) || 0
-                        const kembalian = totalUang - total
-                        setFormData(prev => ({
-                          ...prev,
-                          kembalian: kembalian >= 0 ? kembalian : 0
-                        }))
-                      }}
+                      onChange={handleTotalUangChange}
                       placeholder="Masukkan total uang"
                       className="mt-1"
                     />
@@ -675,24 +833,39 @@ export default function ListKasir() {
                     <Label htmlFor="kembalian">Kembalian</Label>
                     <Input 
                       id="kembalian"
-                      type="number" 
+                      type="text"
                       name="kembalian" 
-                      value={formData.kembalian || 0}
+                      value={formatRupiah(formData.kembalian) || formatRupiah(0)}
                       placeholder="Kembalian akan dihitung otomatis"
                       disabled
                       className="mt-1 bg-gray-50"
                     />
                   </div>
+
+                  {/* PERBAIKAN: Tambahkan status pembayaran */}
+                  {formData.total_uang && (
+                    <div className={`text-sm p-2 rounded-md ${
+                      paymentStatus.status === 'insufficient' ? 'bg-red-50 text-red-600' :
+                      paymentStatus.status === 'overpaid' ? 'bg-green-50 text-green-600' :
+                      'bg-blue-50 text-blue-600'
+                    }`}>
+                      {paymentStatus.message}
+                    </div>
+                  )}
                 </div>
 
                 <Button 
                   onClick={handleSubmit}
-                  disabled={cart.length === 0 || isProcessing}
-                  className="w-full h-12 text-base font-semibold"
+                  disabled={cart.length === 0 || isProcessing || !isPaymentSufficient()}
+                  className={`w-full h-12 text-base font-semibold ${
+                    !isPaymentSufficient() && cart.length > 0 ? 'opacity-50' : ''
+                  }`}
                   size="lg"
                 >
                   <CreditCard className="w-5 h-5 mr-2" />
-                  {isProcessing ? 'Memproses...' : 'Proses Pembayaran'}
+                  {isProcessing ? 'Memproses...' : 
+                   !isPaymentSufficient() && cart.length > 0 ? 'Uang Tidak Cukup' :
+                   'Proses Pembayaran'}
                 </Button>
               </CardContent>
             </Card>

@@ -49,12 +49,16 @@ export const deleteProduk = async (id) => {
 }
 export const getProdukById = async (id) => {
   try {
-    const token = localStorage.getItem('token');
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    const response = await axios.get(`${import.meta.env.VITE_API_URL}produk/${id}`, { headers });
-    return response.data;
+    const token = localStorage.getItem('token')
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+
+    const response = await axios.get(
+      `${import.meta.env.VITE_API_URL}produk/${id}`,
+      { headers }
+    )
+    return response.data.data ?? response.data
   } catch (error) {
-    console.error('Error fetching product by ID:', error);
-    throw error;
+    console.error('Error fetching product by ID:', error)
+    throw error
   }
 }
