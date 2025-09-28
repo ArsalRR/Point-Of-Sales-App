@@ -271,12 +271,13 @@ export default function CreateProduk() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <Link to="/produk">
             <Button variant="ghost" size="sm" className="p-2">
               <ArrowLeft className="w-5 h-5" />
             </Button>
+            </Link>
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Tambah Produk Baru</h1>
               <p className="text-muted-foreground">Lengkapi informasi produk di bawah ini</p>
@@ -369,8 +370,6 @@ export default function CreateProduk() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Pricing Information */}
           <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

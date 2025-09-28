@@ -13,16 +13,25 @@ import {
   ScanLine,
   ChevronLeft,
   ChevronRight,
-  Menu
+  Menu,
 } from 'lucide-react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+
 import { Badge } from '@/components/ui/badge'
+
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,18 +40,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+
 import { logout, getProfile } from '@/api/Userapi'
 import { Link, useLocation } from 'react-router-dom'
+import BottomNav from '@/components/ui/spesialcomponent/BottomNav'
+import { getDasboard } from '@/api/Dasboardapi'
+  
 
 export default function ShadcnSidebar({ children }) {
+
+  const isActive = (path) => location.pathname === path
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+   const [totalProduk, setTotalProduk] = useState(0)
   const [openMenus, setOpenMenus] = useState({
     teams: false,
     account: false
@@ -55,9 +65,21 @@ export default function ShadcnSidebar({ children }) {
       await logout()
       window.location.href = "/"
     } catch (error) {
-      console.error("Logout failed:", error)
+
     }
   }
+const GetCountProduk = async () => {
+  try {
+    const res = await getDasboard()   
+    return res.data.totalProduk       
+  } catch (error) {
+    console.error("Gagal ambil total produk:", error)
+    return 0
+  }
+}
+
+
+
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -66,13 +88,25 @@ export default function ShadcnSidebar({ children }) {
         const userData = profile.data ? profile.data : profile
         setUser(userData)
       } catch (error) {
-        console.error("Error fetching user:", error)
       }
     }
+
 
     fetchUser()
   }, [])
 
+ useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const data = await getDasboard()
+        setTotalProduk(data.totalProduk) 
+      } catch (error) {
+        console.error("Gagal ambil total produk", error)
+      }
+    }
+
+    fetchCount()
+  }, [])
   const toggleMenu = (menuName) => {
     setOpenMenus(prev => ({
       ...prev,
@@ -82,7 +116,7 @@ export default function ShadcnSidebar({ children }) {
 
   const navigationItems = [
     { title: "Dashboard", icon: Home, href: "/dashboard", badge: null },
-    { title: "Data Produk", icon: Package, href: "/produk", badge: "12" },
+    { title: "Data Produk", icon: Package, href: "/produk", badge: totalProduk },
     { title: "Kasir", icon: ScanLine, href: "/kasir", badge: null },
   ]
 
@@ -92,6 +126,7 @@ export default function ShadcnSidebar({ children }) {
   ]
 
   return (
+    
     <TooltipProvider>
       <div className="flex min-h-screen">
         {/* SIDEBAR */}
@@ -99,7 +134,7 @@ export default function ShadcnSidebar({ children }) {
           className={`
             ${isCollapsed ? 'w-16' : 'w-72'} 
             ${isMobileOpen ? 'translate-x-0' : '-translate-x-full sm:translate-x-0'}
-            transition-all duration-300 border-r bg-background flex flex-col fixed sm:static z-50 h-full
+            transition-all duration-300 border-r bg-background flex flex-col fixed sm:static z-40 h-full
           `}
         >
           {/* HEADER */}
@@ -231,68 +266,92 @@ export default function ShadcnSidebar({ children }) {
               </Collapsible>
             </div>
           </nav>
-
-          {/* Footer - User Profile */}
-          <div className="border-t p-4">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className={`w-full ${isCollapsed ? 'px-2' : 'px-3'} h-12 justify-start`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage 
-                        src="https://images.unsplash.com/photo-1600486913747-55e5470d6f40?auto=format&fit=crop&w=1770&q=80" 
-                        alt="User" 
-                      />
-                      <AvatarFallback>U</AvatarFallback>
-                    </Avatar>
-                    {!isCollapsed && (
-                      <div className="flex-1 text-left">
-                        <p className="text-sm font-medium">{user?.name || 'User'}</p>
-                        <p className="text-xs text-muted-foreground">{user?.email || 'email@example.com'}</p>
-                      </div>
-                    )}
-                  </div>
-                  {!isCollapsed && <ChevronDown className="h-4 w-4 ml-auto" />}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Bell className="mr-2 h-4 w-4" />
-                  Notifications
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
         </div>
 
-        {/* MAIN CONTENT */}
-        <main className="flex-1 p-6 sm:ml-0">
-          {/* Mobile Toggle */}
-          <div className="sm:hidden mb-4">
-            <Button variant="outline" size="icon" onClick={() => setIsMobileOpen(true)}>
-              <Menu className="h-5 w-5" />
-            </Button>
-          </div>
-          {children}
-        </main>
+        {/* TOP BAR - Avatar & Notifications */}
+        <div className="flex-1 flex flex-col">
+          <header className="h-16 border-b bg-background flex items-center justify-between px-6 fixed sm:static w-full z-50 sm:z-auto">
+            {/* Mobile sidebar trigger - only visible on mobile */}
+            <div className="sm:hidden">
+              <Button variant="outline" size="icon" onClick={() => setIsMobileOpen(true)}>
+                <Menu className="h-5 w-5" />
+              </Button>
+            </div>
+
+            {/* Spacer for desktop */}
+            <div className="hidden sm:block"></div>
+
+            {/* Right side - Notifications & Avatar */}
+            <div className="flex items-center gap-4">
+              {/* Notifications */}
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="h-4 w-4" />
+                <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full text-xs flex items-center justify-center text-white">
+                  3
+                </span>
+              </Button>
+
+              {/* Avatar Dropdown */}
+           <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className={`flex flex-col items-center ${
+            isActive("/akun") ? "text-black" : "text-gray-500"
+          } hover:text-black`}
+        >
+          <Avatar className="h-6 w-6 mb-1">
+            <AvatarImage
+              src="https://images.unsplash.com/photo-1600486913747-55e5470d6f40?auto=format&fit=crop&w=1770&q=80"
+              alt="User"
+            />
+            <AvatarFallback>U</AvatarFallback>
+          </Avatar>
+        </button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem>
+          <User className="mr-2 h-4 w-4" />
+          Profile
+        </DropdownMenuItem>
+        <DropdownMenuItem>
+          <Settings className="mr-2 h-4 w-4" />
+          Settings
+        </DropdownMenuItem>
+        <DropdownMenuItem>
+          <Bell className="mr-2 h-4 w-4" />
+          Notifications
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="text-destructive"
+          onClick={handleLogout}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Logout
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+            </div>
+          </header>
+
+          {/* MAIN CONTENT */}
+          <main className="flex-1 p-6 pt-20 sm:pt-6">
+            {children}
+          </main>
+        </div>
+
+        {/* Mobile overlay */}
+        {isMobileOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-30 sm:hidden" 
+            onClick={() => setIsMobileOpen(false)}
+          />
+        )}
+
+        <BottomNav/>
       </div>
     </TooltipProvider>
   )

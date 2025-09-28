@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ShoppingCart, Scan, Trash2, Plus, Minus, CreditCard, Search, X, Printer } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
@@ -73,11 +73,92 @@ export default function ListKasir() {
   const [showPrint, setShowPrint] = useState(false)
   const [printData, setPrintData] = useState(null)
   const [user, setUser] = useState(null)
+  const [barcodeBuffer, setBarcodeBuffer] = useState('')
+  const [lastKeyTime, setLastKeyTime] = useState(0)
+  
+  // Ref untuk input search
+  const searchInputRef = useRef(null)
 
   useEffect(() => {
     fetchTransaksi()
     fetchUser()
-  }, [])
+    
+    // Auto-focus ke input search saat component mount
+    if (searchInputRef.current) {
+      searchInputRef.current.focus()
+    }
+    
+    // Event listener untuk menangkap barcode scan global
+    const handleGlobalKeyPress = (e) => {
+      // Cek apakah user sedang mengetik di input field lain
+      const activeElement = document.activeElement
+      const isTypingInInput = activeElement && (
+        activeElement.tagName === 'INPUT' || 
+        activeElement.tagName === 'TEXTAREA' ||
+        activeElement.contentEditable === 'true'
+      )
+      
+      // Jika sedang mengetik di input field lain (bukan search input), jangan deteksi barcode
+      if (isTypingInInput && activeElement !== searchInputRef.current) {
+        setBarcodeBuffer('')
+        return
+      }
+      
+      const currentTime = Date.now()
+      
+      // Jika ada jeda lebih dari 100ms, reset buffer (new scan)
+      if (currentTime - lastKeyTime > 100) {
+        setBarcodeBuffer('')
+      }
+      
+      setLastKeyTime(currentTime)
+      
+      // Tambahkan karakter ke buffer hanya jika tidak sedang mengetik di input lain
+      if (e.key.length === 1 && !isTypingInInput) { // Hanya karakter tunggal
+        setBarcodeBuffer(prev => prev + e.key)
+      }
+      
+      // Jika Enter, proses sebagai barcode scan
+      if (e.key === 'Enter' && barcodeBuffer.length >= 3 && !isTypingInInput) {
+        handleBarcodeDetected(barcodeBuffer)
+        setBarcodeBuffer('')
+        e.preventDefault()
+      }
+    }
+    
+    // Tambahkan event listener global
+    document.addEventListener('keydown', handleGlobalKeyPress)
+    
+    // Cleanup
+    return () => {
+      document.removeEventListener('keydown', handleGlobalKeyPress)
+    }
+  }, [barcodeBuffer, lastKeyTime])
+
+  // Fungsi untuk menangani deteksi barcode
+  const handleBarcodeDetected = (barcode) => {
+    const trimmedBarcode = barcode.trim()
+    
+    // Cari produk berdasarkan kode barcode
+    const product = transaksi.find(p => 
+      p.kode_barang.trim().toLowerCase() === trimmedBarcode.toLowerCase()
+    )
+    
+    if (product) {
+      addProductToCart(product)
+      // Focus kembali ke input search
+      if (searchInputRef.current) {
+        searchInputRef.current.focus()
+      }
+    } else {
+      // Jika tidak ditemukan, set ke search query untuk pencarian manual
+      setSearchQuery(trimmedBarcode)
+      setShowSearchResults(true)
+      if (searchInputRef.current) {
+        searchInputRef.current.focus()
+      }
+    }
+  }
 
   const fetchUser = async () => {
     try {
@@ -136,6 +217,7 @@ export default function ListKasir() {
       maximumFractionDigits: 0,
     }).format(number)
   }
+
   const getTotalToBePaid = () => {
     const subtotal = cart.reduce((sum, item) => {
       const price = getCurrentPrice(item) || 0
@@ -146,15 +228,18 @@ export default function ListKasir() {
     const diskon = parseRupiah(formData.diskon)
     return Math.max(0, subtotal - diskon)
   }
-  const isPaymentSufficient = () => {
-    const totalUang = parseRupiah(formData.total_uang)
-    const totalToBePaid = getTotalToBePaid()
-    return totalUang >= totalToBePaid
-  }
 
   const getPaymentStatus = () => {
     const totalUang = parseRupiah(formData.total_uang)
     const totalToBePaid = getTotalToBePaid()
+    
+    if (totalUang === 0 && formData.total_uang === '') {
+      return {
+        status: 'empty',
+        message: 'Masukkan total uang (opsional)',
+        difference: 0
+      }
+    }
     
     if (totalUang < totalToBePaid) {
       const kurang = totalToBePaid - totalUang
@@ -279,12 +364,12 @@ export default function ListKasir() {
       const res = await postKasir(data)
       const subtotal = cart.reduce((s, i) => s + (getCurrentPrice(i) * i.jumlah), 0)
       
-      // PERBAIKAN: Gunakan parseRupiah yang konsisten
+      // Gunakan parseRupiah yang konsisten
       const diskon = parseRupiah(formData.diskon)
       const total_uang = parseRupiah(formData.total_uang)
       
       const total = subtotal - diskon
-      const kembalian = total_uang - total
+      const kembalian = total_uang > 0 ? Math.max(0, total_uang - total) : 0
 
       const transactionData = {
         no_transaksi: res.no_transaksi,
@@ -322,6 +407,13 @@ export default function ListKasir() {
         kembalian: 0
       })
       setShowPrint(true)
+      
+      // Focus kembali ke search input setelah transaksi
+      setTimeout(() => {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus()
+        }
+      }, 100)
       
     } catch (error) {
       console.error('Error posting transaksi:', error)
@@ -371,19 +463,7 @@ export default function ListKasir() {
       return
     }
 
-    if (!isPaymentSufficient()) {
-      Swal.fire({
-        title: "Gagal",
-        text: "Total uang tidak mencukupi",
-        icon: "error",
-        toast: true,
-        position: "top-end",
-        showConfirmButton: false,
-        timer: 3000
-      })
-      return
-    }
-
+    // HAPUS VALIDASI TOTAL UANG - Sekarang tidak wajib
     const payload = {
       produk_id: cart.map((i) => i.kode_barang),
       jumlah_terjual_per_hari: cart.map((i) => i.jumlah),
@@ -428,18 +508,16 @@ export default function ListKasir() {
       toast: true,
       position: "top-end",
       showConfirmButton: false,
-      timer: 3000
+      timer: 2000
     })
   }
 
   const handleSearchSelect = (product) => {
-    // Langsung cek apakah ini kode barang yang exact match
     const exactProduct = transaksi.find(
       (p) => p.kode_barang.trim() === searchQuery.trim()
     )
 
     if (exactProduct && searchQuery.length >= 3) {
-      // Kemungkinan barcode scan - langsung add
       setTimeout(() => {
         if (searchQuery === searchQuery) {
           addProductToCart(exactProduct)
@@ -468,14 +546,13 @@ export default function ListKasir() {
     setCart(cart.filter((c) => c.kode_barang !== kode))
   }
 
-  // Hitung subtotal berdasarkan harga satuan yang dipilih
   const subtotal = (item) => {
     return getCurrentPrice(item) * item.jumlah
   }
 
   const cartSubtotal = cart.reduce((s, i) => s + subtotal(i), 0)
-  const total = getTotalToBePaid() // PERBAIKAN: Gunakan getTotalToBePaid untuk konsistensi
-  const paymentStatus = getPaymentStatus() // Untuk status pembayaran
+  const total = getTotalToBePaid() 
+  const paymentStatus = getPaymentStatus() 
   const searchResults = searchProducts(searchQuery)
 
   if (showPrint && printData) {
@@ -485,6 +562,12 @@ export default function ListKasir() {
         onClose={() => {
           setShowPrint(false)
           setPrintData(null)
+          // Focus kembali ke search input setelah print
+          setTimeout(() => {
+            if (searchInputRef.current) {
+              searchInputRef.current.focus()
+            }
+          }, 100)
         }} 
       />
     )
@@ -501,7 +584,7 @@ export default function ListKasir() {
               </div>
               <div>
                 <CardTitle className="text-2xl font-bold text-gray-900">Kasir Toko IFA</CardTitle>
-                <p className="text-gray-600 mt-1">Sistem Kasir Terpadu</p>
+                <p className="text-gray-600 mt-1">Sistem Kasir Terpadu - Auto Barcode Detection</p>
               </div>
             </div>
           </CardHeader>
@@ -518,11 +601,13 @@ export default function ListKasir() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="relative">
-                  <Label htmlFor="unified-search" className="text-sm font-medium text-gray-700 mb-2 block">
+                  <Label htmlFor="unified-search" className="text-lg font-medium text-gray-700 mb-3 block">
                     Scan Barcode / Cari Produk
                   </Label>
                   <div className="relative flex gap-3">
+                    {/* INPUT DIPERBESAR DAN DIPERLEBAR */}
                     <Input 
+                      ref={searchInputRef}
                       id="unified-search"
                       value={searchQuery}
                       onChange={(e) => {
@@ -569,11 +654,11 @@ export default function ListKasir() {
                       }}
                       onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
                       placeholder="Scan barcode atau ketik nama produk..."
-                      className="pl-10 pr-10"
+                      className="pl-12 pr-12 h-16 text-xl font-medium w-full" // DIPERBESAR DAN DIPERLEBAR
                       autoComplete="off"
                     />
 
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-6 h-6 text-gray-400" />
                     {searchQuery && (
                       <Button
                         variant="ghost"
@@ -581,14 +666,18 @@ export default function ListKasir() {
                         onClick={() => {
                           setSearchQuery("")
                           setShowSearchResults(false)
+                          if (searchInputRef.current) {
+                            searchInputRef.current.focus()
+                          }
                         }}
-                        className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 h-10 w-10 p-0"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-5 h-5" />
                       </Button>
                     )}
                   </div>
 
+                  {/* Hapus indikator barcode detection yang mengganggu */}
                   {/* Dropdown untuk pencarian manual */}
                   {showSearchResults && searchResults.length > 0 && (
                     <Card className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-auto shadow-lg">
@@ -803,7 +892,8 @@ export default function ListKasir() {
 
                 <div className="space-y-4">        
                   <div>
-                    <Label htmlFor="diskon">Potongan Harga</Label>
+                    <Label htmlFor="diskon" className="text-base font-medium">Potongan Harga (Opsional)</Label>
+                    {/* INPUT DIPERBESAR DAN DIPERLEBAR */}
                     <Input 
                       id="diskon"
                       type="text" 
@@ -811,26 +901,28 @@ export default function ListKasir() {
                       value={formData.diskon} 
                       onChange={handleDiskonChange} 
                       placeholder="Masukkan potongan harga"
-                      className="mt-1"
+                      className="mt-2 h-12 text-lg" 
                       autoComplete="off"
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="total_uang">Total Uang</Label>
+                    <Label htmlFor="total_uang" className="text-base font-medium">Total Uang (Opsional)</Label>
+                    {/* INPUT DIPERBESAR DAN DIPERLEBAR */}
                     <Input 
                       id="total_uang"
                       type="text" 
                       name="total_uang" 
                       value={formData.total_uang} 
                       onChange={handleTotalUangChange}
-                      placeholder="Masukkan total uang"
-                      className="mt-1"
+                      placeholder="Masukkan total uang yang dibayar"
+                      className="mt-2 h-12 text-lg"
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="kembalian">Kembalian</Label>
+                    <Label htmlFor="kembalian" className="text-base font-medium">Kembalian</Label>
+                    {/* INPUT DIPERBESAR DAN DIPERLEBAR */}
                     <Input 
                       id="kembalian"
                       type="text"
@@ -838,13 +930,13 @@ export default function ListKasir() {
                       value={formatRupiah(formData.kembalian) || formatRupiah(0)}
                       placeholder="Kembalian akan dihitung otomatis"
                       disabled
-                      className="mt-1 bg-gray-50"
+                      className="mt-2 bg-gray-50 h-12 text-lg"
                     />
                   </div>
 
-                  {/* PERBAIKAN: Tambahkan status pembayaran */}
+                  {/* Status pembayaran */}
                   {formData.total_uang && (
-                    <div className={`text-sm p-2 rounded-md ${
+                    <div className={`text-sm p-3 rounded-md ${
                       paymentStatus.status === 'insufficient' ? 'bg-red-50 text-red-600' :
                       paymentStatus.status === 'overpaid' ? 'bg-green-50 text-green-600' :
                       'bg-blue-50 text-blue-600'
@@ -854,18 +946,15 @@ export default function ListKasir() {
                   )}
                 </div>
 
+                {/* TOMBOL PROSES TANPA VALIDASI TOTAL UANG */}
                 <Button 
                   onClick={handleSubmit}
-                  disabled={cart.length === 0 || isProcessing || !isPaymentSufficient()}
-                  className={`w-full h-12 text-base font-semibold ${
-                    !isPaymentSufficient() && cart.length > 0 ? 'opacity-50' : ''
-                  }`}
+                  disabled={cart.length === 0 || isProcessing}
+                  className="w-full h-14 text-lg font-semibold"
                   size="lg"
                 >
-                  <CreditCard className="w-5 h-5 mr-2" />
-                  {isProcessing ? 'Memproses...' : 
-                   !isPaymentSufficient() && cart.length > 0 ? 'Uang Tidak Cukup' :
-                   'Proses Pembayaran'}
+                  <CreditCard className="w-6 h-6 mr-2" />
+                  {isProcessing ? 'Memproses...' : 'Proses Transaksi'}
                 </Button>
               </CardContent>
             </Card>
@@ -882,6 +971,13 @@ export default function ListKasir() {
                     
                     if (confirm('Semua item dalam keranjang akan dihapus. Apakah Anda yakin?')) {
                       setCart([])
+                      setFormData({
+                        produk_id: '',
+                        jumlah_terjual_per_hari: '',
+                        diskon: '',
+                        total_uang: '',
+                        kembalian: 0
+                      })
                       Swal.fire({
                         title: "Berhasil",
                         text: "Keranjang berhasil dikosongkan",
@@ -891,6 +987,12 @@ export default function ListKasir() {
                         showConfirmButton: false,
                         timer: 3000
                       })
+                      // Focus kembali ke input search
+                      setTimeout(() => {
+                        if (searchInputRef.current) {
+                          searchInputRef.current.focus()
+                        }
+                      }, 100)
                     }
                   }}
                   disabled={cart.length === 0}
@@ -905,11 +1007,43 @@ export default function ListKasir() {
                     setScan('')
                     setSearchQuery('')
                     setShowSearchResults(false)
+                    setBarcodeBuffer('')
+                    if (searchInputRef.current) {
+                      searchInputRef.current.focus()
+                    }
                   }}
                   className="w-full"
                 >
                   Reset Scanner & Pencarian
                 </Button>
+
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    if (searchInputRef.current) {
+                      searchInputRef.current.focus()
+                    }
+                  }}
+                  className="w-full"
+                >
+                  Focus ke Scanner
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Info Panel untuk Barcode Detection */}
+            <Card className="bg-blue-50 border-blue-200">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm text-blue-800 flex items-center gap-2">
+                  <Scan className="w-4 h-4" />
+                  Auto Barcode Detection
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-xs text-blue-700 space-y-1">
+                <p>• Sistem secara otomatis mendeteksi barcode scan</p>
+                <p>• Tidak perlu klik input terlebih dahulu</p>
+                <p>• Scan langsung akan menambah produk ke keranjang</p>
+                <p>• Jika tidak ditemukan, akan muncul di kotak pencarian</p>
               </CardContent>
             </Card>
           </div>

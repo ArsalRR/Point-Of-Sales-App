@@ -21,6 +21,7 @@ import {
   AlertCircle,
   Loader2,
   Box,
+  ArrowLeft,
 } from "lucide-react"
 import Swal from "sweetalert2"
 
@@ -30,7 +31,7 @@ export default function EditProduk() {
   const navigate = useNavigate()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false) // Pisahkan loading state
+  const [submitting, setSubmitting] = useState(false) 
   const [errors, setErrors] = useState({})
 
   const initialFormData = {
@@ -61,9 +62,7 @@ export default function EditProduk() {
     const fetchData = async () => {
       try {
         setLoading(true)
-        const data = await getProdukById(id)
-        console.log('Fetched data:', data) // Debug log
-        
+        const data = await getProdukById(id)      
         setProduk(data)
         setFormData({
           kode_barang: data.kode_barang || "",
@@ -119,8 +118,6 @@ export default function EditProduk() {
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
-    
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
     }
@@ -132,8 +129,6 @@ export default function EditProduk() {
 
   const formatCurrency = (value) => {
     if (!value || value === "0") return ""
-    
-    // Remove non-numeric characters except comma
     let val = value.toString().replace(/[^,\d]/g, "")
     let split = val.split(",")
     let remainder = split[0].length % 3
@@ -157,8 +152,6 @@ export default function EditProduk() {
   const handleCurrencyChange = (fieldName, value) => {
     const numericValue = parseCurrency(value)
     setFormData(prev => ({ ...prev, [fieldName]: numericValue.toString() }))
-    
-    // Clear error when user starts typing
     if (errors[fieldName]) {
       setErrors(prev => ({ ...prev, [fieldName]: '' }))
     }
@@ -168,7 +161,6 @@ export default function EditProduk() {
     e.preventDefault()
 
     if (!validateForm()) {
-      console.log('Validation errors:', errors)
       return
     }
 
@@ -185,11 +177,8 @@ export default function EditProduk() {
         limit_stok: Number(formData.limit_stok),
         satuan_barang: formData.satuan_barang || "pcs"
       }
-
-      console.log('Submitting payload:', payload) // Debug log
-
       const result = await editProduk(id, payload)
-      console.log('Update result:', result) // Debug log
+      console.log('Update result:', result) 
 
       await Swal.fire({
         title: "Berhasil!",
@@ -272,10 +261,15 @@ export default function EditProduk() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Informasi Dasar */}
+        
           <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
+                <Link to="/produk">
+            <Button variant="ghost" size="sm" className="p-2">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            </Link>
                 <Hash className="w-5 h-5" /> Informasi Dasar
               </CardTitle>
             </CardHeader>

@@ -9,7 +9,6 @@ const updateSW = registerSW({
   onNeedRefresh() {},
   onOfflineReady() {}
 })
-
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
