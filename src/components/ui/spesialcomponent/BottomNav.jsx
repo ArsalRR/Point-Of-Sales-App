@@ -1,5 +1,6 @@
 import { Home, Package, ScanLine, Album,} from "lucide-react"
 import { useLocation, Link } from "react-router-dom"
+import LaporanMenu from "./LaporanMenu"
 
 export default function BottomNav() {
   const location = useLocation()
@@ -42,15 +43,7 @@ export default function BottomNav() {
           </Link>
         </li>
         <li>
-          <Link
-            to="/laporanharian"
-            className={`flex flex-col items-center ${
-              isActive("/laporanharian") ? "text-black" : "text-gray-500"
-            } hover:text-black`}
-          >
-            <Album className="h-5 w-5 mb-1" />
-            <span className="text-xs">Laporan</span>
-          </Link>
+         <LaporanMenu/>
         </li>
         <li>
         </li>
