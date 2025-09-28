@@ -8,6 +8,7 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+   
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "favicon.ico", "robots.txt", "apple-touch-icon.png"],
@@ -18,17 +19,17 @@ export default defineConfig({
         theme_color: "#ffffff",
         icons: [
           {
-            src: "/src/assets/ShopIcon.png",
+            src: "/public/icons/ShopIcon.png",
             sizes: "192x192",
             type: "image/png"
           },
           {
-            src: "/src/assets/ShopIcon.png",
+            src: "/public/icons/ShopIcon.png",
             sizes: "512x512",
             type: "image/png"
           },
           {
-            src: "/src/assets/ShopIcon.png",
+            src: "/public/icons/ShopIcon.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any maskable"
@@ -37,6 +38,7 @@ export default defineConfig({
       }
     })
   ],
+  base : '/',
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src")
