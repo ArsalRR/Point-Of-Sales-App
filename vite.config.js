@@ -12,23 +12,23 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "favicon.ico", "robots.txt", "apple-touch-icon.png"],
       manifest: {
-        name: "My App",
-        short_name: "App",
-        description: "A Progressive Web App with Vite + React",
+        name: "Toko IFA",
+        short_name: "Toko IFA",
+        description: "Toko Sembako Ifa",
         theme_color: "#ffffff",
         icons: [
           {
-            src: "/pwa-192x192.png",
+            src: "/src/assets/ShopIcon.png",
             sizes: "192x192",
             type: "image/png"
           },
           {
-            src: "/pwa-512x512.png",
+            src: "/src/assets/ShopIcon.png",
             sizes: "512x512",
             type: "image/png"
           },
           {
-            src: "/pwa-512x512.png",
+            src: "/src/assets/ShopIcon.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any maskable"

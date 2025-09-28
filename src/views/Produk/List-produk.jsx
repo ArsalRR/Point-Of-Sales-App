@@ -1,12 +1,11 @@
 import React, { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getProduk, deleteProduk } from '../../api/Produkapi'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { 
-  Search, DollarSign, Archive, ShoppingCart, Tag, Plus, 
+  Search,
   ChevronLeft, ChevronRight, Package, AlertCircle, 
-  Loader2, Trash, Edit, MoreHorizontal
+  Loader2, Trash, Edit,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Swal from 'sweetalert2'
@@ -54,11 +53,29 @@ export default function ListProduk() {
     },
   })
 
-  const hapusData = (id) => {
-    if (confirm('Apakah Anda yakin ingin menghapus produk ini?')) {
-      hapusMutation.mutate(id)
+ const hapusData = (id) => {
+  Swal.fire({
+    title: "Apakah Anda yakin?",
+    text: "Produk yang dihapus tidak bisa dikembalikan!",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#3085d6",
+    confirmButtonText: "Ya, hapus!",
+    cancelButtonText: "Batal"
+  }).then((result) => {
+    if (result.isConfirmed) {
+      hapusMutation.mutate(id, {
+        onSuccess: () => {
+          Swal.fire("Terhapus!", "Produk berhasil dihapus.", "success")
+        },
+        onError: () => {
+          Swal.fire("Gagal!", "Terjadi kesalahan saat menghapus.", "error")
+        }
+      })
     }
-  }
+  })
+}
 
   // Filter & Sorting
   const filteredAndSortedProduk = useMemo(() => {
