@@ -71,51 +71,10 @@ export default function CreateProduk() {
         { value: "250", label: "5 Dus" }
       ]
     },
-    { 
-      group: "Karung", 
-      options: [
-        { value: "10", label: "Karung 10 Kg" },
-        { value: "25", label: "Karung 25 Kg" },
-        { value: "50", label: "Karung 50 Kg" }
-      ]
-    },
-    { 
-      group: "Pack", 
-      options: [
-        { value: "1", label: "Pack 1 Kg" },
-        { value: "2", label: "Pack 2 Kg" },
-        { value: "5", label: "Pack 5 Kg" }
-      ]
-    },
-    { 
-      group: "Renceng", 
-      options: [
-        { value: "10", label: "1 Renceng (isi 10)" },
-        { value: "20", label: "2 Renceng (isi 20)" },
-        { value: "50", label: "5 Renceng (isi 50)" }
-      ]
-    },
-    { 
-      group: "Bal", 
-      options: [
-        { value: "100", label: "1 Bal" },
-        { value: "200", label: "2 Bal" },
-        { value: "500", label: "5 Bal" }
-      ]
-    },
-    { 
-      group: "Pcs/Item", 
-      options: [
-        { value: "1", label: "1 Pcs" },
-        { value: "6", label: "6 Pcs" },
-        { value: "12", label: "12 Pcs" },
-        { value: "24", label: "24 Pcs" }
-      ]
-    }
+
   ]
 
   const generateKode = () => {
-    // Simulate API call to generate code
     const randomCode = Math.floor(Math.random() * 999999) + 100000
     setFormData(prev => ({
       ...prev,

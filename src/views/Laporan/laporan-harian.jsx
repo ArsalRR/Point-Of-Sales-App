@@ -25,15 +25,109 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import NotaPembelian from "../Kasir/NotaPembelian"
 
+// ---------------- Nota ----------------
+const NotaPembelian = ({ transaksi, onClose }) => {
+  useEffect(() => {
+    if (!transaksi) return
+    const timer = setTimeout(() => {
+      window.print()
+      setTimeout(() => {
+        onClose()
+      }, 800)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [transaksi, onClose])
+
+  const formatCurrency = (val) => `Rp ${Number(val).toLocaleString("id-ID")}`
+
+  const currentDate = new Date().toLocaleString("id-ID", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+
+  if (!transaksi) return null
+
+  const total = transaksi.items.reduce(
+    (acc, item) =>
+      acc + item.jumlah_terjual_per_hari * item.harga_saat_transaksi - (item.diskon || 0),
+    0
+  )
+
+  return (
+    <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
+      <div className="w-full max-w-sm mx-auto p-4">
+        {/* Print styles */}
+        <style jsx>{`
+          @media print {
+            body * { visibility: hidden; }
+            .print-area, .print-area * { visibility: visible; }
+            .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none !important; }
+          }
+          @page { size: 58mm auto; margin: 0; padding: 0; }
+          .receipt-content { font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.2; width: 160px; margin: 0 auto; }
+          .receipt-table { width: 100%; border-collapse: collapse; }
+          .receipt-table th, .receipt-table td { border-top: 1px solid #000; padding: 2px; font-size: 10px; }
+          .text-center { text-align: center; }
+          .text-right { text-align: right; }
+        `}</style>
+
+        <div className="print-area">
+          <div className="receipt-content">
+            <div className="text-center mb-4">
+              <strong>TOKO IFA</strong>
+              <br />Jl. Perumahan Limas No. 08
+              <br />Telp: 085868287956
+              <br />{currentDate}
+              <br />No Trans: {transaksi.no_transaksi}
+            </div>
+
+            <table className="receipt-table">
+              <thead>
+                <tr>
+                  <th>Jml</th>
+                  <th>Produk</th>
+                  <th className="text-right">Rp</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transaksi.items.map((item, idx) => (
+                  <tr key={idx}>
+                    <td>{item.jumlah_terjual_per_hari}</td>
+                    <td>{item.produk?.nama_barang}</td>
+                    <td className="text-right">
+                      {formatCurrency(item.jumlah_terjual_per_hari * item.harga_saat_transaksi)}
+                    </td>
+                  </tr>
+                ))}
+                <tr>
+                  <td colSpan={2}><strong>Total</strong></td>
+                  <td className="text-right"><strong>{formatCurrency(total)}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div className="text-center mt-4">
+              Terima Kasih<br />Atas Kunjungan Anda
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------- Halaman Laporan ----------------
 export default function LaporanHarian() {
   const [laporan, setLaporan] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [selectedTransaction, setSelectedTransaction] = useState(null)
-  const [showPrint, setShowPrint] = useState(false)
-  const [printData, setPrintData] = useState(null)
+  const [selectedTransaksi, setSelectedTransaksi] = useState(null)
+  const [printTransaksi, setPrintTransaksi] = useState(null)
 
   const fetchLaporan = useCallback(async () => {
     try {
@@ -41,7 +135,23 @@ export default function LaporanHarian() {
       setError(null)
       const res = await getlaporanharian()
       if (res.status !== 200) throw new Error("Gagal mengambil laporan harian")
-      setLaporan(res.data.laporan || [])
+
+      // 🔑 group by no_transaksi
+      const grouped = res.data.laporan.reduce((acc, item) => {
+        const key = item.no_transaksi
+        if (!acc[key]) {
+          acc[key] = {
+            no_transaksi: key,
+            user: item.user,
+            waktu_pembelian: item.waktu_pembelian,
+            items: [],
+          }
+        }
+        acc[key].items.push(item)
+        return acc
+      }, {})
+
+      setLaporan(Object.values(grouped))
     } catch (err) {
       setError(err.message)
     } finally {
@@ -49,25 +159,19 @@ export default function LaporanHarian() {
     }
   }, [])
 
-  useEffect(() => {
-    fetchLaporan()
-  }, [fetchLaporan])
+  useEffect(() => { fetchLaporan() }, [fetchLaporan])
 
-  const formatCurrency = (value) => {
-    if (!value) return "Rp 0"
-    const numValue = typeof value === "string" ? parseInt(value) : value
-    return `Rp ${numValue.toLocaleString("id-ID")}`
-  }
+  const formatCurrency = (val) => `Rp ${Number(val).toLocaleString("id-ID")}`
 
-  const calculateTotalKeseluruhan = () => {
-    return laporan.reduce((total, item) => {
-      const subtotal =
-        (parseInt(item.jumlah_terjual_per_hari) || 0) *
-          (parseInt(item.harga_saat_transaksi) || 0) -
-        (parseInt(item.diskon) || 0)
-      return total + subtotal
+  const calculateTotalKeseluruhan = () =>
+    laporan.reduce((acc, trx) => {
+      const total = trx.items.reduce(
+        (sum, item) =>
+          sum + item.jumlah_terjual_per_hari * item.harga_saat_transaksi - (item.diskon || 0),
+        0
+      )
+      return acc + total
     }, 0)
-  }
 
   if (loading) {
     return (
@@ -90,6 +194,7 @@ export default function LaporanHarian() {
       </Card>
     )
   }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -106,9 +211,6 @@ export default function LaporanHarian() {
             <div className="flex flex-col items-center justify-center py-16 space-y-3">
               <FileText className="h-12 w-12 text-muted-foreground" />
               <h4 className="text-lg font-semibold">Tidak Ada Transaksi</h4>
-              <p className="text-sm text-muted-foreground">
-                Belum ada transaksi tercatat pada hari ini
-              </p>
               <Button onClick={fetchLaporan} variant="outline">
                 <RefreshCw className="h-4 w-4 mr-2" /> Muat Ulang
               </Button>
@@ -118,56 +220,42 @@ export default function LaporanHarian() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[60px]">No</TableHead>
+                    <TableHead>No</TableHead>
                     <TableHead>No. Transaksi</TableHead>
-                    <TableHead>Kode Barang</TableHead>
-                    <TableHead>Nama Produk</TableHead>
                     <TableHead>Kasir</TableHead>
-                    <TableHead className="w-[100px] text-center">Jumlah</TableHead>
-                    <TableHead>Harga Jual</TableHead>
-                    <TableHead className="w-[80px] text-center">Satuan</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead className="w-[100px] text-center">Aksi</TableHead>
+                    <TableHead>Tanggal</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead className="text-center">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {laporan.map((item, index) => (
-                    <TableRow key={`${item.no_transaksi}-${index}`}>
-                      <TableCell className="text-center">{index + 1}</TableCell>
-                      <TableCell className="font-medium">{item.no_transaksi}</TableCell>
-                      <TableCell>{item.produk?.kode_barang}</TableCell>
-                      <TableCell>{item.produk?.nama_barang}</TableCell>
-                      <TableCell>{item.user?.name || "-"}</TableCell>
-                      <TableCell className="text-center">
-                        <strong>{item.jumlah_terjual_per_hari}</strong>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(item.harga_saat_transaksi)}
-                      </TableCell>
-                      <TableCell className="text-center">{item.satuan}</TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {formatCurrency(item.jumlah_terjual_per_hari * item.harga_saat_transaksi)}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setSelectedTransaction(item)}
-                          className="gap-1"
-                        >
-                          <Eye className="h-4 w-4" /> Detail
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {laporan.map((trx, idx) => {
+                    const total = trx.items.reduce(
+                      (sum, i) =>
+                        sum + i.jumlah_terjual_per_hari * i.harga_saat_transaksi - (i.diskon || 0),
+                      0
+                    )
+                    return (
+                      <TableRow key={trx.no_transaksi}>
+                        <TableCell>{idx + 1}</TableCell>
+                        <TableCell>{trx.no_transaksi}</TableCell>
+                        <TableCell>{trx.user?.name}</TableCell>
+                        <TableCell>
+                          {dayjs(trx.waktu_pembelian).locale("id").format("DD MMM YYYY HH:mm")}
+                        </TableCell>
+                        <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                        <TableCell className="text-center space-x-2">
+                          <Button size="sm" variant="outline" onClick={() => setSelectedTransaksi(trx)}>
+                            <Eye className="h-4 w-4" /> Detail
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
                   <TableRow>
-                    <TableCell colSpan={5} className="text-right font-semibold">
-                      📈 TOTAL KESELURUHAN
+                    <TableCell colSpan={4} className="text-right font-semibold">
+                      TOTAL KESELURUHAN
                     </TableCell>
-                    <TableCell className="text-center font-semibold">
-                      {laporan.reduce((a, b) => a + (b.jumlah_terjual_per_hari || 0), 0)}
-                    </TableCell>
-                    <TableCell colSpan={2}></TableCell>
                     <TableCell className="text-right font-bold text-green-600">
                       {formatCurrency(calculateTotalKeseluruhan())}
                     </TableCell>
@@ -180,111 +268,64 @@ export default function LaporanHarian() {
         </CardContent>
       </Card>
 
-      {/* Modal */}
-      <Dialog open={!!selectedTransaction} onOpenChange={() => setSelectedTransaction(null)}>
-        <DialogContent className="max-w-4xl">
+      {/* Modal Detail */}
+      <Dialog open={!!selectedTransaksi} onOpenChange={() => setSelectedTransaksi(null)}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              🧾 Detail Transaksi: {selectedTransaction?.no_transaksi}
+              🧾 Detail Transaksi: {selectedTransaksi?.no_transaksi}
             </DialogTitle>
           </DialogHeader>
-          {selectedTransaction && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Nomor Transaksi</p>
-                  <p className="font-semibold">{selectedTransaction.no_transaksi}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Kasir</p>
-                  <p className="font-semibold">{selectedTransaction.user?.name}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Tanggal & Waktu</p>
-                  <p className="font-semibold">
-                    {dayjs(selectedTransaction.waktu_pembelian)
-                      .locale("id")
-                      .format("DD MMMM YYYY, HH:mm")} WIB
-                  </p>
-                </div>
-              </div>
+          {selectedTransaksi && (
+            <div className="space-y-4">
+              <p><strong>Kasir:</strong> {selectedTransaksi.user?.name}</p>
+              <p>
+                <strong>Tanggal:</strong>{" "}
+                {dayjs(selectedTransaksi.waktu_pembelian).locale("id").format("DD MMM YYYY HH:mm")}
+              </p>
 
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>No</TableHead>
-                      <TableHead>Nama Produk</TableHead>
-                      <TableHead className="text-center">Jumlah</TableHead>
-                      <TableHead className="text-center">Satuan</TableHead>
-                      <TableHead className="text-right">Harga</TableHead>
-                      <TableHead className="text-right">Diskon</TableHead>
-                      <TableHead className="text-right">Subtotal</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell>1</TableCell>
-                      <TableCell>{selectedTransaction.produk?.nama_barang}</TableCell>
-                      <TableCell className="text-center">{selectedTransaction.jumlah_terjual_per_hari}</TableCell>
-                      <TableCell className="text-center">{selectedTransaction.satuan}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(selectedTransaction.harga_saat_transaksi)}</TableCell>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Produk</TableHead>
+                    <TableHead className="text-center">Jumlah</TableHead>
+                    <TableHead className="text-right">Harga</TableHead>
+                    <TableHead className="text-right">Diskon</TableHead>
+                    <TableHead className="text-right">Subtotal</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedTransaksi.items.map((i, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell>{i.produk?.nama_barang}</TableCell>
+                      <TableCell className="text-center">{i.jumlah_terjual_per_hari}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(i.harga_saat_transaksi)}</TableCell>
+                      <TableCell className="text-right text-red-500">
+                        {i.diskon ? `- ${formatCurrency(i.diskon)}` : "-"}
+                      </TableCell>
                       <TableCell className="text-right">
-                        {selectedTransaction.diskon > 0 ? (
-                          <span className="text-red-500">- {formatCurrency(selectedTransaction.diskon)}</span>
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {formatCurrency(
-                          selectedTransaction.jumlah_terjual_per_hari *
-                            selectedTransaction.harga_saat_transaksi -
-                            (selectedTransaction.diskon || 0)
-                        )}
+                        {formatCurrency(i.jumlah_terjual_per_hari * i.harga_saat_transaksi - (i.diskon || 0))}
                       </TableCell>
                     </TableRow>
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-right font-semibold">
-                        💰 TOTAL TRANSAKSI
-                      </TableCell>
-                      <TableCell className="text-right font-bold text-blue-600">
-                        {formatCurrency(
-                          selectedTransaction.jumlah_terjual_per_hari *
-                            selectedTransaction.harga_saat_transaksi -
-                            (selectedTransaction.diskon || 0)
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setSelectedTransaction(null)}>
-              Tutup
-            </Button>
-            <Button
-              onClick={() => {
-                setPrintData(selectedTransaction)
-                setShowPrint(true)
-              }}
-            >
-              <Printer className="h-4 w-4 mr-1" /> Cetak Nota
-            </Button>
+            <Button variant="secondary" onClick={() => setSelectedTransaksi(null)}>Tutup</Button>
+            {selectedTransaksi && (
+              <Button onClick={() => setPrintTransaksi(selectedTransaksi)}>
+                <Printer className="h-4 w-4 mr-1" /> Cetak Nota
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {showPrint && printData && (
-        <NotaPembelian
-          transactionData={printData}
-          onClose={() => {
-            setShowPrint(false)
-            setPrintData(null)
-          }}
-        />
+      {/* Cetak Nota */}
+      {printTransaksi && (
+        <NotaPembelian transaksi={printTransaksi} onClose={() => setPrintTransaksi(null)} />
       )}
     </div>
   )

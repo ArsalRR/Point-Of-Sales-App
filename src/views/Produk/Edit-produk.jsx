@@ -22,6 +22,8 @@ import {
   Loader2,
   Box,
   ArrowLeft,
+  Eye,
+  EyeOff,
 } from "lucide-react"
 import Swal from "sweetalert2"
 
@@ -33,6 +35,7 @@ export default function EditProduk() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false) 
   const [errors, setErrors] = useState({})
+  const [readOnly, setReadOnly] = useState(true)
 
   const initialFormData = {
     kode_barang: "",
@@ -165,14 +168,14 @@ export default function EditProduk() {
     }
 
     setSubmitting(true)
-    setErrors({}) // Clear previous errors
+    setErrors({})
 
     try {
       const payload = {
         kode_barang: formData.kode_barang.trim(),
         nama_barang: formData.nama_barang.trim(),
-        harga: parseCurrency(formData.harga).toString(), // Convert to string
-        harga_renteng: parseCurrency(formData.harga_renteng).toString(), // Convert to string
+        harga: parseCurrency(formData.harga).toString(),
+        harga_renteng: parseCurrency(formData.harga_renteng).toString(),
         stok: Number(formData.stok), 
         limit_stok: Number(formData.limit_stok),
         satuan_barang: formData.satuan_barang || "pcs"
@@ -273,32 +276,59 @@ export default function EditProduk() {
                 <Hash className="w-5 h-5" /> Informasi Dasar
               </CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label htmlFor="kode_barang">Kode Barang *</Label>
-                <Input
-                  id="kode_barang"
-                  name="kode_barang"
-                  value={formData.kode_barang}
-                  onChange={handleChange}
-                  placeholder="PRD001"
-                  className={errors.kode_barang ? 'border-red-500' : ''}
-                />
-                {errors.kode_barang && <p className="text-sm text-red-500 mt-1">{errors.kode_barang}</p>}
-              </div>
-              <div>
-                <Label htmlFor="nama_barang">Nama Barang *</Label>
-                <Input
-                  id="nama_barang"
-                  name="nama_barang"
-                  value={formData.nama_barang}
-                  onChange={handleChange}
-                  placeholder="Masukkan nama produk"
-                  className={errors.nama_barang ? 'border-red-500' : ''}
-                />
-                {errors.nama_barang && <p className="text-sm text-red-500 mt-1">{errors.nama_barang}</p>}
-              </div>
-            </CardContent>
+           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  {/* Kode Barang */}
+  <div className="mb-4">
+    <label htmlFor="kode_barang" className="block text-sm font-medium text-gray-700 mb-1">
+      Kode Barang *
+    </label>
+    <div className="relative">
+      <input
+        id="kode_barang"
+        name="kode_barang"
+        value={formData.kode_barang}
+        onChange={handleChange}
+        placeholder="PRD001"
+        readOnly={readOnly}
+        className={`
+          block w-full pr-10 px-3 py-2 border rounded-md
+          ${errors.kode_barang ? 'border-red-500' : 'border-gray-300'}
+          ${readOnly ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white text-gray-900'}
+          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+        `}
+      />
+      <button
+        type="button"
+        onClick={() => setReadOnly(!readOnly)}
+        className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
+      >
+        {readOnly ? <Eye size={18} /> : <EyeOff size={18} />}
+      </button>
+    </div>
+    {errors.kode_barang && <p className="text-sm text-red-500 mt-1">{errors.kode_barang}</p>}
+  </div>
+
+  {/* Nama Barang */}
+  <div className="mb-4">
+    <label htmlFor="nama_barang" className="block text-sm font-medium text-gray-700 mb-1">
+      Nama Barang *
+    </label>
+    <input
+      id="nama_barang"
+      name="nama_barang"
+      value={formData.nama_barang}
+      onChange={handleChange}
+      placeholder="Masukkan nama produk"
+      className={`
+        block w-full px-3 py-2 border rounded-md
+        ${errors.nama_barang ? 'border-red-500' : 'border-gray-300'}
+        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+      `}
+    />
+    {errors.nama_barang && <p className="text-sm text-red-500 mt-1">{errors.nama_barang}</p>}
+  </div>
+</CardContent>
+
           </Card>
 
           {/* Informasi Harga */}

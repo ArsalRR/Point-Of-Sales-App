@@ -68,19 +68,6 @@ export default function ShadcnSidebar({ children }) {
 
     }
   }
-const GetCountProduk = async () => {
-  try {
-    const res = await getDasboard()   
-    return res.data.totalProduk       
-  } catch (error) {
-    console.error("Gagal ambil total produk:", error)
-    return 0
-  }
-}
-
-
-
-
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -129,7 +116,6 @@ const GetCountProduk = async () => {
     
     <TooltipProvider>
       <div className="flex min-h-screen">
-        {/* SIDEBAR */}
         <div 
           className={`
             ${isCollapsed ? 'w-16' : 'w-72'} 
@@ -137,7 +123,6 @@ const GetCountProduk = async () => {
             transition-all duration-300 border-r bg-background flex flex-col fixed sm:static z-40 h-full
           `}
         >
-          {/* HEADER */}
           <div className="p-4 border-b flex items-center justify-between">
             <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
@@ -151,7 +136,6 @@ const GetCountProduk = async () => {
               )}
             </div>
             <div className="flex items-center gap-2">
-              {/* Toggle collapse (desktop only) */}
               <Button
                 variant="ghost"
                 size="icon"
@@ -160,7 +144,6 @@ const GetCountProduk = async () => {
               >
                 {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
               </Button>
-              {/* Close button (mobile) */}
               <Button
                 variant="ghost"
                 size="icon"
@@ -171,8 +154,6 @@ const GetCountProduk = async () => {
               </Button>
             </div>
           </div>
-
-          {/* NAVIGATION */}
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
             <div className="space-y-1">
               {navigationItems.map((item) => {
@@ -267,31 +248,21 @@ const GetCountProduk = async () => {
             </div>
           </nav>
         </div>
-
-        {/* TOP BAR - Avatar & Notifications */}
         <div className="flex-1 flex flex-col">
           <header className="h-16 border-b bg-background flex items-center justify-between px-6 fixed sm:static w-full z-50 sm:z-auto">
-            {/* Mobile sidebar trigger - only visible on mobile */}
             <div className="sm:hidden">
               <Button variant="outline" size="icon" onClick={() => setIsMobileOpen(true)}>
                 <Menu className="h-5 w-5" />
               </Button>
             </div>
-
-            {/* Spacer for desktop */}
             <div className="hidden sm:block"></div>
-
-            {/* Right side - Notifications & Avatar */}
             <div className="flex items-center gap-4">
-              {/* Notifications */}
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-4 w-4" />
                 <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full text-xs flex items-center justify-center text-white">
                   3
                 </span>
               </Button>
-
-              {/* Avatar Dropdown */}
            <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
@@ -336,14 +307,10 @@ const GetCountProduk = async () => {
     </DropdownMenu>
             </div>
           </header>
-
-          {/* MAIN CONTENT */}
           <main className="flex-1 p-6 pt-20 sm:pt-6">
             {children}
           </main>
         </div>
-
-        {/* Mobile overlay */}
         {isMobileOpen && (
           <div 
             className="fixed inset-0 bg-black/50 z-30 sm:hidden" 
