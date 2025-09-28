@@ -78,7 +78,6 @@ export default function ShadcnSidebar({ children }) {
       }
     }
 
-
     fetchUser()
   }, [])
 
@@ -94,6 +93,7 @@ export default function ShadcnSidebar({ children }) {
 
     fetchCount()
   }, [])
+  
   const toggleMenu = (menuName) => {
     setOpenMenus(prev => ({
       ...prev,
@@ -113,9 +113,9 @@ export default function ShadcnSidebar({ children }) {
   ]
 
   return (
-    
     <TooltipProvider>
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen relative">
+        {/* Sidebar */}
         <div 
           className={`
             ${isCollapsed ? 'w-16' : 'w-72'} 
@@ -248,8 +248,11 @@ export default function ShadcnSidebar({ children }) {
             </div>
           </nav>
         </div>
-        <div className="flex-1 flex flex-col">
-          <header className="h-16 border-b bg-background flex items-center justify-between px-6 fixed sm:static w-full z-50 sm:z-auto">
+        
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col min-h-screen">
+          {/* Header */}
+          <header className="h-16 border-b bg-background flex items-center justify-between px-6 sticky top-0 z-30 w-full">
             <div className="sm:hidden">
               <Button variant="outline" size="icon" onClick={() => setIsMobileOpen(true)}>
                 <Menu className="h-5 w-5" />
@@ -263,51 +266,51 @@ export default function ShadcnSidebar({ children }) {
                   3
                 </span>
               </Button>
-           <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          className={`flex flex-col items-center ${
-            isActive("/akun") ? "text-black" : "text-gray-500"
-          } hover:text-black`}
-        >
-          <Avatar className="h-6 w-6 mb-1">
-            <AvatarImage
-              src="https://images.unsplash.com/photo-1600486913747-55e5470d6f40?auto=format&fit=crop&w=1770&q=80"
-              alt="User"
-            />
-            <AvatarFallback>U</AvatarFallback>
-          </Avatar>
-        </button>
-      </DropdownMenuTrigger>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className={`flex flex-col items-center ${
+                      isActive("/akun") ? "text-black" : "text-gray-500"
+                    } hover:text-black`}
+                  >
+                    <Avatar className="h-6 w-6 mb-1">
+                      <AvatarImage
+                        src="https://images.unsplash.com/photo-1600486913747-55e5470d6f40?auto=format&fit=crop&w=1770&q=80"
+                        alt="User"
+                      />
+                      <AvatarFallback>U</AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuLabel>My Account</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          <User className="mr-2 h-4 w-4" />
-          Profile
-        </DropdownMenuItem>
-        <DropdownMenuItem>
-          <Settings className="mr-2 h-4 w-4" />
-          Settings
-        </DropdownMenuItem>
-        <DropdownMenuItem>
-          <Bell className="mr-2 h-4 w-4" />
-          Notifications
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="text-destructive"
-          onClick={handleLogout}
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          Logout
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Bell className="mr-2 h-4 w-4" />
+                    Notifications
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </header>
-          <main className="flex-1 p-6 pt-20 sm:pt-6">
+          <main className="flex-1 p-6 pb-20 sm:pb-6 overflow-y-auto">
             {children}
           </main>
         </div>
@@ -317,8 +320,9 @@ export default function ShadcnSidebar({ children }) {
             onClick={() => setIsMobileOpen(false)}
           />
         )}
-
-        <BottomNav/>
+        <div className="sm:hidden">
+          <BottomNav/>
+        </div>
       </div>
     </TooltipProvider>
   )

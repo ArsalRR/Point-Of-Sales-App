@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react"
 import dayjs from "dayjs"
 import "dayjs/locale/id"
 import { getlaporanharian } from "@/api/Laporanapi"
-import { Loader2, RefreshCw, FileText, Eye, Printer } from "lucide-react"
+import { Loader2, RefreshCw, FileText, Eye, Printer, Receipt, User, Calendar, ShoppingBag } from "lucide-react"
 import {
   Card,
   CardContent,
@@ -25,6 +25,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
 
 // ---------------- Nota ----------------
 const NotaPembelian = ({ transaksi, onClose }) => {
@@ -121,6 +123,97 @@ const NotaPembelian = ({ transaksi, onClose }) => {
   )
 }
 
+// ---------------- Mobile Transaction Card ----------------
+const MobileTransactionCard = ({ trx, idx, onViewDetail, formatCurrency }) => {
+  const total = trx.items.reduce(
+    (sum, i) =>
+      sum + i.jumlah_terjual_per_hari * i.harga_saat_transaksi - (i.diskon || 0),
+    0
+  )
+
+  const totalItems = trx.items.reduce((sum, i) => sum + i.jumlah_terjual_per_hari, 0)
+
+  return (
+    <Card className="w-full hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center space-x-2">
+            <Badge variant="outline" className="text-xs font-mono">
+              #{idx + 1}
+            </Badge>
+            <Badge variant="secondary" className="text-xs">
+              {trx.no_transaksi}
+            </Badge>
+          </div>
+          <div className="text-right">
+            <div className="text-lg font-bold text-green-600">
+              {formatCurrency(total)}
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2 mb-4">
+          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+            <User className="h-4 w-4" />
+            <span>{trx.user?.name}</span>
+          </div>
+          
+          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+            <Calendar className="h-4 w-4" />
+            <span>{dayjs(trx.waktu_pembelian).locale("id").format("DD MMM YYYY HH:mm")}</span>
+          </div>
+
+          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+            <ShoppingBag className="h-4 w-4" />
+            <span>{totalItems} item{totalItems > 1 ? 's' : ''}</span>
+          </div>
+        </div>
+
+        <Separator className="my-3" />
+
+        <div className="space-y-2 mb-4">
+          {trx.items.slice(0, 2).map((item, itemIdx) => (
+            <div key={itemIdx} className="flex justify-between items-center text-sm">
+              <div className="flex-1">
+                <span className="font-medium">{item.produk?.nama_barang}</span>
+                <div className="text-xs text-muted-foreground">
+                  {item.jumlah_terjual_per_hari}x @ {formatCurrency(item.harga_saat_transaksi)}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-medium">
+                  {formatCurrency(item.jumlah_terjual_per_hari * item.harga_saat_transaksi - (item.diskon || 0))}
+                </div>
+                {item.diskon > 0 && (
+                  <div className="text-xs text-red-500">
+                    -{formatCurrency(item.diskon)}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+          
+          {trx.items.length > 2 && (
+            <div className="text-xs text-muted-foreground text-center pt-1">
+              +{trx.items.length - 2} item lainnya
+            </div>
+          )}
+        </div>
+
+        <Button 
+          onClick={() => onViewDetail(trx)} 
+          variant="outline" 
+          size="sm" 
+          className="w-full"
+        >
+          <Eye className="h-4 w-4 mr-2" />
+          Lihat Detail
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
 // ---------------- Halaman Laporan ----------------
 export default function LaporanHarian() {
   const [laporan, setLaporan] = useState([])
@@ -200,10 +293,13 @@ export default function LaporanHarian() {
       <Card>
         <CardHeader>
           <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <span>Laporan Penjualan Harian</span>
-            <span className="text-sm text-muted-foreground">
+            <div className="flex items-center space-x-2">
+              <Receipt className="h-5 w-5" />
+              <span>Laporan Penjualan Harian</span>
+            </div>
+            <Badge variant="outline" className="text-sm">
               {dayjs().locale("id").format("dddd, DD MMMM YYYY")}
-            </span>
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -216,54 +312,87 @@ export default function LaporanHarian() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>No</TableHead>
-                    <TableHead>No. Transaksi</TableHead>
-                    <TableHead>Kasir</TableHead>
-                    <TableHead>Tanggal</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                    <TableHead className="text-center">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {laporan.map((trx, idx) => {
-                    const total = trx.items.reduce(
-                      (sum, i) =>
-                        sum + i.jumlah_terjual_per_hari * i.harga_saat_transaksi - (i.diskon || 0),
-                      0
-                    )
-                    return (
-                      <TableRow key={trx.no_transaksi}>
-                        <TableCell>{idx + 1}</TableCell>
-                        <TableCell>{trx.no_transaksi}</TableCell>
-                        <TableCell>{trx.user?.name}</TableCell>
-                        <TableCell>
-                          {dayjs(trx.waktu_pembelian).locale("id").format("DD MMM YYYY HH:mm")}
-                        </TableCell>
-                        <TableCell className="text-right">{formatCurrency(total)}</TableCell>
-                        <TableCell className="text-center space-x-2">
-                          <Button size="sm" variant="outline" onClick={() => setSelectedTransaksi(trx)}>
-                            <Eye className="h-4 w-4" /> Detail
-                          </Button>
-                        </TableCell>
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden md:block">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>No</TableHead>
+                        <TableHead>No. Transaksi</TableHead>
+                        <TableHead>Kasir</TableHead>
+                        <TableHead>Tanggal</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead className="text-center">Aksi</TableHead>
                       </TableRow>
-                    )
-                  })}
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-right font-semibold">
-                      TOTAL KESELURUHAN
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-green-600">
-                      {formatCurrency(calculateTotalKeseluruhan())}
-                    </TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
+                    </TableHeader>
+                    <TableBody>
+                      {laporan.map((trx, idx) => {
+                        const total = trx.items.reduce(
+                          (sum, i) =>
+                            sum + i.jumlah_terjual_per_hari * i.harga_saat_transaksi - (i.diskon || 0),
+                          0
+                        )
+                        return (
+                          <TableRow key={trx.no_transaksi}>
+                            <TableCell>{idx + 1}</TableCell>
+                            <TableCell>{trx.no_transaksi}</TableCell>
+                            <TableCell>{trx.user?.name}</TableCell>
+                            <TableCell>
+                              {dayjs(trx.waktu_pembelian).locale("id").format("DD MMM YYYY HH:mm")}
+                            </TableCell>
+                            <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                            <TableCell className="text-center space-x-2">
+                              <Button size="sm" variant="outline" onClick={() => setSelectedTransaksi(trx)}>
+                                <Eye className="h-4 w-4" /> Detail
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-right font-semibold">
+                          TOTAL KESELURUHAN
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-green-600">
+                          {formatCurrency(calculateTotalKeseluruhan())}
+                        </TableCell>
+                        <TableCell></TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-4">
+                {laporan.map((trx, idx) => (
+                  <MobileTransactionCard
+                    key={trx.no_transaksi}
+                    trx={trx}
+                    idx={idx}
+                    onViewDetail={setSelectedTransaksi}
+                    formatCurrency={formatCurrency}
+                  />
+                ))}
+                
+                {/* Mobile Total Card */}
+                <Card className="border-2 border-green-200 bg-green-50">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Receipt className="h-5 w-5 text-green-600" />
+                        <span className="font-semibold text-green-800">Total Keseluruhan</span>
+                      </div>
+                      <div className="text-xl font-bold text-green-600">
+                        {formatCurrency(calculateTotalKeseluruhan())}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -322,8 +451,6 @@ export default function LaporanHarian() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Cetak Nota */}
       {printTransaksi && (
         <NotaPembelian transaksi={printTransaksi} onClose={() => setPrintTransaksi(null)} />
       )}

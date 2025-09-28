@@ -75,83 +75,61 @@ export default function ListKasir() {
   const [user, setUser] = useState(null)
   const [barcodeBuffer, setBarcodeBuffer] = useState('')
   const [lastKeyTime, setLastKeyTime] = useState(0)
-  
-  // Ref untuk input search
+
   const searchInputRef = useRef(null)
 
   useEffect(() => {
     fetchTransaksi()
     fetchUser()
-    
-    // Auto-focus ke input search saat component mount
     if (searchInputRef.current) {
       searchInputRef.current.focus()
     }
-    
-    // Event listener untuk menangkap barcode scan global
+
     const handleGlobalKeyPress = (e) => {
-      // Cek apakah user sedang mengetik di input field lain
       const activeElement = document.activeElement
       const isTypingInInput = activeElement && (
         activeElement.tagName === 'INPUT' || 
         activeElement.tagName === 'TEXTAREA' ||
         activeElement.contentEditable === 'true'
       )
-      
-      // Jika sedang mengetik di input field lain (bukan search input), jangan deteksi barcode
       if (isTypingInInput && activeElement !== searchInputRef.current) {
         setBarcodeBuffer('')
         return
       }
       
       const currentTime = Date.now()
-      
-      // Jika ada jeda lebih dari 100ms, reset buffer (new scan)
       if (currentTime - lastKeyTime > 100) {
         setBarcodeBuffer('')
       }
       
       setLastKeyTime(currentTime)
-      
-      // Tambahkan karakter ke buffer hanya jika tidak sedang mengetik di input lain
-      if (e.key.length === 1 && !isTypingInInput) { // Hanya karakter tunggal
+      if (e.key.length === 1 && !isTypingInInput) { 
         setBarcodeBuffer(prev => prev + e.key)
       }
-      
-      // Jika Enter, proses sebagai barcode scan
       if (e.key === 'Enter' && barcodeBuffer.length >= 3 && !isTypingInInput) {
         handleBarcodeDetected(barcodeBuffer)
         setBarcodeBuffer('')
         e.preventDefault()
       }
     }
-    
-    // Tambahkan event listener global
     document.addEventListener('keydown', handleGlobalKeyPress)
-    
-    // Cleanup
+
     return () => {
       document.removeEventListener('keydown', handleGlobalKeyPress)
     }
   }, [barcodeBuffer, lastKeyTime])
-
-  // Fungsi untuk menangani deteksi barcode
   const handleBarcodeDetected = (barcode) => {
     const trimmedBarcode = barcode.trim()
-    
-    // Cari produk berdasarkan kode barcode
     const product = transaksi.find(p => 
       p.kode_barang.trim().toLowerCase() === trimmedBarcode.toLowerCase()
     )
     
     if (product) {
       addProductToCart(product)
-      // Focus kembali ke input search
       if (searchInputRef.current) {
         searchInputRef.current.focus()
       }
     } else {
-      // Jika tidak ditemukan, set ke search query untuk pencarian manual
       setSearchQuery(trimmedBarcode)
       setShowSearchResults(true)
       if (searchInputRef.current) {
@@ -177,25 +155,16 @@ export default function ListKasir() {
       console.error("Gagal ambil transaksi:", error)
     }
   }
-
-  // Utility functions untuk parsing dan formatting Rupiah
   const parseRupiah = (value) => {
     if (!value && value !== 0) return 0
-    
-    // Convert to string and remove all non-digit characters
     const numberString = value.toString().replace(/[^\d]/g, "")
-    
-    // Return 0 if empty string, otherwise parse as integer
     return numberString === "" ? 0 : parseInt(numberString, 10)
   }
 
   const formatRupiah = (value) => {
-    // Handle null, undefined, empty string
     if (!value && value !== 0) return ""
     
     const number = typeof value === 'string' ? parseRupiah(value) : value
-    
-    // Handle negative numbers
     if (number < 0) return ""
     
     return new Intl.NumberFormat("id-ID", {
@@ -205,8 +174,6 @@ export default function ListKasir() {
       maximumFractionDigits: 0,
     }).format(number)
   }
-
-  // Helper function untuk format angka tanpa simbol currency (untuk kembalian)
   const formatNumber = (value) => {
     if (!value && value !== 0) return "0"
     
@@ -266,11 +233,8 @@ export default function ListKasir() {
     }
   }
 
-  // --- Handler untuk Diskon ---
   const handleDiskonChange = (e) => {
     const rawValue = e.target.value
-    
-    // Allow empty input
     if (rawValue === "") {
       setFormData((prev) => ({
         ...prev,
@@ -278,13 +242,10 @@ export default function ListKasir() {
       }))
       return
     }
-    
-    // Parse and format the value
+
     const numericValue = parseRupiah(rawValue)
-    
-    // Optional: Add maximum diskon validation
     const subtotal = cart.reduce((sum, item) => sum + (getCurrentPrice(item) * item.jumlah), 0)
-    const maxDiskon = subtotal // Diskon tidak boleh lebih dari subtotal
+    const maxDiskon = subtotal 
     
     const finalDiskon = Math.min(numericValue, maxDiskon)
     
@@ -293,12 +254,8 @@ export default function ListKasir() {
       diskon: formatRupiah(finalDiskon),
     }))
   }
-
-  // --- Handler untuk Total Uang + Kembalian ---
   const handleTotalUangChange = (e) => {
     const rawValue = e.target.value
-    
-    // Allow empty input
     if (rawValue === "") {
       setFormData((prev) => ({
         ...prev,
@@ -310,21 +267,13 @@ export default function ListKasir() {
     
     try {
       const totalUangNumber = parseRupiah(rawValue)
-      
-      // Calculate subtotal
       const subtotal = cart.reduce((sum, item) => {
         const price = getCurrentPrice(item) || 0
         const quantity = item.jumlah || 0
         return sum + (price * quantity)
       }, 0)
-      
-      // Calculate diskon
       const diskonNumber = parseRupiah(formData.diskon)
-      
-      // Calculate total after discount
       const totalSetelahDiskon = Math.max(0, subtotal - diskonNumber)
-      
-      // Calculate kembalian
       const kembalian = Math.max(0, totalUangNumber - totalSetelahDiskon)
       
       setFormData((prev) => ({
@@ -335,7 +284,6 @@ export default function ListKasir() {
       
     } catch (error) {
       console.error("Error calculating total uang:", error)
-      // Reset to safe values on error
       setFormData((prev) => ({
         ...prev,
         total_uang: "",
@@ -363,8 +311,6 @@ export default function ListKasir() {
       setIsProcessing(true)
       const res = await postKasir(data)
       const subtotal = cart.reduce((s, i) => s + (getCurrentPrice(i) * i.jumlah), 0)
-      
-      // Gunakan parseRupiah yang konsisten
       const diskon = parseRupiah(formData.diskon)
       const total_uang = parseRupiah(formData.total_uang)
       
@@ -407,8 +353,6 @@ export default function ListKasir() {
         kembalian: 0
       })
       setShowPrint(true)
-      
-      // Focus kembali ke search input setelah transaksi
       setTimeout(() => {
         if (searchInputRef.current) {
           searchInputRef.current.focus()
@@ -475,13 +419,81 @@ export default function ListKasir() {
   }
 
   const searchProducts = (query) => {
-    if (!query.trim() || !Array.isArray(transaksi)) return []
-    const lowercaseQuery = query.toLowerCase()
-    return transaksi.filter(item => 
-      item.nama_barang.toLowerCase().includes(lowercaseQuery) ||
-      item.kode_barang.toLowerCase().includes(lowercaseQuery)
-    ).slice(0, 5)
+  if (!query.trim() || !Array.isArray(transaksi)) return []
+  
+  const lowercaseQuery = query.toLowerCase().trim()
+  const queryWords = lowercaseQuery.split(/\s+/).filter(word => word.length > 0)
+  const calculateScore = (item) => {
+    const namaBarang = item.nama_barang.toLowerCase()
+    const kodeBarang = item.kode_barang.toLowerCase()
+    let score = 0
+    if (kodeBarang === lowercaseQuery) {
+      return 1000
+    }
+    if (kodeBarang.startsWith(lowercaseQuery)) {
+      score += 800
+    }
+    if (kodeBarang.includes(lowercaseQuery)) {
+      score += 600
+    }
+
+    if (namaBarang === lowercaseQuery) {
+      score += 900
+    }
+    if (namaBarang.startsWith(lowercaseQuery)) {
+      score += 700
+    }
+    const allWordsFound = queryWords.every(word => namaBarang.includes(word))
+    if (allWordsFound) {
+      score += 500
+    }
+    const foundWords = queryWords.filter(word => namaBarang.includes(word))
+    score += (foundWords.length / queryWords.length) * 300
+    if (namaBarang.includes(lowercaseQuery)) {
+      score += 400
+    }
+    if (queryWords.length > 1) {
+      const queryPhrase = queryWords.join(' ')
+      if (namaBarang.includes(queryPhrase)) {
+        score += 200
+      }
+    }
+    if (score === 0 && lowercaseQuery.length >= 3) {
+      const similarity = calculateSimilarity(lowercaseQuery, namaBarang)
+      if (similarity > 0.6) {
+        score += similarity * 100
+      }
+    }
+    
+    return score
   }
+  const calculateSimilarity = (str1, str2) => {
+    const set1 = new Set(str1.split(''))
+    const set2 = new Set(str2.split(''))
+    const intersection = new Set([...set1].filter(x => set2.has(x)))
+    const union = new Set([...set1, ...set2])
+    return intersection.size / union.size
+  }
+  const scoredResults = transaksi
+    .map(item => ({
+      ...item,
+      searchScore: calculateScore(item)
+    }))
+    .filter(item => item.searchScore > 0)
+    .sort((a, b) => {
+      if (b.searchScore !== a.searchScore) {
+        return b.searchScore - a.searchScore
+      }
+      const aLength = a.nama_barang.length
+      const bLength = b.nama_barang.length
+      if (aLength !== bLength) {
+        return aLength - bLength
+      }
+      return a.nama_barang.localeCompare(b.nama_barang, 'id', { numeric: true })
+    })
+  
+  return scoredResults.slice(0, 8) 
+}
 
   const addProductToCart = (product) => {
     if (!product) return
@@ -560,7 +572,6 @@ export default function ListKasir() {
         onClose={() => {
           setShowPrint(false)
           setPrintData(null)
-          // Focus kembali ke search input setelah print
           setTimeout(() => {
             if (searchInputRef.current) {
               searchInputRef.current.focus()
@@ -651,7 +662,7 @@ export default function ListKasir() {
                       }}
                       onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
                       placeholder="Scan barcode atau ketik nama produk..."
-                      className="pl-12 pr-12 h-16 text-xl font-medium w-full" // DIPERBESAR DAN DIPERLEBAR
+                      className="pl-12 pr-12 h-16 text-xl font-medium w-full"
                       autoComplete="off"
                     />
 
@@ -937,8 +948,6 @@ export default function ListKasir() {
                     </div>
                   )}
                 </div>
-
-                {/* TOMBOL PROSES TANPA VALIDASI TOTAL UANG */}
                 <Button 
                   onClick={handleSubmit}
                   disabled={cart.length === 0 || isProcessing}
