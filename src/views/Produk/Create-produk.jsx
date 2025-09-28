@@ -232,17 +232,18 @@ export default function CreateProduk() {
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/produk">
-            <Button variant="ghost" size="sm" className="p-2">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
+            {/* Arrow Left - Only visible on mobile */}
+            <Link to="/produk" className="md:hidden">
+              <Button variant="ghost" size="sm" className="p-3 hover:bg-white/50">
+                <ArrowLeft className="w-7 h-7" />
+              </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Tambah Produk Baru</h1>
-              <p className="text-muted-foreground">Lengkapi informasi produk di bawah ini</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Tambah Produk Baru</h1>
+              <p className="text-muted-foreground text-sm md:text-base">Lengkapi informasi produk di bawah ini</p>
             </div>
           </div>
-          <Package className="w-12 h-12 text-blue-600" />
+          <Package className="w-10 h-10 md:w-12 md:h-12 text-blue-600" />
         </div>
 
         {/* Error Alert */}
@@ -473,15 +474,19 @@ export default function CreateProduk() {
 
           </Card>
 
-          <div className="flex gap-4 pt-6">
-            <Link to="/produk">
-            <Button variant="outline" className="flex-1 h-12" type="button">
-              Kembali
-            </Button>
+          {/* Action Buttons - Responsive */}
+          <div className="flex flex-col md:flex-row gap-4 pt-6">
+            {/* Desktop Back Button - Hidden on mobile */}
+            <Link to="/produk" className="hidden md:block">
+              <Button variant="outline" className="w-full md:w-auto h-12 px-8" type="button">
+                Kembali
+              </Button>
             </Link>
+            
+            {/* Save Button - Full width on mobile */}
             <Button 
               onClick={handleSubmit}
-              className="flex-2 h-12 gap-2" 
+              className="w-full md:flex-1 h-12 gap-2" 
               disabled={loading}
             >
               {loading ? (

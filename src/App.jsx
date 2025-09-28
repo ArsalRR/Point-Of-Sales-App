@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom"
+import { Routes, Route, Navigate } from "react-router-dom"
 import DashboardLayout from "./Template/layout"
 import Login from "./views/Auth/Login"
 import ListProduk from "./views/Produk/List-produk"
@@ -14,11 +14,10 @@ import NetworkNotifier from "./hooks/NetworkNotifier"
 function App() {
   return (
     <>
-    <NetworkNotifier>
-    </NetworkNotifier>
+      <NetworkNotifier />
       <Routes>
-      
         <Route path="/" element={<Login />} />
+
         <Route
           path="/produk"
           element={
@@ -89,6 +88,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
   )

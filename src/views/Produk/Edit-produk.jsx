@@ -73,7 +73,7 @@ export default function EditProduk() {
           harga: data.harga ? data.harga.toString() : "",
           harga_renteng: data.harga_renteng ? data.harga_renteng.toString() : "",
           stok: Number(data.stok) || 0,
-          satuan_barang: data.satuan_barang || "",
+          satuan_barang: data.satuan_barang || "pcs",
           limit_stok: Number(data.limit_stok) || 0,
         })
         setError('') // Clear any previous errors
@@ -246,7 +246,6 @@ export default function EditProduk() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Edit Produk</h1>
@@ -255,7 +254,16 @@ export default function EditProduk() {
           <Package className="w-12 h-12 text-blue-600" />
         </div>
 
-        {/* Error Alert */}
+        {/* Mobile Back Button */}
+        <div className="block md:hidden">
+          <Link to="/produk">
+            <Button variant="outline" size="lg" className="w-full mb-4">
+              <ArrowLeft className="w-6 h-6 mr-2" />
+              Kembali ke Daftar Produk
+            </Button>
+          </Link>
+        </div>
+
         {errors.submit && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -268,22 +276,22 @@ export default function EditProduk() {
           <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Link to="/produk">
-            <Button variant="ghost" size="sm" className="p-2">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            </Link>
+                {/* Desktop Back Button */}
+                <Link to="/produk" className="hidden md:block">
+                  <Button variant="ghost" size="sm" className="p-2">
+                    <ArrowLeft className="w-5 h-5" />
+                  </Button>
+                </Link>
                 <Hash className="w-5 h-5" /> Informasi Dasar
               </CardTitle>
             </CardHeader>
            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-  {/* Kode Barang */}
   <div className="mb-4">
     <label htmlFor="kode_barang" className="block text-sm font-medium text-gray-700 mb-1">
       Kode Barang *
     </label>
     <div className="relative">
-      <input
+      <Input
         id="kode_barang"
         name="kode_barang"
         value={formData.kode_barang}
@@ -310,10 +318,10 @@ export default function EditProduk() {
 
   {/* Nama Barang */}
   <div className="mb-4">
-    <label htmlFor="nama_barang" className="block text-sm font-medium text-gray-700 mb-1">
+    <Label htmlFor="nama_barang" className="block text-sm font-medium text-gray-700 mb-1">
       Nama Barang *
-    </label>
-    <input
+    </Label>
+    <Input
       id="nama_barang"
       name="nama_barang"
       value={formData.nama_barang}
@@ -410,7 +418,7 @@ export default function EditProduk() {
               </div>
               <div>
                 <Label htmlFor="satuan_barang">Satuan</Label>
-                <Select onValueChange={handleSelectChange} value={formData.satuan_barang}>
+                <Select onValueChange={handleSelectChange} value={formData.satuan_barang || "pcs"}>
                   <SelectTrigger>
                     <SelectValue placeholder="Pilih satuan" />
                   </SelectTrigger>
@@ -427,7 +435,7 @@ export default function EditProduk() {
           </Card>
 
           <div className="flex gap-4">
-            <Link to="/produk" className="flex-1">
+            <Link to="/produk" className="flex-1 hidden md:block">
               <Button 
                 type="button" 
                 variant="outline" 

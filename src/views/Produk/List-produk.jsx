@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { 
   Search,
   ChevronLeft, ChevronRight, Package, AlertCircle, 
-  Loader2, Trash, Edit,
+  Loader2, Trash, Edit, Filter, X
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Swal from 'sweetalert2'
@@ -18,6 +18,7 @@ export default function ListProduk() {
   const [filterStok, setFilterStok] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [showMobileFilters, setShowMobileFilters] = useState(false)
 
   const queryClient = useQueryClient()
   const { data: produk = [], isLoading, isError, refetch } = useQuery({
@@ -77,13 +78,29 @@ export default function ListProduk() {
   })
 }
 
-  // Filter & Sorting
+  // Enhanced search function - lebih akurat
   const filteredAndSortedProduk = useMemo(() => {
     let filtered = produk.filter((item) => {
-      const matchesSearch =
-        item.nama_barang?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.kode_barang?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.satuan_barang?.toLowerCase().includes(searchQuery.toLowerCase())
+      // Enhanced search dengan normalisasi text dan multiple criteria
+      const normalizeText = (text) => text?.toString().toLowerCase().trim().replace(/\s+/g, ' ') || ''
+      const query = normalizeText(searchQuery)
+      
+      if (!query) return true // Jika tidak ada query, tampilkan semua
+      
+      const searchFields = [
+        normalizeText(item.nama_barang),
+        normalizeText(item.kode_barang),
+        normalizeText(item.satuan_barang),
+        normalizeText(item.harga),
+        normalizeText(item.harga_renteng),
+        normalizeText(item.stok)
+      ]
+      
+      // Cek apakah query cocok dengan field manapun (partial match)
+      const matchesSearch = searchFields.some(field => 
+        field.includes(query) || 
+        query.split(' ').every(word => field.includes(word))
+      )
 
       const matchesStockFilter =
         filterStok === 'all' ||
@@ -196,44 +213,112 @@ export default function ListProduk() {
 
         {/* Search + Filter */}
         <div className="p-4 sm:p-6">
-          {/* input pencarian */}
+          {/* Enhanced Search Input */}
           <div className="flex flex-col gap-4 mb-6">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
               <input
                 type="text"
-                placeholder="Cari berdasarkan nama, kode, atau satuan..."
+                placeholder="Cari produk (nama, kode, satuan, harga, stok)..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setCurrentPage(1) // Reset ke halaman pertama saat search
+                }}
+                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
 
-            {/* filter */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="px-3 py-2 border rounded-md">
+            {/* Desktop Filters - Full width */}
+            <div className="hidden lg:grid lg:grid-cols-4 gap-3">
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm">
                 <option value="nama_barang">Nama Barang</option>
                 <option value="kode_barang">Kode Barang</option>
                 <option value="harga">Harga</option>
                 <option value="stok">Stok</option>
               </select>
-              <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="px-3 py-2 border rounded-md">
+              <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm">
                 <option value="asc">A-Z / Rendah</option>
                 <option value="desc">Z-A / Tinggi</option>
               </select>
-              <select value={filterStok} onChange={(e) => setFilterStok(e.target.value)} className="px-3 py-2 border rounded-md">
+              <select value={filterStok} onChange={(e) => setFilterStok(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm">
                 <option value="all">Semua Stok</option>
                 <option value="in-stock">Tersedia</option>
                 <option value="low-stock">Stok Sedikit</option>
                 <option value="out-of-stock">Habis</option>
               </select>
-              <select value={itemsPerPage} onChange={(e) => setItemsPerPage(Number(e.target.value))} className="px-3 py-2 border rounded-md">
+              <select value={itemsPerPage} onChange={(e) => setItemsPerPage(Number(e.target.value))} className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm">
                 <option value="5">5 item</option>
                 <option value="10">10 item</option>
                 <option value="25">25 item</option>
                 <option value="50">50 item</option>
               </select>
             </div>
+
+            {/* Mobile Filter Toggle */}
+            <div className="lg:hidden flex items-center justify-between">
+              <button
+                onClick={() => setShowMobileFilters(!showMobileFilters)}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <Filter className="h-4 w-4" />
+                <span>Filter & Urutkan</span>
+              </button>
+              <span className="text-sm text-gray-500">
+                {filteredAndSortedProduk.length} hasil
+              </span>
+            </div>
+
+            {/* Mobile Filters Dropdown */}
+            {showMobileFilters && (
+              <div className="lg:hidden bg-gray-50 rounded-lg p-4 space-y-3 border">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-600 mb-1 block">Urutkan</label>
+                    <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+                      <option value="nama_barang">Nama</option>
+                      <option value="kode_barang">Kode</option>
+                      <option value="harga">Harga</option>
+                      <option value="stok">Stok</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600 mb-1 block">Arah</label>
+                    <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+                      <option value="asc">↑ Naik</option>
+                      <option value="desc">↓ Turun</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-600 mb-1 block">Status Stok</label>
+                    <select value={filterStok} onChange={(e) => setFilterStok(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+                      <option value="all">Semua</option>
+                      <option value="in-stock">Tersedia</option>
+                      <option value="low-stock">Sedikit</option>
+                      <option value="out-of-stock">Habis</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600 mb-1 block">Per Halaman</label>
+                    <select value={itemsPerPage} onChange={(e) => setItemsPerPage(Number(e.target.value))} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+                      <option value="5">5</option>
+                      <option value="10">10</option>
+                      <option value="25">25</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Mobile Card View - Hidden on Desktop */}
@@ -241,50 +326,69 @@ export default function ListProduk() {
             {currentItems.length > 0 ? (
               <div className="space-y-4">
                 {currentItems.map((item, index) => (
-                  <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-gray-900 text-sm">{item.nama_barang}</h3>
+                  <div key={item.id} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start gap-3 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-gray-900 text-base leading-tight mb-1 truncate">
+                              {item.nama_barang}
+                            </h3>
+                            <p className="text-sm text-gray-500 font-mono">{item.kode_barang}</p>
+                          </div>
                           {getStockBadge(item.stok)}
                         </div>
-                        <p className="text-xs text-gray-500 font-mono">{item.kode_barang}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Link to={`/produk/edit/${item.id}`} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
-                          <Edit className="h-4 w-4" />
-                        </Link>
-                        <button onClick={() => hapusData(item.id)} className="p-2 text-red-600 hover:bg-red-50 rounded">
-                          <Trash className="h-4 w-4" />
-                        </button>
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                       <div>
-                        <p className="text-gray-500">Harga</p>
-                        <p className="font-medium text-green-600">{formatCurrency(item.harga)}</p>
+                        <p className="text-gray-500 text-xs uppercase tracking-wide">Harga</p>
+                        <p className="font-semibold text-green-600 text-base">{formatCurrency(item.harga)}</p>
                       </div>
                       <div>
-                        <p className="text-gray-500">Harga Renteng</p>
-                        <p className="font-medium text-green-600">{formatCurrency(item.harga_renteng)}</p>
+                        <p className="text-gray-500 text-xs uppercase tracking-wide">Harga Renteng</p>
+                        <p className="font-semibold text-green-600 text-base">{formatCurrency(item.harga_renteng)}</p>
                       </div>
                       <div>
-                        <p className="text-gray-500">Stok</p>
-                        <p className="font-medium">{item.stok}</p>
+                        <p className="text-gray-500 text-xs uppercase tracking-wide">Stok</p>
+                        <p className="font-semibold text-gray-900 text-base">{item.stok}</p>
                       </div>
                       <div>
-                        <p className="text-gray-500">Satuan</p>
-                        <p className="font-medium">{item.satuan_barang}</p>
+                        <p className="text-gray-500 text-xs uppercase tracking-wide">Satuan</p>
+                        <p className="font-semibold text-gray-900 text-base">{item.satuan_barang}</p>
                       </div>
+                    </div>
+
+                    {/* Enhanced Action Buttons */}
+                    <div className="flex gap-3 pt-3 border-t border-gray-100">
+                      <Link 
+                        to={`/produk/edit/${item.id}`} 
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors font-medium text-sm"
+                      >
+                        <Edit className="h-4 w-4" />
+                        <span>Edit</span>
+                      </Link>
+                      <button 
+                        onClick={() => hapusData(item.id)} 
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors font-medium text-sm"
+                      >
+                        <Trash className="h-4 w-4" />
+                        <span>Hapus</span>
+                      </button>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <Package className="h-8 w-8 mx-auto mb-4 opacity-50" />
-                <p className="text-gray-500">Tidak ada produk yang ditemukan</p>
+              <div className="text-center py-16">
+                <Package className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-gray-500 text-lg mb-2">Tidak ada produk ditemukan</p>
+                {searchQuery && (
+                  <p className="text-gray-400 text-sm">
+                    Coba ubah kata kunci pencarian Anda
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -333,6 +437,11 @@ export default function ListProduk() {
                       <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
                         <Package className="h-8 w-8 mx-auto mb-4 opacity-50" />
                         <p>Tidak ada produk yang ditemukan</p>
+                        {searchQuery && (
+                          <p className="text-sm text-gray-400 mt-2">
+                            Coba ubah kata kunci pencarian Anda
+                          </p>
+                        )}
                       </td>
                     </tr>
                   )}

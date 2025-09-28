@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
 import { TrendingUp, Package, DollarSign, AlertTriangle, Calendar } from "lucide-react"
 import { getDasboard } from "@/api/Dasboardapi"
+
 const LoadingCard = () => (
   <Card className="shadow-sm border border-slate-200 bg-white/50 backdrop-blur-sm">
     <CardHeader className="pb-3">
@@ -43,6 +44,29 @@ export default function Dashboard() {
       minimumFractionDigits: 0,
     }).format(value)
 
+  // Function to convert month number to month name
+  const getMonthName = (monthNumber) => {
+    const monthNames = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ]
+    
+    // Handle both string and number inputs
+    const monthIndex = parseInt(monthNumber) - 1
+    return monthNames[monthIndex] || monthNumber
+  }
+
+  // Process chart data to include month names
+  const processChartData = (chartData) => {
+    if (!chartData || !Array.isArray(chartData)) return []
+    
+    return chartData.map(item => ({
+      ...item,
+      bulanName: getMonthName(item.bulan),
+      originalBulan: item.bulan
+    }))
+  }
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
@@ -56,6 +80,7 @@ export default function Dashboard() {
     }
     return null
   }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
@@ -74,6 +99,10 @@ export default function Dashboard() {
       </div>
     )
   }
+
+  // Process the chart data
+  const chartData = processChartData(data?.grafik)
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       <div className="container mx-auto p-6">
@@ -99,7 +128,7 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-gray-900">{data.totalProduk}</p>
+              <p className="text-3xl font-bold text-gray-900">{data?.totalProduk || 0}</p>
               <Badge variant="secondary" className="text-xs">
                 Semua kategori
               </Badge>
@@ -118,7 +147,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-gray-900">
-                {formatCurrency(data.totalbulanan)}
+                {formatCurrency(data?.totalbulanan || 0)}
               </p>
               <div className="flex items-center gap-2 mt-1">
                 <TrendingUp className="h-3 w-3 text-green-600" />
@@ -141,7 +170,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-gray-900">
-                {formatCurrency(data.totalPendapatanHarian)}
+                {formatCurrency(data?.totalPendapatanHarian || 0)}
               </p>
               <Badge variant="outline" className="text-xs text-purple-600 border-purple-200">
                 Update real-time
@@ -160,7 +189,7 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {data.stoksedikit ? (
+              {data?.stoksedikit ? (
                 <div>
                   <p className="font-semibold text-gray-900 text-lg">
                     {data.stoksedikit.nama_barang}
@@ -200,12 +229,15 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={data.grafik} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                   <XAxis
-                    dataKey="bulan"
+                    dataKey="bulanName"
                     axisLine={false}
                     tickLine={false}
                     tick={{ fontSize: 12, fill: "#6b7280" }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
                   />
                   <YAxis
                     axisLine={false}
@@ -215,7 +247,7 @@ export default function Dashboard() {
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="total_pendapatan" radius={[8, 8, 0, 0]}>
-                    {data.grafik.map((entry, index) => (
+                    {chartData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
                         fill={`hsl(${220 + index * 10}, 70%, ${55 - index * 2}%)`}
