@@ -145,7 +145,7 @@ const GetCountProduk = async () => {
               </div>
               {!isCollapsed && (
                 <div>
-                  <h1 className="font-semibold text-lg">Dashboard</h1>
+                  <h1 className="font-semibold text-lg">Toko IFA</h1>
                   <p className="text-xs text-muted-foreground">Admin Panel</p>
                 </div>
               )}

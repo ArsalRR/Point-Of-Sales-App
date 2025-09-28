@@ -527,8 +527,6 @@ export default function ListKasir() {
       }, 50)
       return
     }
-
-    // Manual selection
     addProductToCart(product)
     setSearchQuery('')
     setShowSearchResults(false)
@@ -605,7 +603,6 @@ export default function ListKasir() {
                     Scan Barcode / Cari Produk
                   </Label>
                   <div className="relative flex gap-3">
-                    {/* INPUT DIPERBESAR DAN DIPERLEBAR */}
                     <Input 
                       ref={searchInputRef}
                       id="unified-search"
@@ -773,8 +770,6 @@ export default function ListKasir() {
                                 </span>
                               </div>
                             </div>
-
-                            {/* Unit Selector */}
                             <div className="flex flex-col gap-1">
                               <Label className="text-xs text-gray-500">Satuan</Label>
                               <Select
@@ -789,14 +784,11 @@ export default function ListKasir() {
                                   {item.harga_renteng && (
                                     <SelectItem value="renteng">Renteng</SelectItem>
                                   )}
-                                  {item.harga_dus && (
-                                    <SelectItem value="dus">Dus</SelectItem>
+                                  {item.harga_renteng && (
+                                    <SelectItem value="Dus">Dus</SelectItem>
                                   )}
-                                  {item.harga_pack && (
+                                  {item.harga_renteng && (
                                     <SelectItem value="pack">Pack</SelectItem>
-                                  )}
-                                  {item.harga_grosir && (
-                                    <SelectItem value="grosir">Grosir</SelectItem>
                                   )}
                                 </SelectContent>
                               </Select>
