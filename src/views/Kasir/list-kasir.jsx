@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { ShoppingCart, Scan, Trash2, Plus, Minus, CreditCard, Search, X, Printer } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
@@ -73,77 +73,87 @@ export default function ListKasir() {
   const [showPrint, setShowPrint] = useState(false)
   const [printData, setPrintData] = useState(null)
   const [user, setUser] = useState(null)
-  const [barcodeBuffer, setBarcodeBuffer] = useState('')
-  const [lastKeyTime, setLastKeyTime] = useState(0)
+ const searchInputRef = useRef(null)
+const barcodeBufferRef = useRef('')
+const lastKeyTimeRef = useRef(0)
+const transaksiRef = useRef([])
 
-  const searchInputRef = useRef(null)
+useEffect(() => {
+  transaksiRef.current = transaksi
+}, [transaksi])
 
-  useEffect(() => {
-    fetchTransaksi()
-    fetchUser()
-    if (searchInputRef.current) {
-      searchInputRef.current.focus()
-    }
+useEffect(() => {
+  fetchTransaksi()
+  fetchUser()
+  if (searchInputRef.current) {
+    searchInputRef.current.focus()
+  }
 
-    const handleGlobalKeyPress = (e) => {
-      const activeElement = document.activeElement
-      const isTypingInInput = activeElement && (
-        activeElement.tagName === 'INPUT' || 
-        activeElement.tagName === 'TEXTAREA' ||
-        activeElement.contentEditable === 'true'
-      )
-      if (isTypingInInput && activeElement !== searchInputRef.current) {
-        setBarcodeBuffer('')
-        return
-      }
-      
-      const currentTime = Date.now()
-      if (currentTime - lastKeyTime > 100) {
-        setBarcodeBuffer('')
-      }
-      
-      setLastKeyTime(currentTime)
-      if (e.key.length === 1 && !isTypingInInput) { 
-        setBarcodeBuffer(prev => prev + e.key)
-      }
-      if (e.key === 'Enter' && barcodeBuffer.length >= 3 && !isTypingInInput) {
-        handleBarcodeDetected(barcodeBuffer)
-        setBarcodeBuffer('')
-        e.preventDefault()
-      }
-    }
-    document.addEventListener('keydown', handleGlobalKeyPress)
-
-    return () => {
-      document.removeEventListener('keydown', handleGlobalKeyPress)
-    }
-  }, [barcodeBuffer, lastKeyTime])
-  const handleBarcodeDetected = (barcode) => {
-    const trimmedBarcode = barcode.trim()
-    const product = transaksi.find(p => 
-      p.kode_barang.trim().toLowerCase() === trimmedBarcode.toLowerCase()
+  const handleGlobalKeyPress = (e) => {
+    const activeElement = document.activeElement
+    const isTypingInInput = activeElement && (
+      activeElement.tagName === 'INPUT' || 
+      activeElement.tagName === 'TEXTAREA' ||
+      activeElement.contentEditable === 'true'
     )
-    
-    if (product) {
-      addProductToCart(product)
-      if (searchInputRef.current) {
-        searchInputRef.current.focus()
+    if (isTypingInInput && activeElement !== searchInputRef.current) {
+      barcodeBufferRef.current = ''
+      return
+    }
+
+    const currentTime = Date.now()
+    if (currentTime - lastKeyTimeRef.current > 100) {
+      barcodeBufferRef.current = ''
+    }
+
+    lastKeyTimeRef.current = currentTime
+    if (e.key.length === 1 && !isTypingInInput) { 
+      barcodeBufferRef.current += e.key
+    }
+    if (e.key === 'Enter' && barcodeBufferRef.current.length >= 3 && !isTypingInInput) {
+      const scannedBarcode = barcodeBufferRef.current.trim()
+      barcodeBufferRef.current = ''
+      const product = transaksiRef.current.find(p => 
+        p.kode_barang.trim().toLowerCase() === scannedBarcode.toLowerCase()
+      )
+      
+      if (product) {
+        addProductToCart(product)
+        if (searchInputRef.current) {
+          searchInputRef.current.focus()
+        }
+      } else {
+        Swal.fire({
+          title: "Kode Tidak Ditemukan",
+          text: `Barcode "${scannedBarcode}" tidak terdaftar dalam sistem`,
+          icon: "error",
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true
+        })
+        
+        if (searchInputRef.current) {
+          searchInputRef.current.focus()
+        }
       }
-    } else {
-      setSearchQuery(trimmedBarcode)
-      setShowSearchResults(true)
-      if (searchInputRef.current) {
-        searchInputRef.current.focus()
-      }
+      
+      e.preventDefault()
     }
   }
 
+  document.addEventListener('keydown', handleGlobalKeyPress)
+
+  return () => {
+    document.removeEventListener('keydown', handleGlobalKeyPress)
+  }
+}, [])
   const fetchUser = async () => {
     try {
       const res = await getProfile()
       setUser(res.data)
     } catch (error) {
-      console.error("Gagal ambil user:", error)
     }
   }
 
@@ -332,18 +342,7 @@ export default function ListKasir() {
         kembalian: kembalian
       }
 
-      setPrintData(transactionData)
-      
-      Swal.fire({
-        title: "Berhasil",
-        text: "Transaksi Berhasil",
-        icon: "success",
-        toast: true,
-        position: "top-end",
-        showConfirmButton: false,
-        timer: 3000
-      })
-      
+      setPrintData(transactionData)      
       setCart([])
       setFormData({
         produk_id: '',
@@ -893,61 +892,74 @@ export default function ListKasir() {
                   </div>
                 </div>
 
-                <div className="space-y-4">        
-                  <div>
-                    <Label htmlFor="diskon" className="text-base font-medium">Potongan Harga (Opsional)</Label>
-                    {/* INPUT DIPERBESAR DAN DIPERLEBAR */}
-                    <Input 
-                      id="diskon"
-                      type="text" 
-                      name="diskon" 
-                      value={formData.diskon} 
-                      onChange={handleDiskonChange} 
-                      placeholder="Masukkan potongan harga"
-                      className="mt-2 h-12 text-lg" 
-                      autoComplete="off"
-                    />
-                  </div>
+               <div className="space-y-4">        
+  <div>
+    <Label htmlFor="diskon" className="text-base font-medium">Potongan Harga (Opsional)</Label>
+    <Input 
+      id="diskon"
+      type="text" 
+      name="diskon" 
+      value={formData.diskon} 
+      onChange={handleDiskonChange}
+      onBlur={() => {
+        setTimeout(() => {
+          if (searchInputRef.current) {
+            searchInputRef.current.focus()
+          }
+        }, 100)
+      }}
+      placeholder="Masukkan potongan harga"
+      className="mt-2 h-12 text-lg" 
+      autoComplete="off"
+    />
+  </div>
 
-                  <div>
-                    <Label htmlFor="total_uang" className="text-base font-medium">Total Uang (Opsional)</Label>
-                    {/* INPUT DIPERBESAR DAN DIPERLEBAR */}
-                    <Input 
-                      id="total_uang"
-                      type="text" 
-                      name="total_uang" 
-                      value={formData.total_uang} 
-                      onChange={handleTotalUangChange}
-                      placeholder="Masukkan total uang yang dibayar"
-                      className="mt-2 h-12 text-lg"
-                    />
-                  </div>
+  <div>
+    <Label htmlFor="total_uang" className="text-base font-medium">Total Uang (Opsional)</Label>
+    <Input 
+      id="total_uang"
+      type="text" 
+      name="total_uang" 
+      value={formData.total_uang} 
+      onChange={handleTotalUangChange}
+      onBlur={() => {
+        setTimeout(() => {
+          if (searchInputRef.current) {
+            searchInputRef.current.focus()
+          }
+        }, 100)
+      }}
+      placeholder="Masukkan total uang yang dibayar"
+      className="mt-2 h-12 text-lg"
+       autoComplete="off"
+    />
+  </div>
 
-                  <div>
-                    <Label htmlFor="kembalian" className="text-base font-medium">Kembalian</Label>
-                    {/* INPUT DIPERBESAR DAN DIPERLEBAR */}
-                    <Input 
-                      id="kembalian"
-                      type="text"
-                      name="kembalian" 
-                      value={formatRupiah(formData.kembalian) || formatRupiah(0)}
-                      placeholder="Kembalian akan dihitung otomatis"
-                      disabled
-                      className="mt-2 bg-gray-50 h-12 text-lg"
-                    />
-                  </div>
+  <div>
+    <Label htmlFor="kembalian" className="text-base font-medium">Kembalian</Label>
+    <Input 
+      id="kembalian"
+      type="text"
+      name="kembalian" 
+      value={formatRupiah(formData.kembalian) || formatRupiah(0)}
+      placeholder="Kembalian akan dihitung otomatis"
+      disabled
+      className="mt-2 bg-gray-50 h-12 text-lg"
+     
+    />
+  </div>
 
-                  {/* Status pembayaran */}
-                  {formData.total_uang && (
-                    <div className={`text-sm p-3 rounded-md ${
-                      paymentStatus.status === 'insufficient' ? 'bg-red-50 text-red-600' :
-                      paymentStatus.status === 'overpaid' ? 'bg-green-50 text-green-600' :
-                      'bg-blue-50 text-blue-600'
-                    }`}>
-                      {paymentStatus.message}
-                    </div>
-                  )}
-                </div>
+  {/* Status pembayaran */}
+  {formData.total_uang && (
+    <div className={`text-sm p-3 rounded-md ${
+      paymentStatus.status === 'insufficient' ? 'bg-red-50 text-red-600' :
+      paymentStatus.status === 'overpaid' ? 'bg-green-50 text-green-600' :
+      'bg-blue-50 text-blue-600'
+    }`}>
+      {paymentStatus.message}
+    </div>
+  )}
+</div>
                 <Button 
                   onClick={handleSubmit}
                   disabled={cart.length === 0 || isProcessing}
@@ -1040,12 +1052,6 @@ export default function ListKasir() {
                   Auto Barcode Detection
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-xs text-blue-700 space-y-1">
-                <p>• Sistem secara otomatis mendeteksi barcode scan</p>
-                <p>• Tidak perlu klik input terlebih dahulu</p>
-                <p>• Scan langsung akan menambah produk ke keranjang</p>
-                <p>• Jika tidak ditemukan, akan muncul di kotak pencarian</p>
-              </CardContent>
             </Card>
           </div>
         </div>

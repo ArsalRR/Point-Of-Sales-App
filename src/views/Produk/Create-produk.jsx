@@ -127,13 +127,9 @@ export default function CreateProduk() {
       ...prev,
       [name]: processedValue,
     }))
-
-    // Show/hide rentengan field
     if (name === 'harga_renteng') {
       setShowRentengan(value.trim() !== '')
     }
-
-    // Clear errors
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -203,7 +199,6 @@ export default function CreateProduk() {
         navigate('/produk')
       }, 2000)
     } catch (error) {
-      console.error("Error submitting product:", error)
       setErrors({ submit: 'Gagal menambahkan produk. Silakan coba lagi.' })
     } finally {
       setLoading(false)

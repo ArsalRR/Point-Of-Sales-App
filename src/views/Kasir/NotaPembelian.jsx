@@ -29,52 +29,29 @@ const NotaPembelian = ({ transactionData, onClose }) => {
       <div className="w-full max-w-sm mx-auto p-4">
         {/* Print styles */}
         <style jsx>{`
-          @media print {
-            body * {
-              visibility: hidden;
-            }
-            .print-area,
-            .print-area * {
-              visibility: visible;
-            }
-            .print-area {
-              position: absolute;
-              left: 0;
-              top: 0;
-              width: 100%;
-            }
-            .no-print {
-              display: none !important;
-            }
+        media print {
+            body * { visibility: hidden; }
+            .print-area, .print-area * { visibility: visible; }
+            .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none !important; }
           }
-          @page {
-            size: 58mm auto;
-            margin: 0;
-            padding: 0;
+          @page { size: 58mm auto; margin: 0; padding: 0; }
+          .receipt-content { 
+            font-family: 'Courier New', monospace; 
+            font-size: 12px; 
+            line-height: 1.2; 
+            width: 160px; 
+            margin: 0 auto; 
+            font-weight: bold; /* semua teks jadi tebal */
           }
-          .receipt-content {
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.2;
-            width: 160px;
-            margin: 0 auto;
+          .receipt-table { width: 100%; border-collapse: collapse; }
+          .receipt-table th, .receipt-table td { 
+            border-top: 1px solid #000; 
+            padding: 2px; 
+            font-size: 10px; 
           }
-          .receipt-table {
-            width: 100%;
-            border-collapse: collapse;
-          }
-          .receipt-table th,
-          .receipt-table td {
-            border-top: 1px solid #000;
-            padding: 2px;
-            font-size: 10px;
-          }
-          .text-center {
-            text-align: center;
-          }
-          .text-right {
-            text-align: right;
-          }
+          .text-center { text-align: center; }
+          .text-right { text-align: right; }
         `}</style>
 
         <div className="print-area">

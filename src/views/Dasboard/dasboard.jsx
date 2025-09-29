@@ -3,10 +3,23 @@ import { useQuery } from "@tanstack/react-query"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
-import { TrendingUp, Package, DollarSign, AlertTriangle, Calendar } from "lucide-react"
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts"
+import {
+  TrendingUp,
+  Package,
+  DollarSign,
+  AlertTriangle,
+  Calendar,
+} from "lucide-react"
 import { getDasboard } from "@/api/Dasboardapi"
-
 const LoadingCard = () => (
   <Card className="shadow-sm border border-slate-200 bg-white/50 backdrop-blur-sm">
     <CardHeader className="pb-3">
@@ -30,43 +43,56 @@ const LoadingChart = () => (
 )
 
 export default function Dashboard() {
-  const { data, isLoading, isError, error } = useQuery({
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ["dashboard"],
     queryFn: getDasboard,
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
   })
-
+  const { data: dailyRevenue } = useQuery({
+    queryKey: ["pendapatanHarian"],
+    queryFn: getDasboard,
+    staleTime: 0, 
+    refetchInterval: 5000, 
+    refetchOnWindowFocus: true,
+  })
   const formatCurrency = (value) =>
     new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
       minimumFractionDigits: 0,
     }).format(value)
-
-  // Function to convert month number to month name
   const getMonthName = (monthNumber) => {
     const monthNames = [
-      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+      "Januari",
+      "Februari",
+      "Maret",
+      "April",
+      "Mei",
+      "Juni",
+      "Juli",
+      "Agustus",
+      "September",
+      "Oktober",
+      "November",
+      "Desember",
     ]
-    
-    // Handle both string and number inputs
     const monthIndex = parseInt(monthNumber) - 1
     return monthNames[monthIndex] || monthNumber
   }
-
-  // Process chart data to include month names
   const processChartData = (chartData) => {
     if (!chartData || !Array.isArray(chartData)) return []
-    
-    return chartData.map(item => ({
+    return chartData.map((item) => ({
       ...item,
       bulanName: getMonthName(item.bulan),
-      originalBulan: item.bulan
+      originalBulan: item.bulan,
     }))
   }
-
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
@@ -100,13 +126,11 @@ export default function Dashboard() {
     )
   }
 
-  // Process the chart data
   const chartData = processChartData(data?.grafik)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       <div className="container mx-auto p-6">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
           <p className="text-gray-600 flex items-center gap-2">
@@ -114,10 +138,7 @@ export default function Dashboard() {
             Ringkasan bisnis Anda hari ini
           </p>
         </div>
-
-        {/* Grid Cards */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* Total Produk */}
           <Card className="group hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-white to-blue-50 hover:from-blue-100">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-3 text-sm font-medium text-gray-700">
@@ -128,14 +149,14 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-gray-900">{data?.totalProduk || 0}</p>
+              <p className="text-3xl font-bold text-gray-900">
+                {data?.totalProduk || 0}
+              </p>
               <Badge variant="secondary" className="text-xs">
                 Semua kategori
               </Badge>
             </CardContent>
           </Card>
-
-          {/* Pendapatan Bulanan */}
           <Card className="group hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-white to-green-50 hover:from-green-100">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-3 text-sm font-medium text-gray-700">
@@ -151,14 +172,15 @@ export default function Dashboard() {
               </p>
               <div className="flex items-center gap-2 mt-1">
                 <TrendingUp className="h-3 w-3 text-green-600" />
-                <Badge variant="outline" className="text-xs text-green-600 border-green-200">
+                <Badge
+                  variant="outline"
+                  className="text-xs text-green-600 border-green-200"
+                >
                   +12.5% vs bulan lalu
                 </Badge>
               </div>
             </CardContent>
           </Card>
-
-          {/* Laporan Harian */}
           <Card className="group hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-white to-purple-50 hover:from-purple-100">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-3 text-sm font-medium text-gray-700">
@@ -170,15 +192,16 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-gray-900">
-                {formatCurrency(data?.totalPendapatanHarian || 0)}
+                {formatCurrency(dailyRevenue?.totalPendapatanHarian || 0)}
               </p>
-              <Badge variant="outline" className="text-xs text-purple-600 border-purple-200">
+              <Badge
+                variant="outline"
+                className="text-xs text-purple-600 border-purple-200"
+              >
                 Update real-time
               </Badge>
             </CardContent>
           </Card>
-
-          {/* Stok Sedikit */}
           <Card className="group hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-white to-amber-50 hover:from-amber-100">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-3 text-sm font-medium text-gray-700">
@@ -195,16 +218,25 @@ export default function Dashboard() {
                     {data.stoksedikit.nama_barang}
                   </p>
                   <p className="text-amber-600 font-medium">
-                    Sisa: {data.stoksedikit.stok} {data.stoksedikit.satuan_barang}
+                    Sisa: {data.stoksedikit.stok}{" "}
+                    {data.stoksedikit.satuan_barang}
                   </p>
-                  <Badge variant="outline" className="text-xs text-amber-600 border-amber-200 mt-2">
+                  <Badge
+                    variant="outline"
+                    className="text-xs text-amber-600 border-amber-200 mt-2"
+                  >
                     Perlu restok segera
                   </Badge>
                 </div>
               ) : (
                 <div className="text-center py-4">
-                  <p className="text-gray-500 text-sm">Semua produk stok aman</p>
-                  <Badge variant="outline" className="text-xs text-green-600 border-green-200 mt-2">
+                  <p className="text-gray-500 text-sm">
+                    Semua produk stok aman
+                  </p>
+                  <Badge
+                    variant="outline"
+                    className="text-xs text-green-600 border-green-200 mt-2"
+                  >
                     Stok terkendali
                   </Badge>
                 </div>
@@ -229,7 +261,10 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <BarChart
+                  data={chartData}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                >
                   <XAxis
                     dataKey="bulanName"
                     axisLine={false}
@@ -250,7 +285,9 @@ export default function Dashboard() {
                     {chartData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
-                        fill={`hsl(${220 + index * 10}, 70%, ${55 - index * 2}%)`}
+                        fill={`hsl(${220 + index * 10}, 70%, ${
+                          55 - index * 2
+                        }%)`}
                       />
                     ))}
                   </Bar>

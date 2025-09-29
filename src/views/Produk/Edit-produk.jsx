@@ -160,61 +160,61 @@ export default function EditProduk() {
     }
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+ const handleSubmit = async (e) => {
+  e.preventDefault()
 
-    if (!validateForm()) {
-      return
-    }
-
-    setSubmitting(true)
-    setErrors({})
-
-    try {
-      const payload = {
-        kode_barang: formData.kode_barang.trim(),
-        nama_barang: formData.nama_barang.trim(),
-        harga: parseCurrency(formData.harga).toString(),
-        harga_renteng: parseCurrency(formData.harga_renteng).toString(),
-        stok: Number(formData.stok), 
-        limit_stok: Number(formData.limit_stok),
-        satuan_barang: formData.satuan_barang || "pcs"
-      }
-      const result = await editProduk(id, payload)
-      console.log('Update result:', result) 
-
-      await Swal.fire({
-        title: "Berhasil!",
-        text: "Produk berhasil diperbarui",
-        icon: "success",
-        showConfirmButton: false,
-        timer: 2000,
-        timerProgressBar: true,
-        toast: true,
-        position: "top-end"
-      })
-
-      navigate('/produk')
-      
-    } catch (error) {
-      console.error("Error updating product:", error)
-      
-      let errorMessage = 'Gagal memperbarui produk'
-      let fieldErrors = {}
-      
-      if (error.response?.data) {
-        if (error.response.data.errors) {
-          fieldErrors = error.response.data.errors
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message
-        }
-      }
-      
-      setErrors({ ...fieldErrors, submit: errorMessage })
-    } finally {
-      setSubmitting(false)
-    }
+  if (!validateForm()) {
+    return
   }
+
+  setSubmitting(true)
+  setErrors({})
+
+  try {
+    const payload = {
+      kode_barang: formData.kode_barang.trim(),
+      nama_barang: formData.nama_barang.trim(),
+      harga: parseCurrency(formData.harga).toString(),
+      harga_renteng: parseCurrency(formData.harga_renteng).toString(),
+      stok: Number(formData.stok), 
+      limit_stok: Number(formData.limit_stok),
+      satuan_barang: formData.satuan_barang || "pcs"
+    }
+
+    await editProduk(id, payload)
+
+    Swal.fire({
+      title: "Berhasil!",
+      text: "Produk berhasil diperbarui",
+      icon: "success",
+      showConfirmButton: false,
+      timer: 2000,
+      timerProgressBar: true,
+      toast: true,
+      position: "top-end"
+    })
+
+    navigate('/produk')
+
+  } catch (error) {
+    let errorMessage = 'Gagal memperbarui produk'
+    let fieldErrors = {}
+
+    if (error.response?.data) {
+      if (error.response.data.errors) {
+        fieldErrors = error.response.data.errors
+      } else if (error.response.data.message) {
+        errorMessage = error.response.data.message
+      }
+    }
+
+    setErrors({ ...fieldErrors, submit: errorMessage })
+  } finally {
+    setSubmitting(false)
+  }
+}
+
+
 
   if (loading) {
     return (
