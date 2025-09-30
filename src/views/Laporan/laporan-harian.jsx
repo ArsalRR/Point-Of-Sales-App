@@ -200,8 +200,6 @@ const MobileTransactionCard = ({ trx, idx, onViewDetail }) => {
     </Card>
   )
 }
-
-// ---------------- Halaman Laporan ----------------
 export default function LaporanHarian() {
   const [laporan, setLaporan] = useState([])
   const [loading, setLoading] = useState(true)
@@ -215,8 +213,6 @@ export default function LaporanHarian() {
       setError(null)
       const res = await getlaporanharian()
       if (res.status !== 200) throw new Error("Gagal mengambil laporan harian")
-
-      // group by no_transaksi
       const grouped = res.data.laporan.reduce((acc, item) => {
         const key = item.no_transaksi
         if (!acc[key]) {
@@ -250,8 +246,6 @@ export default function LaporanHarian() {
       )
       return acc + total
     }, 0)
-
-  // ---------------- UI ----------------
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-80">
@@ -300,7 +294,6 @@ export default function LaporanHarian() {
             </div>
           ) : (
             <>
-              {/* Desktop */}
               <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -358,8 +351,6 @@ export default function LaporanHarian() {
                   </TableBody>
                 </Table>
               </div>
-
-              {/* Mobile */}
               <div className="md:hidden space-y-4">
                 {laporan.map((trx, idx) => (
                   <MobileTransactionCard
@@ -385,71 +376,173 @@ export default function LaporanHarian() {
           )}
         </CardContent>
       </Card>
-      <Dialog open={!!selectedTransaksi} onOpenChange={() => setSelectedTransaksi(null)}>
-  <DialogContent className="w-full max-w-2xl sm:rounded-lg sm:m-4 p-4 sm:p-6">
-    <DialogHeader>
-      <DialogTitle className="text-base sm:text-lg font-bold">
-        🧾 Detail Transaksi: {selectedTransaksi?.no_transaksi}
+     <Dialog open={!!selectedTransaksi} onOpenChange={() => setSelectedTransaksi(null)}>
+  <DialogContent className="w-full h-full sm:h-auto sm:max-w-2xl sm:rounded-lg p-0 gap-0">
+    {/* Header dengan fixed position di mobile */}
+    <DialogHeader className="sticky top-0 bg-white z-10 p-4 border-b">
+      <DialogTitle className="text-sm sm:text-lg font-bold pr-8">
+        Detail Transaksi
       </DialogTitle>
+      <p className="text-xs text-muted-foreground font-normal mt-1">
+        {selectedTransaksi?.no_transaksi}
+      </p>
     </DialogHeader>
 
     {selectedTransaksi && (
-      <div className="space-y-4 text-sm sm:text-base">
-        <p><strong>Kasir:</strong> {selectedTransaksi.user?.name}</p>
-        <p>
-          <strong>Tanggal:</strong>{" "}
-          {dayjs(selectedTransaksi.waktu_pembelian).locale("id").format("DD MMM YYYY HH:mm")}
-        </p>
-        <div className="overflow-x-auto -mx-2 sm:mx-0">
-          <Table className="min-w-full text-xs sm:text-sm">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Produk</TableHead>
-                <TableHead className="text-center">Jumlah</TableHead>
-                <TableHead className="text-right">Harga</TableHead>
-                <TableHead className="text-right">Diskon</TableHead>
-                <TableHead className="text-right">Subtotal</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {selectedTransaksi.items.map((i, idx) => (
-                <TableRow key={idx}>
-                  <TableCell>{i.produk?.nama_barang}</TableCell>
-                  <TableCell className="text-center">{i.jumlah_terjual_per_hari}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(i.harga_saat_transaksi)}</TableCell>
-                  <TableCell className="text-right text-red-500">
-                    {i.diskon ? `- ${formatCurrency(i.diskon)}` : "-"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(i.jumlah_terjual_per_hari * i.harga_saat_transaksi - (i.diskon || 0))}
-                  </TableCell>
+      <div className="flex-1 overflow-y-auto p-4 pb-24 sm:pb-4">
+        {/* Info Cards */}
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <div className="bg-slate-50 p-3 rounded-lg">
+            <p className="text-xs text-muted-foreground mb-1">Kasir</p>
+            <p className="text-sm font-semibold truncate">
+              {selectedTransaksi.user?.name}
+            </p>
+          </div>
+          <div className="bg-slate-50 p-3 rounded-lg">
+            <p className="text-xs text-muted-foreground mb-1">Tanggal</p>
+            <p className="text-sm font-semibold">
+              {dayjs(selectedTransaksi.waktu_pembelian)
+                .locale("id")
+                .format("DD MMM YYYY")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {dayjs(selectedTransaksi.waktu_pembelian)
+                .locale("id")
+                .format("HH:mm")}
+            </p>
+          </div>
+        </div>
+
+        {/* Items List - Card Style untuk Mobile */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold mb-2">Daftar Produk</h3>
+          
+          {/* Mobile View - Cards */}
+          <div className="block sm:hidden space-y-2">
+            {selectedTransaksi.items.map((i, idx) => (
+              <div key={idx} className="bg-slate-50 p-3 rounded-lg space-y-2">
+                <div className="flex justify-between items-start gap-2">
+                  <p className="text-sm font-medium flex-1 leading-tight">
+                    {i.produk?.nama_barang}
+                  </p>
+                  <span className="text-xs bg-white px-2 py-1 rounded-md whitespace-nowrap">
+                    x{i.jumlah_terjual_per_hari}
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">Harga:</span>
+                    <p className="font-medium">
+                      {formatCurrency(i.harga_saat_transaksi)}
+                    </p>
+                  </div>
+                  {i.diskon && (
+                    <div>
+                      <span className="text-muted-foreground">Diskon:</span>
+                      <p className="font-medium text-red-500">
+                        - {formatCurrency(i.diskon)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
+                  <span className="text-xs text-muted-foreground">Subtotal</span>
+                  <span className="text-sm font-bold">
+                    {formatCurrency(
+                      i.jumlah_terjual_per_hari * i.harga_saat_transaksi -
+                        (i.diskon || 0)
+                    )}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop View - Table */}
+          <div className="hidden sm:block overflow-x-auto -mx-2">
+            <Table className="text-sm">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Produk</TableHead>
+                  <TableHead className="text-center">Jumlah</TableHead>
+                  <TableHead className="text-right">Harga</TableHead>
+                  <TableHead className="text-right">Diskon</TableHead>
+                  <TableHead className="text-right">Subtotal</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {selectedTransaksi.items.map((i, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="whitespace-pre-wrap break-words">
+                      {i.produk?.nama_barang}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {i.jumlah_terjual_per_hari}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(i.harga_saat_transaksi)}
+                    </TableCell>
+                    <TableCell className="text-right text-red-500">
+                      {i.diskon ? `- ${formatCurrency(i.diskon)}` : "-"}
+                    </TableCell>
+                    <TableCell className="text-right font-semibold">
+                      {formatCurrency(
+                        i.jumlah_terjual_per_hari * i.harga_saat_transaksi -
+                          (i.diskon || 0)
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+
+        {/* Total Section */}
+        <div className="mt-4 p-4 bg-primary/5 rounded-lg border-2 border-primary/20">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium">Total Pembayaran</span>
+            <span className="text-lg font-bold text-primary">
+              {formatCurrency(
+                selectedTransaksi.items.reduce(
+                  (sum, i) =>
+                    sum +
+                    (i.jumlah_terjual_per_hari * i.harga_saat_transaksi -
+                      (i.diskon || 0)),
+                  0
+                )
+              )}
+            </span>
+          </div>
         </div>
       </div>
     )}
 
-    <DialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-2 sm:gap-4 mt-4">
+    {/* Footer Fixed di Mobile */}
+    <DialogFooter className="fixed sm:relative bottom-0 left-0 right-0 bg-white border-t p-4 flex-row gap-2 sm:justify-between">
       <Button
-        variant="secondary"
-        className="w-full sm:w-auto"
+        variant="outline"
+        className="flex-1 sm:flex-none"
         onClick={() => setSelectedTransaksi(null)}
       >
         Tutup
       </Button>
       {selectedTransaksi && (
         <Button
-          className="w-full sm:w-auto"
+          className="flex-1 sm:flex-none"
           onClick={() => setPrintTransaksi(selectedTransaksi)}
         >
-          <Printer className="h-4 w-4 mr-1" /> Cetak Nota
+          <Printer className="h-4 w-4 mr-2" />
+          <span className="hidden sm:inline">Cetak Nota</span>
+          <span className="sm:hidden">Cetak</span>
         </Button>
       )}
     </DialogFooter>
   </DialogContent>
 </Dialog>
+
 
 
       {printTransaksi && (

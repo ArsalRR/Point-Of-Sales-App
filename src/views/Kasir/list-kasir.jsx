@@ -1043,16 +1043,6 @@ useEffect(() => {
                 </Button>
               </CardContent>
             </Card>
-
-            {/* Info Panel untuk Barcode Detection */}
-            <Card className="bg-blue-50 border-blue-200">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm text-blue-800 flex items-center gap-2">
-                  <Scan className="w-4 h-4" />
-                  Auto Barcode Detection
-                </CardTitle>
-              </CardHeader>
-            </Card>
           </div>
         </div>
       </div>

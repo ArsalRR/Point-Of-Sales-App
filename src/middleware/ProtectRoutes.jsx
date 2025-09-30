@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom"
+import { Navigate, useLocation, useNavigate } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { getProfile } from "@/api/Userapi"
 import { Loader2 } from "lucide-react"
@@ -6,15 +6,21 @@ import { Loader2 } from "lucide-react"
 export default function ProtectedRoute({ children, roles }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
+  const location = useLocation()
 
   const getUserData = async () => {
     try {
       const response = await getProfile()
       setUser(response.data)
     } catch (error) {
-      localStorage.removeItem("token")
-      localStorage.removeItem("token_type")
-      window.location.href = "/"
+      if (error.response && error.response.status === 401) {
+        localStorage.removeItem("token")
+        localStorage.removeItem("token_type")
+        navigate("/", { replace: true })
+      } else {
+        console.error("Gagal ambil profil:", error)
+      }
     } finally {
       setLoading(false)
     }
@@ -25,11 +31,11 @@ export default function ProtectedRoute({ children, roles }) {
     if (!token) {
       localStorage.removeItem("token")
       localStorage.removeItem("token_type")
-      window.location.href = "/"
+      navigate("/", { replace: true })
       return
     }
     getUserData()
-  }, [])
+  }, [navigate])
 
   if (loading) {
     return (
@@ -40,8 +46,17 @@ export default function ProtectedRoute({ children, roles }) {
     )
   }
 
+  // cek role
   if (roles && user && !roles.includes(user.role)) {
     return <Navigate to="/unauthorized" replace />
+  }
+  if (!children) {
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1) 
+    } else {
+      navigate("/dashboard") 
+    }
+    return null
   }
 
   return children

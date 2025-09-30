@@ -114,216 +114,197 @@ export default function ShadcnSidebar({ children }) {
 
   return (
     <TooltipProvider>
-      <div className="flex min-h-screen relative">
-        {/* Sidebar */}
-        <div 
-          className={`
-            ${isCollapsed ? 'w-16' : 'w-72'} 
-            ${isMobileOpen ? 'translate-x-0' : '-translate-x-full sm:translate-x-0'}
-            transition-all duration-300 border-r bg-background flex flex-col fixed sm:static z-40 h-full
-          `}
-        >
-          <div className="p-4 border-b flex items-center justify-between">
-            <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                <Package className="h-4 w-4 text-primary-foreground" />
-              </div>
-              {!isCollapsed && (
-                <div>
-                  <h1 className="font-semibold text-lg">Toko IFA</h1>
-                  <p className="text-xs text-muted-foreground">Admin Panel</p>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsCollapsed(!isCollapsed)}
-                className="h-8 w-8 hidden sm:flex"
-              >
-                {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 sm:hidden"
-                onClick={() => setIsMobileOpen(false)}
-              >
-                ✕
-              </Button>
-            </div>
+     <div className="flex min-h-screen relative">
+  {/* Sidebar */}        
+  <div 
+    className={`
+      ${isCollapsed ? 'w-16' : 'w-72'} 
+      hidden sm:block
+      transition-all duration-300 border-r bg-background flex-col fixed sm:static z-40 h-full
+    `}
+  >
+    <div className="p-4 border-b flex items-center justify-between">
+      <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
+        <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+          <Package className="h-4 w-4 text-primary-foreground" />
+        </div>
+        {!isCollapsed && (
+          <div>
+            <h1 className="font-semibold text-lg">Toko IFA</h1>
+            <p className="text-xs text-muted-foreground">Admin Panel</p>
           </div>
-          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            <div className="space-y-1">
-              {navigationItems.map((item) => {
-                const isActive = location.pathname === item.href
-                return (
-                  <Tooltip key={item.title} delayDuration={0}>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={isActive ? "secondary" : "ghost"}
-                        className={`w-full justify-start ${isCollapsed ? 'px-2' : 'px-3'} h-10`}
-                        asChild
-                      >
-                        <Link to={item.href}>
-                          <item.icon className="h-4 w-4" />
-                          {!isCollapsed && (
-                            <>
-                              <span className="ml-3">{item.title}</span>
-                              {item.badge && (
-                                <Badge 
-                                  variant={item.badge === "Pro" ? "default" : "secondary"}
-                                  className="ml-auto text-xs"
-                                >
-                                  {item.badge}
-                                </Badge>
-                              )}
-                            </>
-                          )}
-                        </Link>
-                      </Button>
-                    </TooltipTrigger>
-                    {isCollapsed && (
-                      <TooltipContent side="right">
-                        <p>{item.title}</p>
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                )
-              })}
-            </div>
-
-            <div className="my-4 h-px bg-border" />
-
-            {/* Teams Section */}
-            <div className="space-y-1">
-              <Collapsible
-                open={openMenus.teams && !isCollapsed}
-                onOpenChange={() => !isCollapsed && toggleMenu('teams')}
-              >
-                <Tooltip delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <CollapsibleTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        className={`w-full justify-start ${isCollapsed ? 'px-2' : 'px-3'} h-10`}
-                      >
-                        <NotebookText  className="h-4 w-4" />
-                        {!isCollapsed && (
-                          <>
-                            <span className="ml-3">Laporan Penjualan</span>
-                            <ChevronDown className={`ml-auto h-4 w-4 transition-transform ${openMenus.teams ? 'rotate-180' : ''}`} />
-                          </>
-                        )}
-                      </Button>
-                    </CollapsibleTrigger>
-                  </TooltipTrigger>
-                  {isCollapsed && (
-                    <TooltipContent side="right">
-                      <p>Laporan</p>
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-
-                {!isCollapsed && (
-                  <CollapsibleContent className="space-y-1 ml-6 mt-2">
-                    {teamItems.map((item) => (
-                      <Button
-                        key={item.title}
-                        variant={location.pathname === item.href ? "secondary" : "ghost"}
-                        size="sm"
-                        className="w-full justify-start h-8"
-                        asChild
-                      >
-                        <Link to={item.href}>
-                          <item.icon className="h-3 w-3" />
-                          <span className="ml-3 text-sm">{item.title}</span>
-                        </Link>
-                      </Button>
-                    ))}
-                  </CollapsibleContent>
-                )}
-              </Collapsible>
-            </div>
-          </nav>
-        </div>
-        
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-h-screen">
-          {/* Header */}
-          <header className="h-16 border-b bg-background flex items-center justify-between px-6 sticky top-0 z-30 w-full">
-            <div className="sm:hidden">
-              <Button variant="outline" size="icon" onClick={() => setIsMobileOpen(true)}>
-                <Menu className="h-5 w-5" />
-              </Button>
-            </div>
-            <div className="hidden sm:block"></div>
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-4 w-4" />
-                <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full text-xs flex items-center justify-center text-white">
-                  3
-                </span>
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className={`flex flex-col items-center ${
-                      isActive("/akun") ? "text-black" : "text-gray-500"
-                    } hover:text-black`}
-                  >
-                    <Avatar className="h-6 w-6 mb-1">
-                      <AvatarImage
-                        src="https://images.unsplash.com/photo-1600486913747-55e5470d6f40?auto=format&fit=crop&w=1770&q=80"
-                        alt="User"
-                      />
-                      <AvatarFallback>U</AvatarFallback>
-                    </Avatar>
-                  </button>
-                </DropdownMenuTrigger>
-
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <User className="mr-2 h-4 w-4" />
-                    Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Bell className="mr-2 h-4 w-4" />
-                    Notifications
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    onClick={handleLogout}
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </header>
-          <main className="flex-1 p-6 pb-20 sm:pb-6 overflow-y-auto">
-            {children}
-          </main>
-        </div>
-        {isMobileOpen && (
-          <div 
-            className="fixed inset-0 bg-black/50 z-30 sm:hidden" 
-            onClick={() => setIsMobileOpen(false)}
-          />
         )}
-        <div className="sm:hidden">
-          <BottomNav/>
-        </div>
       </div>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="h-8 w-8"
+        >
+          {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        </Button>
+      </div>
+    </div>
+    <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+      <div className="space-y-1">
+        {navigationItems.map((item) => {
+          const isActive = location.pathname === item.href
+          return (
+            <Tooltip key={item.title} delayDuration={0}>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={isActive ? "secondary" : "ghost"}
+                  className={`w-full justify-start ${isCollapsed ? 'px-2' : 'px-3'} h-10`}
+                  asChild
+                >
+                  <Link to={item.href}>
+                    <item.icon className="h-4 w-4" />
+                    {!isCollapsed && (
+                      <>
+                        <span className="ml-3">{item.title}</span>
+                        {item.badge && (
+                          <Badge 
+                            variant={item.badge === "Pro" ? "default" : "secondary"}
+                            className="ml-auto text-xs"
+                          >
+                            {item.badge}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              {isCollapsed && (
+                <TooltipContent side="right">
+                  <p>{item.title}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          )
+        })}
+      </div>
+
+      <div className="my-4 h-px bg-border" />
+      <div className="space-y-1">
+        <Collapsible
+          open={openMenus.teams && !isCollapsed}
+          onOpenChange={() => !isCollapsed && toggleMenu('teams')}
+        >
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className={`w-full justify-start ${isCollapsed ? 'px-2' : 'px-3'} h-10`}
+                >
+                  <NotebookText  className="h-4 w-4" />
+                  {!isCollapsed && (
+                    <>
+                      <span className="ml-3">Laporan Penjualan</span>
+                      <ChevronDown className={`ml-auto h-4 w-4 transition-transform ${openMenus.teams ? 'rotate-180' : ''}`} />
+                    </>
+                  )}
+                </Button>
+              </CollapsibleTrigger>
+            </TooltipTrigger>
+            {isCollapsed && (
+              <TooltipContent side="right">
+                <p>Laporan</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+
+          {!isCollapsed && (
+            <CollapsibleContent className="space-y-1 ml-6 mt-2">
+              {teamItems.map((item) => (
+                <Button
+                  key={item.title}
+                  variant={location.pathname === item.href ? "secondary" : "ghost"}
+                  size="sm"
+                  className="w-full justify-start h-8"
+                  asChild
+                >
+                  <Link to={item.href}>
+                    <item.icon className="h-3 w-3" />
+                    <span className="ml-3 text-sm">{item.title}</span>
+                  </Link>
+                </Button>
+              ))}
+            </CollapsibleContent>
+          )}
+        </Collapsible>
+      </div>
+    </nav>
+  </div>
+  
+  {/* Main Content Area */}
+  <div className="flex-1 flex flex-col min-h-screen w-full">
+    <header className="h-16 border-b bg-background flex items-center justify-end px-6 sticky top-0 z-30 w-full">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" className="relative">
+          <Bell className="h-4 w-4" />
+          <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full text-xs flex items-center justify-center text-white">
+            3
+          </span>
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className={`flex flex-col items-center ${
+                isActive("/akun") ? "text-black" : "text-gray-500"
+              } hover:text-black`}
+            >
+              <Avatar className="h-6 w-6 mb-1">
+                <AvatarImage
+                  src="https://images.unsplash.com/photo-1600486913747-55e5470d6f40?auto=format&fit=crop&w=1770&q=80"
+                  alt="User"
+                />
+                <AvatarFallback>U</AvatarFallback>
+              </Avatar>
+            </button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <User className="mr-2 h-4 w-4" />
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Bell className="mr-2 h-4 w-4" />
+              Notifications
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive"
+              onClick={handleLogout}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </header>
+    <main className="flex-1 p-6 pb-20 sm:pb-6 overflow-y-auto">
+      {children}
+    </main>
+  </div>
+
+  <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50">
+    <div className="absolute inset-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]"></div>
+    <div className="relative pb-safe">
+      <BottomNav/>
+    </div>
+  </div>
+</div>
     </TooltipProvider>
   )
 }

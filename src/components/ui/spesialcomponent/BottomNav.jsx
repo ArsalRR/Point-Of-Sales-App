@@ -46,16 +46,12 @@ export default function BottomNav() {
               </li>
             )
           })}
-          
-          {/* Laporan Menu dengan styling yang konsisten */}
           <li className="relative">
             <div className="flex flex-col items-center px-3 py-2 rounded-xl text-gray-500 hover:text-black hover:scale-105 hover:bg-gray-50 transition-all duration-200 ease-out">
               <LaporanMenu />
             </div>
           </li>
         </ul>
-        
-        {/* Minimalist decorative line */}
         <div className="absolute top-1 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-gray-200 rounded-full"></div>
       </nav>
     </>
