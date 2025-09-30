@@ -143,12 +143,12 @@ export default function ListProduk() {
     for (let i = start; i <= end; i++) pages.push(i)
     return pages
   }
+const getStockBadge = (stok, limit_stok) => {
+  if (stok === 0) return <Badge variant="destructive">Habis</Badge>
+  if (stok <= limit_stok) return <Badge variant="secondary">Sedikit</Badge>
+  return <Badge variant="default">Tersedia</Badge>
+}
 
-  const getStockBadge = (stok) => {
-    if (stok === 0) return <Badge variant="destructive">Habis</Badge>
-    if (stok <= 10) return <Badge variant="secondary">Sedikit</Badge>
-    return <Badge variant="default">Tersedia</Badge>
-  }
 
   const formatCurrency = (amount) =>
     new Intl.NumberFormat('id-ID', {
@@ -331,7 +331,7 @@ export default function ListProduk() {
                             </h3>
                             <p className="text-sm text-gray-500 font-mono">{item.kode_barang}</p>
                           </div>
-                          {getStockBadge(item.stok)}
+                           {getStockBadge(item.stok, item.limit_stok)}
                         </div>
                       </div>
                     </div>
@@ -416,7 +416,7 @@ export default function ListProduk() {
                         <td className="px-6 py-4 text-sm text-right">{formatCurrency(item.harga_renteng)}</td>
                         <td className="px-6 py-4 text-sm text-center">{item.stok}</td>
                         <td className="px-6 py-4 text-sm">{item.satuan_barang}</td>
-                        <td className="px-6 py-4 text-center">{getStockBadge(item.stok)}</td>
+                        <td className="px-6 py-4 text-center">  {getStockBadge(item.stok, item.limit_stok)}</td>
                         <td className="px-6 py-4 text-center flex gap-2 justify-center">
                           <Link to={`/produk/edit/${item.id}`} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
                             <Edit className="h-4 w-4" />

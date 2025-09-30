@@ -594,7 +594,7 @@ useEffect(() => {
               </div>
               <div>
                 <CardTitle className="text-2xl font-bold text-gray-900">Kasir Toko IFA</CardTitle>
-                <p className="text-gray-600 mt-1">Sistem Kasir Terpadu - Auto Barcode Detection</p>
+                <p className="text-gray-600 mt-1">Sistem Point Of Sales </p>
               </div>
             </div>
           </CardHeader>
