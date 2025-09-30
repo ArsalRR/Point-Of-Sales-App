@@ -31,6 +31,10 @@ const NotaPembelian = ({ transaksi, onClose }) => {
 
   if (!transaksi) return null
 
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("id-ID").format(amount)
+  }
+
   const total = transaksi.items.reduce(
     (acc, item) =>
       acc + item.jumlah_terjual_per_hari * item.harga_saat_transaksi - (item.diskon || 0),
@@ -46,70 +50,109 @@ const NotaPembelian = ({ transaksi, onClose }) => {
     <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
       <div className="w-full max-w-sm mx-auto p-4">
         <style jsx>{`
+          * {
+            font-size: 12px;
+            font-family: 'Times New Roman';
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+
+          td, th, tr, table {
+            border-top: 1px solid black;
+            border-collapse: collapse;
+          }
+
+          td.description, th.description {
+            width: 70px;
+            max-width: 70px;
+          }
+
+          td.quantity, th.quantity {
+            width: 30px;
+            max-width: 30px;
+            word-break: break-word;
+          }
+
+          td.price, th.price {
+            width: 50px;
+            max-width: 50px;
+            word-break: break-word;
+            text-align: right;
+          }
+
+          .centered {
+            text-align: center;
+            align-content: center;
+          }
+
+          .ticket {
+            width: 160px;
+            max-width: 160px;
+            margin: auto;
+            margin-bottom: 20px;
+          }
+
+          /* hanya struk yang tercetak */
           @media print {
-            body * { visibility: hidden; }
-            .print-area, .print-area * { visibility: visible; }
-            .print-area { position: absolute; left: 0; top: 0; width: 100%; }
-            .no-print { display: none !important; }
+            body * {
+              visibility: hidden;
+            }
+            .ticket, .ticket * {
+              visibility: visible;
+            }
+            .ticket {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+            }
           }
-          @page { size: 58mm auto; margin: 0; padding: 0; }
-          .receipt-content { 
-            font-family: 'Courier New', monospace; 
-            font-size: 12px; 
-            line-height: 1.2; 
-            width: 160px; 
-            margin: 0 auto; 
-            font-weight: bold; /* semua teks jadi tebal */
+
+          @page {
+            size: 58mm auto;
+            margin: 0;
+            padding: 0;
           }
-          .receipt-table { width: 100%; border-collapse: collapse; }
-          .receipt-table th, .receipt-table td { 
-            border-top: 1px solid #000; 
-            padding: 2px; 
-            font-size: 10px; 
-          }
-          .text-center { text-align: center; }
-          .text-right { text-align: right; }
         `}</style>
 
-        <div className="print-area">
-          <div className="receipt-content">
-            <div className="text-center mb-4">
-              <strong>TOKO IFA</strong>
-              <br />Jl. Perumahan Limas No. 08
-              <br />Telp: 085868287956
-              <br />{currentDate}
-              <br />No Trans: {transaksi.no_transaksi}
-            </div>
+        <div className="ticket">
+          <p className="centered">
+            TOKO IFA<br />
+            Jl. Perumahan Limas No. 08<br />
+            Telp: 085868287956<br />
+            {currentDate}<br />
+            No Trans: {transaksi.no_transaksi}
+          </p>
 
-            <table className="receipt-table">
-              <thead>
-                <tr>
-                  <th>Jml</th>
-                  <th>Produk</th>
-                  <th className="text-right">Rp</th>
+          <table>
+            <thead>
+              <tr>
+                <th className="quantity">Jml</th>
+                <th className="description">Produk</th>
+                <th className="price">Rp</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transaksi.items.map((item, idx) => (
+                <tr key={idx}>
+                  <td className="quantity">{item.jumlah_terjual_per_hari}</td>
+                  <td className="description">{item.produk?.nama_barang}</td>
+                  <td className="price">
+                    {formatCurrency(item.jumlah_terjual_per_hari * item.harga_saat_transaksi)}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {transaksi.items.map((item, idx) => (
-                  <tr key={idx}>
-                    <td>{item.jumlah_terjual_per_hari}</td>
-                    <td>{item.produk?.nama_barang}</td>
-                    <td className="text-right">
-                      {formatCurrency(item.jumlah_terjual_per_hari * item.harga_saat_transaksi)}
-                    </td>
-                  </tr>
-                ))}
-                <tr>
-                  <td colSpan={2}><strong>Total</strong></td>
-                  <td className="text-right"><strong>{formatCurrency(total)}</strong></td>
-                </tr>
-              </tbody>
-            </table>
+              ))}
+              <tr>
+                <td></td>
+                <td className="description"><strong>Total</strong></td>
+                <td className="price"><strong>{formatCurrency(total)}</strong></td>
+              </tr>
+            </tbody>
+          </table>
 
-            <div className="text-center mt-4">
-              Terima Kasih<br />Atas Kunjungan Anda
-            </div>
-          </div>
+          <p className="centered">
+            Terima Kasih<br />Atas Kunjungan Anda
+          </p>
         </div>
       </div>
     </div>

@@ -62,3 +62,17 @@ export const getProdukById = async (id) => {
     throw error
   }
 }
+export const Getkode = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const response = await axios.get(
+      `${import.meta.env.VITE_API_URL}generate-kode`,
+      { headers }
+    );
+    return response.data.kode;
+  } catch (error) {
+    console.error('Error generating product code:', error);
+    throw error;
+  }
+};

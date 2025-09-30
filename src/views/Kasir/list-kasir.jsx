@@ -102,7 +102,7 @@ useEffect(() => {
     }
 
     const currentTime = Date.now()
-    if (currentTime - lastKeyTimeRef.current > 100) {
+    if (currentTime - lastKeyTimeRef.current > 50) {
       barcodeBufferRef.current = ''
     }
 
@@ -544,12 +544,14 @@ useEffect(() => {
   }
 
   const updateQty = (kode, qty) => {
-    if (qty <= 0) {
-      removeItem(kode)
-      return
-    }
-    setCart(cart.map((c) => c.kode_barang === kode ? { ...c, jumlah: qty } : c))
-  }
+  const validQty = Math.max(1, Math.floor(qty))  
+  setCart((prevCart) => 
+    prevCart.map((c) => 
+      c.kode_barang === kode ? { ...c, jumlah: validQty } : c
+    )
+  )
+  
+}
 
   const removeItem = (kode) => {
     setCart(cart.filter((c) => c.kode_barang !== kode))
@@ -803,17 +805,15 @@ useEffect(() => {
                                 </SelectContent>
                               </Select>
                             </div>
-
-                            {/* Quantity Controls */}
                             <div className="flex items-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => updateQty(item.kode_barang, item.jumlah - 1)}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Minus className="w-4 h-4" />
-                              </Button>
+                             <Button
+  variant="outline"
+  size="sm"
+  onClick={() => updateQty(item.kode_barang, item.jumlah - 1)}
+  className="h-8 w-8 p-0"
+>
+  <Minus className="w-4 h-4" />
+</Button>
                               <Input
                                 type="number"
                                 value={item.jumlah}

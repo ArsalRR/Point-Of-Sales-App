@@ -24,7 +24,7 @@ import {
   Shuffle,
   Loader2
 } from "lucide-react"
-import { postProduk } from "@/api/Produkapi"
+import { postProduk, Getkode } from "@/api/Produkapi"
 import Swal from "sweetalert2"
 import { Link, useNavigate } from "react-router-dom"
 const initialFormData = {
@@ -74,13 +74,18 @@ export default function CreateProduk() {
 
   ]
 
-  const generateKode = () => {
-    const randomCode = Math.floor(Math.random() * 999999) + 100000
+  const generateKode = async () => {
+  try {
+    const randomCode = await Getkode();
+    console.log('ini kode barang', randomCode)
     setFormData(prev => ({
       ...prev,
-      kode_barang: randomCode.toString()
-    }))
+      kode_barang: randomCode
+    }));
+  } catch (error) {
+    console.error(error);
   }
+};
 
   const validateForm = () => {
     const newErrors = {}
@@ -117,8 +122,6 @@ export default function CreateProduk() {
   const handleChange = (e) => {
     const { name, value } = e.target
     let processedValue = value
-
-    // Format currency for price fields
     if (name === 'harga' || name === 'harga_renteng') {
       processedValue = formatCurrency(value)
     }
@@ -143,8 +146,6 @@ export default function CreateProduk() {
       ...prev,
       [name]: value
     }))
-
-    // Handle manual stock input
     if (name === 'stok') {
       setShowManualStok(value === 'manual')
       if (value !== 'manual') {
@@ -154,12 +155,9 @@ export default function CreateProduk() {
   }
 
   const formatCurrency = (value) => {
-    // Remove all non-digits
     const numericValue = value.replace(/[^0-9]/g, '')
     
     if (!numericValue) return ''
-    
-    // Format with thousands separators
     const formatted = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
     return `Rp ${formatted}`
   }

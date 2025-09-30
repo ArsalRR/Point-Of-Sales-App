@@ -6,8 +6,8 @@ const NotaPembelian = ({ transactionData, onClose }) => {
       window.print()
       setTimeout(() => {
         onClose()
-      }, 1000)
-    }, 500)
+      }, 300)
+    }, 100)
 
     return () => clearTimeout(timer)
   }, [onClose])
@@ -29,111 +29,139 @@ const NotaPembelian = ({ transactionData, onClose }) => {
       <div className="w-full max-w-sm mx-auto p-4">
         {/* Print styles */}
         <style jsx>{`
-        media print {
-            body * { visibility: hidden; }
-            .print-area, .print-area * { visibility: visible; }
-            .print-area { position: absolute; left: 0; top: 0; width: 100%; }
-            .no-print { display: none !important; }
+          * {
+            font-size: 12px;
+            font-family: 'Times New Roman';
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
-          @page { size: 58mm auto; margin: 0; padding: 0; }
-          .receipt-content { 
-            font-family: 'Courier New', monospace; 
-            font-size: 12px; 
-            line-height: 1.2; 
-            width: 160px; 
-            margin: 0 auto; 
-            font-weight: bold; /* semua teks jadi tebal */
+
+          td, th, tr, table {
+            border-top: 1px solid black;
+            border-collapse: collapse;
           }
-          .receipt-table { width: 100%; border-collapse: collapse; }
-          .receipt-table th, .receipt-table td { 
-            border-top: 1px solid #000; 
-            padding: 2px; 
-            font-size: 10px; 
+
+          td.description, th.description {
+            width: 70px;
+            max-width: 70px;
           }
-          .text-center { text-align: center; }
-          .text-right { text-align: right; }
+
+          td.quantity, th.quantity {
+            width: 30px;
+            max-width: 30px;
+            word-break: break-word;
+          }
+
+          td.price, th.price {
+            width: 50px;
+            max-width: 50px;
+            word-break: break-word;
+            text-align: right;
+          }
+
+          .centered {
+            text-align: center;
+            align-content: center;
+          }
+
+          .ticket {
+            width: 160px;
+            max-width: 160px;
+            margin: auto;
+            margin-bottom: 20px;
+          }
+
+          /* pastikan hanya struk yang dicetak */
+          @media print {
+            body * {
+              visibility: hidden;
+            }
+            .ticket, .ticket * {
+              visibility: visible;
+            }
+            .ticket {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+            }
+          }
+
+          @page {
+            size: 58mm auto;
+            margin: 0;
+            padding: 0;
+          }
         `}</style>
 
-        <div className="print-area">
-          <div className="receipt-content">
-            <div className="text-center mb-4">
-              <strong>TOKO IFA</strong>
-              <br />
-              Jl. Perumahan Limas No. 08
-              <br />
-              Telp: 085868287956
-              <br />
-              {currentDate}
-              <br />
-              No Trans: {transactionData.no_transaksi}
-            </div>
+        <div className="ticket">
+          <p className="centered">
+            TOKO IFA<br />
+            Jl. Perumahan Limas No. 08<br />
+            Telp: 085868287956<br />
+            {currentDate}<br />
+            No Trans: {transactionData.no_transaksi}
+          </p>
 
-            <table className="receipt-table">
-              <thead>
-                <tr>
-                  <th style={{ width: "20%" }}>Jml</th>
-                  <th style={{ width: "50%" }}>Produk</th>
-                  <th style={{ width: "30%" }} className="text-right">
-                    Rp
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactionData.items.map((item, index) => (
-                  <tr key={index}>
-                    <td>{item.jumlah}</td>
-                    <td>{item.nama_barang}</td>
-                    <td className="text-right">
-                      {formatCurrency(item.jumlah * item.harga)}
-                    </td>
-                  </tr>
-                ))}
-                <tr>
-                  <td></td>
-                  <td>Subtotal</td>
-                  <td className="text-right">
-                    Rp {formatCurrency(transactionData.subtotal)}
+          <table>
+            <thead>
+              <tr>
+                <th className="quantity">Jml</th>
+                <th className="description">Produk</th>
+                <th className="price">Rp</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transactionData.items.map((item, index) => (
+                <tr key={index}>
+                  <td className="quantity">{item.jumlah}</td>
+                  <td className="description">{item.nama_barang}</td>
+                  <td className="price">
+                    {formatCurrency(item.jumlah * item.harga)}
                   </td>
                 </tr>
-                <tr>
-                  <td></td>
-                  <td>Diskon</td>
-                  <td className="text-right">
-                    Rp {formatCurrency(transactionData.diskon)}
-                  </td>
-                </tr>
-                <tr>
-                  <td></td>
-                  <td>
-                    <strong>Total</strong>
-                  </td>
-                  <td className="text-right">
-                    <strong>Rp {formatCurrency(transactionData.total)}</strong>
-                  </td>
-                </tr>
-                <tr>
-                  <td></td>
-                  <td>Jumlah Uang</td>
-                  <td className="text-right">
-                    Rp {formatCurrency(transactionData.total_uang)}
-                  </td>
-                </tr>
-                <tr>
-                  <td></td>
-                  <td>Kembalian</td>
-                  <td className="text-right">
-                    Rp {formatCurrency(transactionData.kembalian)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+              ))}
+              <tr>
+                <td></td>
+                <td className="description">Subtotal</td>
+                <td className="price">
+                  Rp {formatCurrency(transactionData.subtotal)}
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td className="description">Diskon</td>
+                <td className="price">
+                  Rp {formatCurrency(transactionData.diskon)}
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td className="description"><strong>Total</strong></td>
+                <td className="price">
+                  <strong>Rp {formatCurrency(transactionData.total)}</strong>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td className="description">Jumlah Uang</td>
+                <td className="price">
+                  Rp {formatCurrency(transactionData.total_uang)}
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td className="description">Kembalian</td>
+                <td className="price">
+                  Rp {formatCurrency(transactionData.kembalian)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
-            <div className="text-center mt-4">
-              Terima Kasih
-              <br />
-              Atas Kunjungan Anda
-            </div>
-          </div>
+          <p className="centered">
+            Terima Kasih<br />Atas Kunjungan Anda
+          </p>
         </div>
       </div>
     </div>

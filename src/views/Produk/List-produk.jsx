@@ -77,15 +77,12 @@ export default function ListProduk() {
     }
   })
 }
-
-  // Enhanced search function - lebih akurat
   const filteredAndSortedProduk = useMemo(() => {
     let filtered = produk.filter((item) => {
-      // Enhanced search dengan normalisasi text dan multiple criteria
       const normalizeText = (text) => text?.toString().toLowerCase().trim().replace(/\s+/g, ' ') || ''
       const query = normalizeText(searchQuery)
       
-      if (!query) return true // Jika tidak ada query, tampilkan semua
+      if (!query) return true
       
       const searchFields = [
         normalizeText(item.nama_barang),
@@ -95,8 +92,7 @@ export default function ListProduk() {
         normalizeText(item.harga_renteng),
         normalizeText(item.stok)
       ]
-      
-      // Cek apakah query cocok dengan field manapun (partial match)
+        
       const matchesSearch = searchFields.some(field => 
         field.includes(query) || 
         query.split(' ').every(word => field.includes(word))
@@ -111,26 +107,25 @@ export default function ListProduk() {
       return matchesSearch && matchesStockFilter
     })
 
-    filtered.sort((a, b) => {
-      let aVal = a[sortBy]
-      let bVal = b[sortBy]
-      if (['harga', 'harga_renteng', 'stok'].includes(sortBy)) {
-        aVal = Number(aVal) || 0
-        bVal = Number(bVal) || 0
-      }
-      if (typeof aVal === 'string') {
-        aVal = aVal.toLowerCase()
-        bVal = bVal.toLowerCase()
-      }
-      return sortOrder === 'asc'
-        ? aVal > bVal ? 1 : -1
-        : aVal < bVal ? 1 : -1
-    })
+   filtered.sort((a, b) => {
+  let aVal = a[sortBy]
+  let bVal = b[sortBy]
 
+  if (['harga', 'harga_renteng', 'stok'].includes(sortBy)) {
+    aVal = Number(aVal) || 0
+    bVal = Number(bVal) || 0
+    return sortOrder === 'asc' ? aVal - bVal : bVal - aVal
+  } else {
+    aVal = (aVal || '').toString().toLowerCase()
+    bVal = (bVal || '').toString().toLowerCase()
+    if (aVal === bVal) return 0
+    return sortOrder === 'asc'
+      ? aVal > bVal ? 1 : -1
+      : aVal < bVal ? 1 : -1
+  }
+})
     return filtered
   }, [produk, searchQuery, sortBy, sortOrder, filterStok])
-
-  // Pagination
   const totalPages = Math.ceil(filteredAndSortedProduk.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
