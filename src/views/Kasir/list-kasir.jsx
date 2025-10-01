@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { ShoppingCart, Scan, Trash2, Plus, Minus, CreditCard, Search, X, Printer } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { ShoppingCart, Scan, Trash2, Plus, Minus, CreditCard, Search, X, } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -89,15 +89,16 @@ useEffect(() => {
     searchInputRef.current.focus()
   }
 
-  const handleGlobalKeyPress = (e) => {
+const handleGlobalKeyPress = (e) => {
     const activeElement = document.activeElement
     const isTypingInInput = activeElement && (
       activeElement.tagName === 'INPUT' || 
       activeElement.tagName === 'TEXTAREA' ||
       activeElement.contentEditable === 'true'
     )
+    
+    // Jangan proses barcode jika user sedang mengetik di input quantity cart atau input lainnya
     if (isTypingInInput && activeElement !== searchInputRef.current) {
-      barcodeBufferRef.current = ''
       return
     }
 
@@ -142,7 +143,6 @@ useEffect(() => {
       e.preventDefault()
     }
   }
-
   document.addEventListener('keydown', handleGlobalKeyPress)
 
   return () => {

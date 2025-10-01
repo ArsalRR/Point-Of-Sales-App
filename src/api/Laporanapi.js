@@ -20,17 +20,23 @@ export const getlaporanharian = async () => {
   }
 }
 
-export const getlaporanbulanan = async () => {
+export const getlaporanbulanan = async (bulan, tahun) => {
   try {
     const token = localStorage.getItem("token");
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     const response = await axios.get(
       `${import.meta.env.VITE_API_URL}penjualan-bulanan`,
-      { headers }
+      { 
+        headers,
+        params: {
+          bulan: bulan,
+          tahun: tahun
+        }
+      }
     );
+    
     return response.data.data || response.data; 
   } catch (error) {
-    console.error("Error fetching laporan bulanan:", error);
     throw error;
   }
 };

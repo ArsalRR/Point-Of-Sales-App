@@ -32,28 +32,21 @@ export default function LaporanBulanan() {
   const GetLaporanBulanan = async (selectedBulan, selectedTahun) => {
     try {
       setLoading(true)
+      console.log('Fetching data for:', { bulan: selectedBulan, tahun: selectedTahun })
       const data = await getlaporanbulanan(selectedBulan, selectedTahun)
+      console.log('Response data:', data)
       setLaporanBulanan(data)
     } catch (error) {
       console.error("Error fetching laporan:", error)
+      setLaporanBulanan(null)
     } finally {
       setLoading(false)
     }
   }
+
   useEffect(() => {
     GetLaporanBulanan(bulan, tahun)
   }, [bulan, tahun])
-
-  if (!laporanBulanan && !loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Memuat laporan bulanan...</p>
-        </div>
-      </div>
-    )
-  }
 
   const bulanList = [
     { value: "01", label: "Januari" },
@@ -73,10 +66,23 @@ export default function LaporanBulanan() {
   const tahunList = ["2023", "2024", "2025"]
 
   const selectedBulanLabel = bulanList.find(b => b.value === bulan)?.label || ""
-
+  if (loading || !laporanBulanan) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Memuat laporan bulanan...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
   const laporanData = laporanBulanan?.laporanBulanan || []
   const sortedData = [...laporanData].sort((a, b) => 
-    parseFloat(b.total_pembelian) - parseFloat(a.total_pembelian)
+    parseFloat(b.total_pembelian || 0) - parseFloat(a.total_pembelian || 0)
   )
 
   const penjualanHarian = laporanBulanan?.penjualanPerHari || {}
@@ -85,7 +91,6 @@ export default function LaporanBulanan() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-6 space-y-6">
-        {/* Header */}
         <div className="flex flex-col space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -128,18 +133,6 @@ export default function LaporanBulanan() {
           </div>
         </div>
 
-        {/* Loading Overlay */}
-        {loading && (
-          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center">
-            <Card className="p-6">
-              <div className="flex flex-col items-center gap-3">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                <p className="text-gray-600">Memuat data {selectedBulanLabel} {tahun}...</p>
-              </div>
-            </Card>
-          </div>
-        )}
-
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
@@ -151,7 +144,7 @@ export default function LaporanBulanan() {
             </CardHeader>
             <CardContent>
               <p className="text-xl sm:text-2xl font-bold text-green-600">
-                Rp {laporanBulanan?.totalKeseluruhan?.pembelian?.toLocaleString() || '0'}
+                Rp {parseFloat(laporanBulanan?.totalKeseluruhan?.pembelian || 0).toLocaleString('id-ID')}
               </p>
             </CardContent>
           </Card>
@@ -165,7 +158,7 @@ export default function LaporanBulanan() {
             </CardHeader>
             <CardContent>
               <p className="text-xl sm:text-2xl font-bold text-blue-600">
-                {laporanBulanan?.totalKeseluruhan?.jumlah_terjual || 0}
+                {parseInt(laporanBulanan?.totalKeseluruhan?.jumlah_terjual || 0).toLocaleString('id-ID')}
               </p>
             </CardContent>
           </Card>
@@ -179,7 +172,7 @@ export default function LaporanBulanan() {
             </CardHeader>
             <CardContent>
               <p className="text-xl sm:text-2xl font-bold text-purple-600">
-                Rp {laporanBulanan?.totalKeseluruhan?.keuntungan?.toLocaleString() || '0'}
+                Rp {parseFloat(laporanBulanan?.totalKeseluruhan?.keuntungan || 0).toLocaleString('id-ID')}
               </p>
             </CardContent>
           </Card>
@@ -200,7 +193,7 @@ export default function LaporanBulanan() {
                   <div key={tanggal} className="bg-gray-50 rounded-lg p-3">
                     <p className="text-xs text-gray-600 mb-1">{tanggal}</p>
                     <p className="text-lg font-bold text-gray-900">
-                      Rp {parseFloat(nilai).toLocaleString()}
+                      Rp {parseFloat(nilai || 0).toLocaleString('id-ID')}
                     </p>
                   </div>
                 ))}
@@ -209,7 +202,7 @@ export default function LaporanBulanan() {
           </Card>
         )}
 
-        {/* Mobile Card View - TANPA GROUPING */}
+        {/* Mobile Card View */}
         <div className="block lg:hidden space-y-4">
           <h3 className="text-lg font-semibold text-gray-900">Detail Penjualan Produk</h3>
           {sortedData.length === 0 ? (
@@ -229,30 +222,30 @@ export default function LaporanBulanan() {
                 <CardContent className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Kode Barang:</span>
-                    <span className="font-mono text-sm">{item.produk?.kode_barang}</span>
+                    <span className="font-mono text-sm">{item.produk?.kode_barang || '-'}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Jumlah Terjual:</span>
                     <span className="font-semibold text-blue-600">
-                      {parseInt(item.total_jumlah_terjual) || 0}
+                      {parseInt(item.total_jumlah_terjual || 0).toLocaleString('id-ID')}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Harga Satuan:</span>
                     <span className="font-semibold">
-                      Rp {item.produk?.harga?.toLocaleString() || '0'}
+                      Rp {parseFloat(item.produk?.harga || 0).toLocaleString('id-ID')}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Total Penjualan:</span>
                     <span className="font-semibold text-green-600">
-                      Rp {parseFloat(item.total_pembelian).toLocaleString()}
+                      Rp {parseFloat(item.total_pembelian || 0).toLocaleString('id-ID')}
                     </span>
                   </div>
                   <div className="pt-2 border-t border-gray-200">
                     <div className="flex justify-between text-xs text-gray-500">
                       <span>Waktu Transaksi:</span>
-                      <span>{item.waktu_pembelian}</span>
+                      <span>{item.waktu_pembelian || '-'}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -261,7 +254,7 @@ export default function LaporanBulanan() {
           )}
         </div>
 
-        {/* Desktop Table View - TANPA GROUPING */}
+        {/* Desktop Table View */}
         <Card className="hidden lg:block shadow-lg border-0 bg-white/80 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -299,22 +292,22 @@ export default function LaporanBulanan() {
                         </TableCell>
                         <TableCell>
                           <span className="font-mono text-xs">
-                            {item.produk?.kode_barang}
+                            {item.produk?.kode_barang || '-'}
                           </span>
                         </TableCell>
                         <TableCell className="text-center">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {parseInt(item.total_jumlah_terjual) || 0}
+                            {parseInt(item.total_jumlah_terjual || 0).toLocaleString('id-ID')}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          Rp {item.produk?.harga?.toLocaleString() || '0'}
+                          Rp {parseFloat(item.produk?.harga || 0).toLocaleString('id-ID')}
                         </TableCell>
                         <TableCell className="text-right font-semibold text-green-600">
-                          Rp {parseFloat(item.total_pembelian).toLocaleString()}
+                          Rp {parseFloat(item.total_pembelian || 0).toLocaleString('id-ID')}
                         </TableCell>
                         <TableCell className="text-xs text-gray-600">
-                          {item.waktu_pembelian}
+                          {item.waktu_pembelian || '-'}
                         </TableCell>
                       </TableRow>
                     ))}
