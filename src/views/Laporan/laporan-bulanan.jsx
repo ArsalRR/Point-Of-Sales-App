@@ -5,36 +5,33 @@ import {
   CardContent,
   CardTitle,
 } from "@/components/ui/card"
-
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { CalendarDays, TrendingUp, Package2, DollarSign, BarChart3, X } from "lucide-react"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
+import { CalendarDays, TrendingUp, Package2, DollarSign, BarChart3, X, ChevronDown } from "lucide-react"
 import { getlaporanbulanan } from "@/api/Laporanapi"
-import { Input } from "@/components/ui/input"
+import dayjs from "dayjs"
 
 export default function LaporanBulanan() {
-  const today = new Date()
-  const currentMonth = String(today.getMonth() + 1).padStart(2, '0')
-  const currentYear = String(today.getFullYear())
+  const today = dayjs()
+  const currentMonth = today.format('MM')
+  const currentYear = today.format('YYYY')
   
   const [laporanBulanan, setLaporanBulanan] = useState(null)
   const [bulan, setBulan] = useState(currentMonth)
   const [tahun, setTahun] = useState(currentYear)
   const [loading, setLoading] = useState(false)
   const [viewMode, setViewMode] = useState("bulanan")
-  const [tglAwal, setTglAwal] = useState("")
+  const [selectedDate, setSelectedDate] = useState(null)
 
   const GetLaporanBulanan = async (selectedBulan, selectedTahun, selectedTglAwal = "") => {
     try {
       setLoading(true)
-
       const data = await getlaporanbulanan(selectedBulan, selectedTahun, selectedTglAwal)
-
       setLaporanBulanan(data)
     } catch (error) {
       setLaporanBulanan(null)
@@ -44,8 +41,9 @@ export default function LaporanBulanan() {
   }
 
   useEffect(() => {
+    const tglAwal = selectedDate ? dayjs(selectedDate).format('YYYY-MM-DD') : ""
     GetLaporanBulanan(bulan, tahun, tglAwal)
-  }, [bulan, tahun, tglAwal])
+  }, [bulan, tahun, selectedDate])
 
   const bulanList = [
     { value: "01", label: "Januari" },
@@ -62,7 +60,7 @@ export default function LaporanBulanan() {
     { value: "12", label: "Desember" },
   ]
 
-  const tahunList = Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - i))
+  const tahunList = Array.from({ length: 5 }, (_, i) => String(today.year() - i))
 
   const selectedBulanLabel = bulanList.find(b => b.value === bulan)?.label || ""
   
@@ -88,6 +86,7 @@ export default function LaporanBulanan() {
 
   const penjualanHarian = laporanBulanan?.penjualanPerHari || {}
   const hariList = Object.entries(penjualanHarian).sort((a, b) => a[0].localeCompare(b[0]))
+  
   const groupByDate = (data) => {
     const grouped = {}
     data.forEach(item => {
@@ -121,85 +120,133 @@ export default function LaporanBulanan() {
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
                 <CalendarDays className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
-                Laporan Penjualan {tglAwal ? "Harian" : (viewMode === "bulanan" ? "Bulanan" : "Harian")}
+                Laporan Penjualan {selectedDate ? "Harian" : (viewMode === "bulanan" ? "Bulanan" : "Harian")}
               </h1>
               <p className="text-sm sm:text-base text-gray-600 mt-1">
-                {tglAwal ? formatTanggal(tglAwal) : `${selectedBulanLabel} ${tahun}`}
+                {selectedDate ? formatTanggal(selectedDate) : `${selectedBulanLabel} ${tahun}`}
               </p>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              {!tglAwal && (
-                <Select value={viewMode} onValueChange={setViewMode}>
-                  <SelectTrigger className="w-full sm:w-[140px]">
-                    <SelectValue placeholder="Pilih tampilan" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bulanan">Bulanan</SelectItem>
-                    <SelectItem value="harian">Harian</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="flex gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="min-w-[200px] justify-between" disabled={loading}>
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    {selectedDate 
+                      ? dayjs(selectedDate).format('DD MMMM YYYY')
+                      : `${selectedBulanLabel} ${tahun}`
+                    }
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-4" align="end">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Pilih Periode</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {bulanList.map((b) => (
+                          <button
+                            key={b.value}
+                            className={`px-3 py-2 text-sm rounded hover:bg-gray-100 text-left ${
+                              bulan === b.value && !selectedDate ? 'bg-blue-100 text-blue-700' : ''
+                            }`}
+                            onClick={() => {
+                              setBulan(b.value)
+                              setSelectedDate(null)
+                            }}
+                          >
+                            {b.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Pilih Tahun</label>
+                      <div className="flex gap-2">
+                        {tahunList.map((t) => (
+                          <button
+                            key={t}
+                            className={`px-4 py-2 text-sm rounded hover:bg-gray-100 ${
+                              tahun === t && !selectedDate ? 'bg-blue-100 text-blue-700' : ''
+                            }`}
+                            onClick={() => {
+                              setTahun(t)
+                              setSelectedDate(null)
+                            }}
+                          >
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="border-t pt-4">
+                      <label className="text-sm font-medium mb-2 block">Atau Pilih Tanggal Spesifik</label>
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={setSelectedDate}
+                        initialFocus
+                      />
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {!selectedDate && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="min-w-[120px] justify-between">
+                      {viewMode === "bulanan" ? "Bulanan" : "Harian"}
+                      <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[120px] p-0">
+                    <div className="flex flex-col">
+                      <button
+                        className={`px-3 py-2 text-sm hover:bg-gray-100 text-left ${
+                          viewMode === "bulanan" ? 'bg-blue-100 text-blue-700' : ''
+                        }`}
+                        onClick={() => setViewMode("bulanan")}
+                      >
+                        Bulanan
+                      </button>
+                      <button
+                        className={`px-3 py-2 text-sm hover:bg-gray-100 text-left ${
+                          viewMode === "harian" ? 'bg-blue-100 text-blue-700' : ''
+                        }`}
+                        onClick={() => setViewMode("harian")}
+                      >
+                        Harian
+                      </button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               )}
 
-              <Select value={bulan} onValueChange={setBulan} disabled={loading}>
-                <SelectTrigger className="w-full sm:w-[140px]">
-                  <SelectValue placeholder="Pilih bulan" />
-                </SelectTrigger>
-                <SelectContent>
-                  {bulanList.map((b) => (
-                    <SelectItem key={b.value} value={b.value}>
-                      {b.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <Select value={tahun} onValueChange={setTahun} disabled={loading}>
-                <SelectTrigger className="w-full sm:w-[100px]">
-                  <SelectValue placeholder="Pilih tahun" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tahunList.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <div className="relative w-full sm:w-[180px]">
-                <Input
-                  type="date"
-                  value={tglAwal}
-                  onChange={(e) => setTglAwal(e.target.value)}
-                  placeholder="Filter Harian"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              {selectedDate && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSelectedDate(null)}
                   disabled={loading}
-                />
-                {tglAwal && (
-                  <button
-                    onClick={() => setTglAwal("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 bg-white rounded-full p-1"
-                    disabled={loading}
-                    title="Hapus filter tanggal"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+                  title="Hapus filter tanggal"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
 
-          {tglAwal && (
+          {selectedDate && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <CalendarDays className="w-4 h-4 text-blue-600" />
                 <span className="text-sm text-blue-800">
-                  Filter aktif: <strong>{formatTanggal(tglAwal)}</strong>
+                  Filter aktif: <strong>{formatTanggal(selectedDate)}</strong>
                 </span>
               </div>
               <button
-                onClick={() => setTglAwal("")}
+                onClick={() => setSelectedDate(null)}
                 className="text-blue-600 hover:text-blue-800 text-sm font-medium"
               >
                 Tampilkan Semua
@@ -208,8 +255,7 @@ export default function LaporanBulanan() {
           )}
         </div>
 
-        {/* Summary Cards - Tampil di mode bulanan atau saat ada filter tanggal */}
-        {(viewMode === "bulanan" || tglAwal) && (
+        {(viewMode === "bulanan" || selectedDate) && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
               <CardHeader className="pb-3">
@@ -255,7 +301,7 @@ export default function LaporanBulanan() {
           </div>
         )}
 
-        {viewMode === "bulanan" && !tglAwal && hariList.length > 0 && (
+        {viewMode === "bulanan" && !selectedDate && hariList.length > 0 && (
           <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -278,8 +324,7 @@ export default function LaporanBulanan() {
           </Card>
         )}
 
-        {/* View Harian - Tampil saat mode harian dan tidak ada filter tanggal */}
-        {viewMode === "harian" && !tglAwal && (
+        {viewMode === "harian" && !selectedDate && (
           <div className="space-y-6">
             {dailyGroupedData.length === 0 ? (
               <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
@@ -315,7 +360,6 @@ export default function LaporanBulanan() {
                       </div>
                     </CardHeader>
                     <CardContent className="p-4">
-                      {/* Mobile View */}
                       <div className="block lg:hidden space-y-3">
                         {items.map((item, idx) => (
                           <div key={idx} className="bg-gray-50 rounded-lg p-3 space-y-2">
@@ -346,7 +390,6 @@ export default function LaporanBulanan() {
                         ))}
                       </div>
 
-                      {/* Desktop View */}
                       <div className="hidden lg:block overflow-x-auto">
                         <table className="w-full">
                           <thead>
@@ -393,13 +436,11 @@ export default function LaporanBulanan() {
           </div>
         )}
 
-        {/* Detail Produk - Tampil di mode bulanan atau saat ada filter tanggal */}
-        {(viewMode === "bulanan" || tglAwal) && (
+        {(viewMode === "bulanan" || selectedDate) && (
           <>
-            {/* Mobile Card View */}
             <div className="block lg:hidden space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">
-                Detail Penjualan Produk {tglAwal ? `- ${formatTanggal(tglAwal)}` : ''}
+                Detail Penjualan Produk {selectedDate ? `- ${formatTanggal(selectedDate)}` : ''}
               </h3>
               {sortedData.length === 0 ? (
                 <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
@@ -438,7 +479,7 @@ export default function LaporanBulanan() {
                           Rp {parseFloat(item.total_pembelian || 0).toLocaleString('id-ID')}
                         </span>
                       </div>
-                      {!tglAwal && (
+                      {!selectedDate && (
                         <div className="pt-2 border-t border-gray-200">
                           <div className="flex justify-between text-xs text-gray-500">
                             <span>Waktu Transaksi:</span>
@@ -452,12 +493,11 @@ export default function LaporanBulanan() {
               )}
             </div>
 
-            {/* Desktop Table View */}
             <Card className="hidden lg:block shadow-lg border-0 bg-white/80 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Package2 className="w-5 h-5" />
-                  Detail Penjualan Produk - {tglAwal ? formatTanggal(tglAwal) : `${selectedBulanLabel} ${tahun}`}
+                  Detail Penjualan Produk - {selectedDate ? formatTanggal(selectedDate) : `${selectedBulanLabel} ${tahun}`}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -476,7 +516,7 @@ export default function LaporanBulanan() {
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
                           <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Harga Satuan</th>
                           <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                          {!tglAwal && (
+                          {!selectedDate && (
                             <th className="w-[15%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Waktu</th>
                           )}
                         </tr>
@@ -506,7 +546,7 @@ export default function LaporanBulanan() {
                             <td className="px-4 py-4 text-right font-semibold text-green-600">
                               Rp {parseFloat(item.total_pembelian || 0).toLocaleString('id-ID')}
                             </td>
-                            {!tglAwal && (
+                            {!selectedDate && (
                               <td className="px-4 py-4 text-xs text-gray-600">
                                 {item.waktu_pembelian || '-'}
                               </td>
