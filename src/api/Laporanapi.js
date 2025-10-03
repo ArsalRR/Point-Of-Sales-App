@@ -20,18 +20,24 @@ export const getlaporanharian = async () => {
   }
 }
 
-export const getlaporanbulanan = async (bulan, tahun) => {
+export const getlaporanbulanan = async (bulan, tahun, tglAwal = "") => {
   try {
     const token = localStorage.getItem("token");
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    
+    const params = {
+      bulan: bulan,
+      tahun: tahun
+    };
+    if (tglAwal) {
+      params.tgl_awal = tglAwal;
+    }
+    
     const response = await axios.get(
       `${import.meta.env.VITE_API_URL}penjualan-bulanan`,
       { 
         headers,
-        params: {
-          bulan: bulan,
-          tahun: tahun
-        }
+        params
       }
     );
     

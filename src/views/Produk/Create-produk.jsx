@@ -225,7 +225,6 @@ export default function CreateProduk() {
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            {/* Arrow Left - Only visible on mobile */}
             <Link to="/produk" className="md:hidden">
               <Button variant="ghost" size="sm" className="p-3 hover:bg-white/50">
                 <ArrowLeft className="w-7 h-7" />
@@ -238,8 +237,6 @@ export default function CreateProduk() {
           </div>
           <Package className="w-10 h-10 md:w-12 md:h-12 text-blue-600" />
         </div>
-
-        {/* Error Alert */}
         {errors.submit && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -248,7 +245,6 @@ export default function CreateProduk() {
         )}
 
         <div className="space-y-6">
-          {/* Basic Information */}
           <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -259,7 +255,7 @@ export default function CreateProduk() {
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="kode_barang" className="text-sm font-medium">
-                  Kode Barang *
+                  Kode Barang 
                 </Label>
                 <div className="flex gap-2">
                   <Input
@@ -270,6 +266,7 @@ export default function CreateProduk() {
                     onChange={handleChange}
                     placeholder="Masukkan Kode Barang"
                     className={`h-12 ${errors.kode_barang ? 'border-red-500' : ''}`}
+                    autoComplete="off"
                   />
                   <Button
                     type="button"
@@ -289,7 +286,7 @@ export default function CreateProduk() {
 
               <div className="space-y-2">
                 <Label htmlFor="nama_barang" className="text-sm font-medium">
-                  Nama Barang *
+                  Nama Barang 
                 </Label>
                 <Input
                   id="nama_barang"
@@ -298,6 +295,7 @@ export default function CreateProduk() {
                   onChange={handleChange}
                   placeholder="Masukkan Nama Barang"
                   className={`h-12 ${errors.nama_barang ? 'border-red-500' : ''}`}
+                     autoComplete="off"
                 />
                 {errors.nama_barang && (
                   <p className="text-sm text-red-500">{errors.nama_barang}</p>
@@ -306,7 +304,7 @@ export default function CreateProduk() {
 
               <div className="space-y-2">
                 <Label htmlFor="limit_stok" className="text-sm font-medium">
-                  Limit Stok Produk *
+                  Limit Stok Produk 
                 </Label>
                 <Input
                   id="limit_stok"
@@ -316,6 +314,7 @@ export default function CreateProduk() {
                   onChange={handleChange}
                   placeholder="Masukkan Limit Barang"
                   className={`h-12 ${errors.limit_stok ? 'border-red-500' : ''}`}
+                     autoComplete="off"
                 />
                 {errors.limit_stok && (
                   <p className="text-sm text-red-500">{errors.limit_stok}</p>
@@ -342,6 +341,7 @@ export default function CreateProduk() {
                   onChange={handleChange}
                   placeholder="Masukkan Harga"
                   className={`h-12 ${errors.harga ? 'border-red-500' : ''}`}
+                     autoComplete="off"
                 />
                 {errors.harga && (
                   <p className="text-sm text-red-500">{errors.harga}</p>
@@ -359,6 +359,7 @@ export default function CreateProduk() {
                   onChange={handleChange}
                   placeholder="Masukkan Harga Rentengan"
                   className={`h-12 ${errors.harga_renteng ? 'border-red-500' : ''}`}
+                     autoComplete="off"
                 />
                 {errors.harga_renteng && (
                   <p className="text-sm text-red-500">{errors.harga_renteng}</p>
@@ -384,13 +385,12 @@ export default function CreateProduk() {
                     onChange={handleChange}
                     placeholder="Masukkan Isi Rentengan"
                     className="h-12"
+                       autoComplete="off"
                   />
                 </div>
               )}
             </CardContent>
           </Card>
-
-          {/* Stock & Unit Information */}
           <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -466,17 +466,12 @@ export default function CreateProduk() {
 </CardContent>
 
           </Card>
-
-          {/* Action Buttons - Responsive */}
           <div className="flex flex-col md:flex-row gap-4 pt-6">
-            {/* Desktop Back Button - Hidden on mobile */}
             <Link to="/produk" className="hidden md:block">
               <Button variant="outline" className="w-full md:w-auto h-12 px-8" type="button">
                 Kembali
               </Button>
             </Link>
-            
-            {/* Save Button - Full width on mobile */}
             <Button 
               onClick={handleSubmit}
               className="w-full md:flex-1 h-12 gap-2" 

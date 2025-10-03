@@ -77,7 +77,6 @@ export default function ListKasir() {
 const barcodeBufferRef = useRef('')
 const lastKeyTimeRef = useRef(0)
 const transaksiRef = useRef([])
-
 useEffect(() => {
   transaksiRef.current = transaksi
 }, [transaksi])
@@ -89,7 +88,9 @@ useEffect(() => {
     searchInputRef.current.focus()
   }
 
-const handleGlobalKeyPress = (e) => {
+  let scanTimeout = null
+
+  const handleGlobalKeyPress = (e) => {
     const activeElement = document.activeElement
     const isTypingInInput = activeElement && (
       activeElement.tagName === 'INPUT' || 
@@ -97,29 +98,99 @@ const handleGlobalKeyPress = (e) => {
       activeElement.contentEditable === 'true'
     )
     
-    // Jangan proses barcode jika user sedang mengetik di input quantity cart atau input lainnya
-    if (isTypingInInput && activeElement !== searchInputRef.current) {
+    // Deteksi jika sedang fokus di Select component (biasanya menggunakan button atau input hidden)
+    const isInSelectComponent = activeElement && (
+      activeElement.getAttribute('role') === 'combobox' ||
+      activeElement.closest('[role="combobox"]') !== null ||
+      activeElement.closest('[data-radix-select-trigger]') !== null
+    )
+    
+    // PERBAIKAN: Daftar ID input yang HARUS diabaikan saat barcode scanner aktif
+    const excludedInputIds = ['total_uang', 'kembalian']
+    const isExcludedInput = activeElement && excludedInputIds.includes(activeElement.id)
+    
+    // Jika sedang di Select component, SKIP barcode scanner
+    if (isInSelectComponent) {
+      return
+    }
+    
+    // Jika sedang mengetik di input yang dikecualikan (total_uang atau kembalian)
+    if (isTypingInInput && isExcludedInput) {
+      return
+    }
+    
+    // Jika sedang mengetik di input SELAIN searchInputRef dan bukan excluded inputs
+    if (isTypingInInput && activeElement !== searchInputRef.current && !isExcludedInput) {
       return
     }
 
     const currentTime = Date.now()
-    if (currentTime - lastKeyTimeRef.current > 50) {
-      barcodeBufferRef.current = ''
-    }
-
     lastKeyTimeRef.current = currentTime
-    if (e.key.length === 1 && !isTypingInInput) { 
+    
+    // Tangkap setiap karakter yang diketik (untuk barcode scanner)
+    if (e.key.length === 1) { 
       barcodeBufferRef.current += e.key
+      if (scanTimeout) {
+        clearTimeout(scanTimeout)
+      }
+      
+      // Timeout 50ms untuk mendeteksi selesainya scanning
+      scanTimeout = setTimeout(() => {
+        if (barcodeBufferRef.current.length >= 3) {
+          const scannedBarcode = barcodeBufferRef.current.trim()
+          barcodeBufferRef.current = '' 
+          
+          // Cari produk berdasarkan kode barcode (case-insensitive)
+          const product = transaksiRef.current.find(p => 
+            p.kode_barang.trim().toLowerCase() === scannedBarcode.toLowerCase()
+          )
+          
+          if (product) {
+            // Tambahkan produk ke cart
+            addProductToCart(product)
+            
+            // Clear searchQuery jika ada
+            setSearchQuery('')
+            setShowSearchResults(false)
+            if (searchInputRef.current) {
+              searchInputRef.current.focus()
+            }
+          } else {
+            Swal.fire({
+              title: "Kode Tidak Ditemukan",
+              text: `Barcode "${scannedBarcode}" tidak terdaftar dalam sistem`,
+              icon: "error",
+              toast: true,
+              position: "top-end",
+              showConfirmButton: false,
+              timer: 3000,
+              timerProgressBar: true
+            })
+            setSearchQuery('')
+            if (searchInputRef.current) {
+              searchInputRef.current.focus()
+            }
+          }
+        }
+      }, 50)
     }
-    if (e.key === 'Enter' && barcodeBufferRef.current.length >= 3 && !isTypingInInput) {
+    if (e.key === 'Enter' && barcodeBufferRef.current.length >= 3) {
+      if (scanTimeout) {
+        clearTimeout(scanTimeout)
+      }
+      
       const scannedBarcode = barcodeBufferRef.current.trim()
       barcodeBufferRef.current = ''
+      
       const product = transaksiRef.current.find(p => 
         p.kode_barang.trim().toLowerCase() === scannedBarcode.toLowerCase()
       )
       
       if (product) {
         addProductToCart(product)
+        setSearchQuery('')
+        setShowSearchResults(false)
+        
         if (searchInputRef.current) {
           searchInputRef.current.focus()
         }
@@ -135,6 +206,7 @@ const handleGlobalKeyPress = (e) => {
           timerProgressBar: true
         })
         
+        setSearchQuery('')
         if (searchInputRef.current) {
           searchInputRef.current.focus()
         }
@@ -143,10 +215,14 @@ const handleGlobalKeyPress = (e) => {
       e.preventDefault()
     }
   }
+
   document.addEventListener('keydown', handleGlobalKeyPress)
 
   return () => {
     document.removeEventListener('keydown', handleGlobalKeyPress)
+    if (scanTimeout) {
+      clearTimeout(scanTimeout)
+    }
   }
 }, [])
   const fetchUser = async () => {
@@ -184,17 +260,6 @@ const handleGlobalKeyPress = (e) => {
       maximumFractionDigits: 0,
     }).format(number)
   }
-  const formatNumber = (value) => {
-    if (!value && value !== 0) return "0"
-    
-    const number = typeof value === 'string' ? parseRupiah(value) : value
-    
-    return new Intl.NumberFormat("id-ID", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(number)
-  }
-
   const getTotalToBePaid = () => {
     const subtotal = cart.reduce((sum, item) => {
       const price = getCurrentPrice(item) || 0
@@ -405,8 +470,6 @@ const handleGlobalKeyPress = (e) => {
       })
       return
     }
-
-    // HAPUS VALIDASI TOTAL UANG - Sekarang tidak wajib
     const payload = {
       produk_id: cart.map((i) => i.kode_barang),
       jumlah_terjual_per_hari: cart.map((i) => i.jumlah),
@@ -686,8 +749,6 @@ const handleGlobalKeyPress = (e) => {
                     )}
                   </div>
 
-                  {/* Hapus indikator barcode detection yang mengganggu */}
-                  {/* Dropdown untuk pencarian manual */}
                   {showSearchResults && searchResults.length > 0 && (
                     <Card className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-auto shadow-lg">
                       <CardContent className="p-0">
@@ -728,7 +789,7 @@ const handleGlobalKeyPress = (e) => {
                     </Card>
                   )}
 
-                  {showSearchResults && searchQuery && searchResults.length === 0 && (
+                    {showSearchResults && searchQuery && searchResults.length === 0 && !barcodeBufferRef.current && (
                     <Card className="absolute top-full left-0 right-0 z-50 mt-1 shadow-lg">
                       <CardContent className="p-4 text-center text-gray-500">
                         <div className="flex flex-col items-center gap-2">
