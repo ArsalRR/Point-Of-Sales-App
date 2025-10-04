@@ -97,64 +97,64 @@ useEffect(() => {
       activeElement.tagName === 'TEXTAREA' ||
       activeElement.contentEditable === 'true'
     )
-    
-    // Deteksi jika sedang fokus di Select component (biasanya menggunakan button atau input hidden)
     const isInSelectComponent = activeElement && (
       activeElement.getAttribute('role') === 'combobox' ||
       activeElement.closest('[role="combobox"]') !== null ||
       activeElement.closest('[data-radix-select-trigger]') !== null
     )
-    
-    // PERBAIKAN: Daftar ID input yang HARUS diabaikan saat barcode scanner aktif
     const excludedInputIds = ['total_uang', 'kembalian']
     const isExcludedInput = activeElement && excludedInputIds.includes(activeElement.id)
+    const isSearchInput = activeElement === searchInputRef.current || 
+                         (activeElement && activeElement.id === 'unified-search')
     
-    // Jika sedang di Select component, SKIP barcode scanner
     if (isInSelectComponent) {
       return
     }
-    
-    // Jika sedang mengetik di input yang dikecualikan (total_uang atau kembalian)
     if (isTypingInInput && isExcludedInput) {
       return
     }
-    
-    // Jika sedang mengetik di input SELAIN searchInputRef dan bukan excluded inputs
-    if (isTypingInInput && activeElement !== searchInputRef.current && !isExcludedInput) {
+    if (isTypingInInput && isSearchInput) {
       return
+    }
+    if (isTypingInInput && !isSearchInput && !isExcludedInput) {
+      return
+    }
+    if (e.key.length === 1 && /[a-zA-Z0-9 ]/.test(e.key) && !isTypingInInput) {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus()
+        const newValue = searchQuery + e.key
+        setSearchQuery(newValue)
+        setShowSearchResults(newValue.length > 0)
+        e.preventDefault()
+        return
+      }
     }
 
     const currentTime = Date.now()
     lastKeyTimeRef.current = currentTime
     
-    // Tangkap setiap karakter yang diketik (untuk barcode scanner)
     if (e.key.length === 1) { 
       barcodeBufferRef.current += e.key
       if (scanTimeout) {
         clearTimeout(scanTimeout)
       }
-      
-      // Timeout 50ms untuk mendeteksi selesainya scanning
       scanTimeout = setTimeout(() => {
         if (barcodeBufferRef.current.length >= 3) {
           const scannedBarcode = barcodeBufferRef.current.trim()
           barcodeBufferRef.current = '' 
-          
-          // Cari produk berdasarkan kode barcode (case-insensitive)
           const product = transaksiRef.current.find(p => 
             p.kode_barang.trim().toLowerCase() === scannedBarcode.toLowerCase()
           )
           
           if (product) {
-            // Tambahkan produk ke cart
             addProductToCart(product)
-            
-            // Clear searchQuery jika ada
             setSearchQuery('')
             setShowSearchResults(false)
-            if (searchInputRef.current) {
-              searchInputRef.current.focus()
-            }
+            setTimeout(() => {
+              if (searchInputRef.current) {
+                searchInputRef.current.focus()
+              }
+            }, 100)
           } else {
             Swal.fire({
               title: "Kode Tidak Ditemukan",
@@ -167,13 +167,16 @@ useEffect(() => {
               timerProgressBar: true
             })
             setSearchQuery('')
-            if (searchInputRef.current) {
-              searchInputRef.current.focus()
-            }
+            setTimeout(() => {
+              if (searchInputRef.current) {
+                searchInputRef.current.focus()
+              }
+            }, 100)
           }
         }
       }, 50)
     }
+    
     if (e.key === 'Enter' && barcodeBufferRef.current.length >= 3) {
       if (scanTimeout) {
         clearTimeout(scanTimeout)
@@ -190,10 +193,11 @@ useEffect(() => {
         addProductToCart(product)
         setSearchQuery('')
         setShowSearchResults(false)
-        
-        if (searchInputRef.current) {
-          searchInputRef.current.focus()
-        }
+        setTimeout(() => {
+          if (searchInputRef.current) {
+            searchInputRef.current.focus()
+          }
+        }, 100)
       } else {
         Swal.fire({
           title: "Kode Tidak Ditemukan",
@@ -207,9 +211,11 @@ useEffect(() => {
         })
         
         setSearchQuery('')
-        if (searchInputRef.current) {
-          searchInputRef.current.focus()
-        }
+        setTimeout(() => {
+          if (searchInputRef.current) {
+            searchInputRef.current.focus()
+          }
+        }, 100)
       }
       
       e.preventDefault()
@@ -224,7 +230,7 @@ useEffect(() => {
       clearTimeout(scanTimeout)
     }
   }
-}, [])
+}, [searchQuery])
   const fetchUser = async () => {
     try {
       const res = await getProfile()
