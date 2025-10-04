@@ -13,7 +13,7 @@ import AddProdukButton from '@/components/ui/spesialcomponent/AddProdukButtom'
 
 export default function ListProduk() {
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState('nama_barang')
+  const [sortBy, setSortBy] = useState('stok')
   const [sortOrder, setSortOrder] = useState('asc')
   const [filterStok, setFilterStok] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
@@ -77,7 +77,10 @@ export default function ListProduk() {
     }
   })
 }
-  const filteredAndSortedProduk = useMemo(() => {
+
+const filteredAndSortedProduk = useMemo(() => {
+    if (!Array.isArray(produk) || produk.length === 0) return []
+    
     let filtered = produk.filter((item) => {
       const normalizeText = (text) => text?.toString().toLowerCase().trim().replace(/\s+/g, ' ') || ''
       const query = normalizeText(searchQuery)
@@ -106,26 +109,30 @@ export default function ListProduk() {
 
       return matchesSearch && matchesStockFilter
     })
+    
+    // PERBAIKAN: Hapus kondisi yang mengabaikan sorting
+    // Selalu lakukan sorting berdasarkan pilihan user
+    filtered.sort((a, b) => {
+      let aVal = a[sortBy]
+      let bVal = b[sortBy]
 
-   filtered.sort((a, b) => {
-  let aVal = a[sortBy]
-  let bVal = b[sortBy]
-
-  if (['harga', 'harga_renteng', 'stok'].includes(sortBy)) {
-    aVal = Number(aVal) || 0
-    bVal = Number(bVal) || 0
-    return sortOrder === 'asc' ? aVal - bVal : bVal - aVal
-  } else {
-    aVal = (aVal || '').toString().toLowerCase()
-    bVal = (bVal || '').toString().toLowerCase()
-    if (aVal === bVal) return 0
-    return sortOrder === 'asc'
-      ? aVal > bVal ? 1 : -1
-      : aVal < bVal ? 1 : -1
-  }
-})
+      if (['harga', 'harga_renteng', 'stok'].includes(sortBy)) {
+        aVal = Number(aVal) || 0
+        bVal = Number(bVal) || 0
+        return sortOrder === 'asc' ? aVal - bVal : bVal - aVal
+      } else {
+        aVal = (aVal || '').toString().toLowerCase()
+        bVal = (bVal || '').toString().toLowerCase()
+        if (aVal === bVal) return 0
+        return sortOrder === 'asc'
+          ? aVal > bVal ? 1 : -1
+          : aVal < bVal ? 1 : -1
+      }
+    })
+    
     return filtered
   }, [produk, searchQuery, sortBy, sortOrder, filterStok])
+
   const totalPages = Math.ceil(filteredAndSortedProduk.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
@@ -143,12 +150,12 @@ export default function ListProduk() {
     for (let i = start; i <= end; i++) pages.push(i)
     return pages
   }
+
 const getStockBadge = (stok, limit_stok) => {
   if (stok === 0) return <Badge variant="destructive">Habis</Badge>
   if (stok <= limit_stok) return <Badge variant="secondary">Sedikit</Badge>
   return <Badge variant="default">Tersedia</Badge>
 }
-
 
   const formatCurrency = (amount) =>
     new Intl.NumberFormat('id-ID', {
@@ -170,8 +177,6 @@ const getStockBadge = (stok, limit_stok) => {
       </div>
     )
   }
-
-  // Error
   if (isError) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -205,10 +210,7 @@ const getStockBadge = (stok, limit_stok) => {
           </div>
          <AddProdukButton/>
         </div>
-
-        {/* Search + Filter */}
         <div className="p-4 sm:p-6">
-          {/* Enhanced Search Input */}
           <div className="flex flex-col gap-4 mb-6">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -218,7 +220,7 @@ const getStockBadge = (stok, limit_stok) => {
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value)
-                  setCurrentPage(1) // Reset ke halaman pertama saat search
+                  setCurrentPage(1)
                 }}
                 className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />

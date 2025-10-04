@@ -27,6 +27,7 @@ import {
 import { postProduk, Getkode } from "@/api/Produkapi"
 import Swal from "sweetalert2"
 import { Link, useNavigate } from "react-router-dom"
+
 const initialFormData = {
   kode_barang: "",
   nama_barang: "",
@@ -46,7 +47,7 @@ export default function CreateProduk() {
   const [showRentengan, setShowRentengan] = useState(false)
   const [showManualStok, setShowManualStok] = useState(false)
   const [manualStok, setManualStok] = useState("")
-   const navigate = useNavigate()
+  const navigate = useNavigate()
 
   const satuanOptions = [
     { value: "PCS", label: "PCS" },
@@ -71,21 +72,18 @@ export default function CreateProduk() {
         { value: "250", label: "5 Dus" }
       ]
     },
-
   ]
 
   const generateKode = async () => {
-  try {
-    const randomCode = await Getkode();
-    console.log('ini kode barang', randomCode)
-    setFormData(prev => ({
-      ...prev,
-      kode_barang: randomCode
-    }));
-  } catch (error) {
-    console.error(error);
-  }
-};
+    try {
+      const randomCode = await Getkode();
+      setFormData(prev => ({
+        ...prev,
+        kode_barang: randomCode
+      }));
+    } catch (error) {
+    }
+  };
 
   const validateForm = () => {
     const newErrors = {}
@@ -178,7 +176,7 @@ export default function CreateProduk() {
     return 0
   }
 
-   const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     
     if (!validateForm()) {
@@ -193,9 +191,20 @@ export default function CreateProduk() {
       setSuccess(true)
       setFormData(initialFormData)
       
+      navigate('/produk')
+      
       setTimeout(() => {
-        navigate('/produk')
-      }, 2000)
+        Swal.fire({
+          title: "Berhasil!",
+          text: "Produk berhasil ditambahkan ke sistem",
+          icon: "success",
+          showConfirmButton: false,
+          timer: 2000,
+          timerProgressBar: true,
+          toast: true,
+          position: "top-end"
+        })
+      }, 100)
     } catch (error) {
       setErrors({ submit: 'Gagal menambahkan produk. Silakan coba lagi.' })
     } finally {
@@ -203,23 +212,6 @@ export default function CreateProduk() {
     }
   }
 
-  if (success) {
-    return (
-      Swal.fire({
-        title: "Berhasil!",
-        text: "Produk berhasil ditambahkan ke sistem",
-        icon: "success",
-        showConfirmButton: false,
-        timer: 2000,
-        timerProgressBar: true,
-        toast: true,
-        position: "top-end",
-        didClose: () => {
-          navigate('/produk')
-        }
-      })
-    )
-  }
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -244,7 +236,7 @@ export default function CreateProduk() {
           </Alert>
         )}
 
-        <div className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -295,7 +287,7 @@ export default function CreateProduk() {
                   onChange={handleChange}
                   placeholder="Masukkan Nama Barang"
                   className={`h-12 ${errors.nama_barang ? 'border-red-500' : ''}`}
-                     autoComplete="off"
+                  autoComplete="off"
                 />
                 {errors.nama_barang && (
                   <p className="text-sm text-red-500">{errors.nama_barang}</p>
@@ -314,7 +306,7 @@ export default function CreateProduk() {
                   onChange={handleChange}
                   placeholder="Masukkan Limit Barang"
                   className={`h-12 ${errors.limit_stok ? 'border-red-500' : ''}`}
-                     autoComplete="off"
+                  autoComplete="off"
                 />
                 {errors.limit_stok && (
                   <p className="text-sm text-red-500">{errors.limit_stok}</p>
@@ -341,7 +333,7 @@ export default function CreateProduk() {
                   onChange={handleChange}
                   placeholder="Masukkan Harga"
                   className={`h-12 ${errors.harga ? 'border-red-500' : ''}`}
-                     autoComplete="off"
+                  autoComplete="off"
                 />
                 {errors.harga && (
                   <p className="text-sm text-red-500">{errors.harga}</p>
@@ -359,7 +351,7 @@ export default function CreateProduk() {
                   onChange={handleChange}
                   placeholder="Masukkan Harga Rentengan"
                   className={`h-12 ${errors.harga_renteng ? 'border-red-500' : ''}`}
-                     autoComplete="off"
+                  autoComplete="off"
                 />
                 {errors.harga_renteng && (
                   <p className="text-sm text-red-500">{errors.harga_renteng}</p>
@@ -385,7 +377,7 @@ export default function CreateProduk() {
                     onChange={handleChange}
                     placeholder="Masukkan Isi Rentengan"
                     className="h-12"
-                       autoComplete="off"
+                    autoComplete="off"
                   />
                 </div>
               )}
@@ -398,73 +390,72 @@ export default function CreateProduk() {
                 Stok & Satuan
               </CardTitle>
             </CardHeader>
-           <CardContent className="space-y-6">
-  <div className="space-y-2">
-    <Label htmlFor="stok" className="text-sm font-medium">
-      Stok Barang *
-    </Label>
-    <Select
-      onValueChange={(value) => handleSelectChange("stok", value)}
-      value={formData.stok}
-    >
-      <SelectTrigger className="h-12 w-full">
-        <SelectValue placeholder="--Pilih Stok Barang--" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="manual">Masukkan Manual...</SelectItem>
-        {stokOptions.slice(2).map((group, index) => (
-          <div key={index}>
-            <div className="px-2 py-1 text-sm font-semibold text-gray-600 bg-gray-100">
-              {group.group}
-            </div>
-            {group.options.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </div>
-        ))}
-      </SelectContent>
-    </Select>
-    {showManualStok && (
-      <Input
-        type="number"
-        value={manualStok}
-        onChange={(e) => setManualStok(e.target.value)}
-        placeholder="Masukkan Stok Manual"
-        className="h-12 mt-2 w-full"
-      />
-    )}
-    {errors.stok && (
-      <p className="text-sm text-red-500">{errors.stok}</p>
-    )}
-  </div>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="stok" className="text-sm font-medium">
+                  Stok Barang *
+                </Label>
+                <Select
+                  onValueChange={(value) => handleSelectChange("stok", value)}
+                  value={formData.stok}
+                >
+                  <SelectTrigger className="h-12 w-full">
+                    <SelectValue placeholder="--Pilih Stok Barang--" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manual">Masukkan Manual...</SelectItem>
+                    {stokOptions.slice(2).map((group, index) => (
+                      <div key={index}>
+                        <div className="px-2 py-1 text-sm font-semibold text-gray-600 bg-gray-100">
+                          {group.group}
+                        </div>
+                        {group.options.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </div>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {showManualStok && (
+                  <Input
+                    type="number"
+                    value={manualStok}
+                    onChange={(e) => setManualStok(e.target.value)}
+                    placeholder="Masukkan Stok Manual"
+                    className="h-12 mt-2 w-full"
+                  />
+                )}
+                {errors.stok && (
+                  <p className="text-sm text-red-500">{errors.stok}</p>
+                )}
+              </div>
 
-  <div className="space-y-2">
-    <Label htmlFor="satuan_barang" className="text-sm font-medium">
-      Satuan Barang *
-    </Label>
-    <Select
-      onValueChange={(value) => handleSelectChange("satuan_barang", value)}
-      value={formData.satuan_barang}
-    >
-      <SelectTrigger className="h-12 w-full">
-        <SelectValue placeholder="Masukkan Satuan Barang" />
-      </SelectTrigger>
-      <SelectContent>
-        {satuanOptions.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
-            {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-    {errors.satuan_barang && (
-      <p className="text-sm text-red-500">{errors.satuan_barang}</p>
-    )}
-  </div>
-</CardContent>
-
+              <div className="space-y-2">
+                <Label htmlFor="satuan_barang" className="text-sm font-medium">
+                  Satuan Barang *
+                </Label>
+                <Select
+                  onValueChange={(value) => handleSelectChange("satuan_barang", value)}
+                  value={formData.satuan_barang}
+                >
+                  <SelectTrigger className="h-12 w-full">
+                    <SelectValue placeholder="Masukkan Satuan Barang" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {satuanOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.satuan_barang && (
+                  <p className="text-sm text-red-500">{errors.satuan_barang}</p>
+                )}
+              </div>
+            </CardContent>
           </Card>
           <div className="flex flex-col md:flex-row gap-4 pt-6">
             <Link to="/produk" className="hidden md:block">
@@ -473,7 +464,7 @@ export default function CreateProduk() {
               </Button>
             </Link>
             <Button 
-              onClick={handleSubmit}
+              type="submit"
               className="w-full md:flex-1 h-12 gap-2" 
               disabled={loading}
             >
@@ -490,7 +481,7 @@ export default function CreateProduk() {
               )}
             </Button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   )

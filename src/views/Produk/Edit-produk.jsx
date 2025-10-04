@@ -42,9 +42,10 @@ export default function EditProduk() {
     nama_barang: "",
     harga: "",
     harga_renteng: "",
-    stok: 0,
+    stok: "",
     satuan_barang: "",
-    limit_stok: 0,
+    limit_stok: "",
+    jumlah_lainnya: "",
   }
   const [formData, setFormData] = useState(initialFormData)
 
@@ -75,10 +76,10 @@ export default function EditProduk() {
           stok: Number(data.stok) || 0,
           satuan_barang: data.satuan_barang || "pcs",
           limit_stok: Number(data.limit_stok) || 0,
+          jumlah_lainnya: data.jumlah_lainnya || "",
         })
-        setError('') // Clear any previous errors
+        setError('') 
       } catch (err) {
-        console.error("Gagal ambil produk:", err)
         setError("Gagal memuat data produk")
       } finally {
         setLoading(false)
@@ -160,61 +161,64 @@ export default function EditProduk() {
     }
   }
 
- const handleSubmit = async (e) => {
-  e.preventDefault()
+  const handleSubmit = async (e) => {
+    e.preventDefault()
 
-  if (!validateForm()) {
-    return
-  }
-
-  setSubmitting(true)
-  setErrors({})
-
-  try {
-    const payload = {
-      kode_barang: formData.kode_barang.trim(),
-      nama_barang: formData.nama_barang.trim(),
-      harga: parseCurrency(formData.harga).toString(),
-      harga_renteng: parseCurrency(formData.harga_renteng).toString(),
-      stok: Number(formData.stok), 
-      limit_stok: Number(formData.limit_stok),
-      satuan_barang: formData.satuan_barang || "pcs"
+    if (!validateForm()) {
+      return
     }
 
-    await editProduk(id, payload)
+    setSubmitting(true)
+    setErrors({})
 
-    Swal.fire({
-      title: "Berhasil!",
-      text: "Produk berhasil diperbarui",
-      icon: "success",
-      showConfirmButton: false,
-      timer: 2000,
-      timerProgressBar: true,
-      toast: true,
-      position: "top-end"
-    })
-
-    navigate('/produk')
-
-  } catch (error) {
-    let errorMessage = 'Gagal memperbarui produk'
-    let fieldErrors = {}
-
-    if (error.response?.data) {
-      if (error.response.data.errors) {
-        fieldErrors = error.response.data.errors
-      } else if (error.response.data.message) {
-        errorMessage = error.response.data.message
+    try {
+      const payload = {
+        kode_barang: formData.kode_barang.trim(),
+        nama_barang: formData.nama_barang.trim(),
+        harga: parseCurrency(formData.harga).toString(),
+        harga_renteng: parseCurrency(formData.harga_renteng).toString(),
+        stok: Number(formData.stok), 
+        limit_stok: Number(formData.limit_stok),
+        satuan_barang: formData.satuan_barang || "pcs",
+        jumlah_lainnya: formData.jumlah_lainnya || ""
       }
+
+      await editProduk(id, payload)
+
+      // Navigate dulu ke /produk
+      navigate('/produk')
+
+      // Baru tampilkan alert setelah di halaman /produk
+      setTimeout(() => {
+        Swal.fire({
+          title: "Berhasil!",
+          text: "Produk berhasil diperbarui",
+          icon: "success",
+          showConfirmButton: false,
+          timer: 2000,
+          timerProgressBar: true,
+          toast: true,
+          position: "top-end"
+        })
+      }, 100)
+
+    } catch (error) {
+      let errorMessage = 'Gagal memperbarui produk'
+      let fieldErrors = {}
+
+      if (error.response?.data) {
+        if (error.response.data.errors) {
+          fieldErrors = error.response.data.errors
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message
+        }
+      }
+
+      setErrors({ ...fieldErrors, submit: errorMessage })
+    } finally {
+      setSubmitting(false)
     }
-
-    setErrors({ ...fieldErrors, submit: errorMessage })
-  } finally {
-    setSubmitting(false)
   }
-}
-
-
 
   if (loading) {
     return (
@@ -278,65 +282,66 @@ export default function EditProduk() {
               <CardTitle className="flex items-center gap-2">
                 {/* Desktop Back Button */}
                 <Link to="/produk" className="hidden md:block">
-                  <Button variant="ghost" size="sm" className="p-2">
+                  <Button variant="ghost" size="sm" className="p-2" type="button">
                     <ArrowLeft className="w-5 h-5" />
                   </Button>
                 </Link>
                 <Hash className="w-5 h-5" /> Informasi Dasar
               </CardTitle>
             </CardHeader>
-           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-  <div className="mb-4">
-    <label htmlFor="kode_barang" className="block text-sm font-medium text-gray-700 mb-1">
-      Kode Barang *
-    </label>
-    <div className="relative">
-      <Input
-        id="kode_barang"
-        name="kode_barang"
-        value={formData.kode_barang}
-        onChange={handleChange}
-        placeholder="PRD001"
-        readOnly={readOnly}
-        className={`
-          block w-full pr-10 px-3 py-2 border rounded-md
-          ${errors.kode_barang ? 'border-red-500' : 'border-gray-300'}
-          ${readOnly ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white text-gray-900'}
-          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-        `}
-      />
-      <button
-        type="button"
-        onClick={() => setReadOnly(!readOnly)}
-        className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
-      >
-        {readOnly ? <Eye size={18} /> : <EyeOff size={18} />}
-      </button>
-    </div>
-    {errors.kode_barang && <p className="text-sm text-red-500 mt-1">{errors.kode_barang}</p>}
-  </div>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="mb-4">
+                <label htmlFor="kode_barang" className="block text-sm font-medium text-gray-700 mb-1">
+                  Kode Barang *
+                </label>
+                <div className="relative">
+                  <Input
+                    id="kode_barang"
+                    name="kode_barang"
+                    value={formData.kode_barang}
+                    onChange={handleChange}
+                    placeholder="PRD001"
+                    readOnly={readOnly}
+                    autoComplete="off"
+                    className={`
+                      block w-full pr-10 px-3 py-2 border rounded-md
+                      ${errors.kode_barang ? 'border-red-500' : 'border-gray-300'}
+                      ${readOnly ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white text-gray-900'}
+                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                    `}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setReadOnly(!readOnly)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
+                  >
+                    {readOnly ? <Eye size={18} /> : <EyeOff size={18} />}
+                  </button>
+                </div>
+                {errors.kode_barang && <p className="text-sm text-red-500 mt-1">{errors.kode_barang}</p>}
+              </div>
 
-  {/* Nama Barang */}
-  <div className="mb-4">
-    <Label htmlFor="nama_barang" className="block text-sm font-medium text-gray-700 mb-1">
-      Nama Barang *
-    </Label>
-    <Input
-      id="nama_barang"
-      name="nama_barang"
-      value={formData.nama_barang}
-      onChange={handleChange}
-      placeholder="Masukkan nama produk"
-      className={`
-        block w-full px-3 py-2 border rounded-md
-        ${errors.nama_barang ? 'border-red-500' : 'border-gray-300'}
-        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-      `}
-    />
-    {errors.nama_barang && <p className="text-sm text-red-500 mt-1">{errors.nama_barang}</p>}
-  </div>
-</CardContent>
-
+              {/* Nama Barang */}
+              <div className="mb-4">
+                <Label htmlFor="nama_barang" className="block text-sm font-medium text-gray-700 mb-1">
+                  Nama Barang *
+                </Label>
+                <Input
+                  id="nama_barang"
+                  name="nama_barang"
+                  value={formData.nama_barang}
+                  onChange={handleChange}
+                  placeholder="Masukkan nama produk"
+                  autoComplete="off"
+                  className={`
+                    block w-full px-3 py-2 border rounded-md
+                    ${errors.nama_barang ? 'border-red-500' : 'border-gray-300'}
+                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                  `}
+                />
+                {errors.nama_barang && <p className="text-sm text-red-500 mt-1">{errors.nama_barang}</p>}
+              </div>
+            </CardContent>
           </Card>
 
           {/* Informasi Harga */}
@@ -358,6 +363,7 @@ export default function EditProduk() {
                     value={formatCurrency(formData.harga)}
                     onChange={(e) => handleCurrencyChange('harga', e.target.value)}
                     placeholder="Masukkan Harga"
+                    autoComplete="off"
                     className={`pl-10 ${errors.harga ? 'border-red-500' : ''}`}
                   />
                 </div>
@@ -374,10 +380,25 @@ export default function EditProduk() {
                     value={formatCurrency(formData.harga_renteng)}
                     onChange={(e) => handleCurrencyChange('harga_renteng', e.target.value)}
                     placeholder="Masukkan Harga Rentengan"
+                    autoComplete="off"
                     className={`pl-10 ${errors.harga_renteng ? 'border-red-500' : ''}`}
                   />
                 </div>
                 {errors.harga_renteng && <p className="text-sm text-red-500 mt-1">{errors.harga_renteng}</p>}
+              </div>
+              
+              {/* Tambahan Input Jumlah Lainnya */}
+              <div>
+                <Label htmlFor="jumlah_lainnya">Isi Rentengan / Lainnya</Label>
+                <Input
+                  id="jumlah_lainnya"
+                  name="jumlah_lainnya"
+                  type="number"
+                  value={formData.jumlah_lainnya}
+                  onChange={handleChange}
+                  placeholder="Masukkan Isi Rentengan"
+                  autoComplete="off"
+                />
               </div>
             </CardContent>
           </Card>
@@ -399,6 +420,7 @@ export default function EditProduk() {
                   min="0"
                   value={formData.stok}
                   onChange={handleChange}
+                  autoComplete="off"
                   className={errors.stok ? 'border-red-500' : ''}
                 />
                 {errors.stok && <p className="text-sm text-red-500 mt-1">{errors.stok}</p>}
@@ -412,6 +434,7 @@ export default function EditProduk() {
                   min="0"
                   value={formData.limit_stok}
                   onChange={handleChange}
+                  autoComplete="off"
                   className={errors.limit_stok ? 'border-red-500' : ''}
                 />
                 {errors.limit_stok && <p className="text-sm text-red-500 mt-1">{errors.limit_stok}</p>}
