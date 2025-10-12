@@ -1,4 +1,7 @@
 import { useState } from "react"
+import { useForm, Controller } from "react-hook-form"
+import { yupResolver } from "@hookform/resolvers/yup"
+import * as yup from "yup"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -27,27 +30,75 @@ import {
 import { postProduk, Getkode } from "@/api/Produkapi"
 import Swal from "sweetalert2"
 import { Link, useNavigate } from "react-router-dom"
-
-const initialFormData = {
-  kode_barang: "",
-  nama_barang: "",
-  harga: "",
-  harga_renteng: "",
-  jumlah_lainnya: "",
-  stok: "",
-  satuan_barang: "",
-  limit_stok: "",
-}
+const schema = yup.object().shape({
+  kode_barang: yup
+    .string()
+    .required("Kode barang harus diisi")
+    .trim(),
+  nama_barang: yup
+    .string()
+    .required("Nama barang harus diisi")
+    .trim(),
+  harga: yup
+    .string()
+    .required("Harga harus diisi")
+    .test("is-positive", "Harga harus lebih dari 0", function(value) {
+      const numericValue = parseInt(value?.replace(/[^0-9]/g, '') || '0', 10)
+      return numericValue > 0
+    }),
+  harga_renteng: yup.string(),
+  jumlah_lainnya: yup.string(),
+  stok: yup
+    .string()
+    .required("Stok tidak boleh negatif")
+    .test("is-non-negative", "Stok tidak boleh negatif", function(value) {
+      if (value === 'manual') return true
+      const numericValue = parseInt(value || '0', 10)
+      return numericValue >= 0
+    }),
+  satuan_barang: yup
+    .string()
+    .required("Satuan barang harus dipilih"),
+  limit_stok: yup
+    .number()
+    .transform((value, originalValue) => originalValue === '' ? undefined : value)
+    .required("Limit stok harus diisi")
+    .min(0, "Limit stok tidak boleh negatif")
+    .typeError("Limit stok harus berupa angka"),
+})
 
 export default function CreateProduk() {
-  const [formData, setFormData] = useState(initialFormData)
   const [loading, setLoading] = useState(false)
-  const [errors, setErrors] = useState({})
-  const [success, setSuccess] = useState(false)
+  const [submitError, setSubmitError] = useState("")
   const [showRentengan, setShowRentengan] = useState(false)
   const [showManualStok, setShowManualStok] = useState(false)
   const [manualStok, setManualStok] = useState("")
   const navigate = useNavigate()
+
+  const {
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors }
+  } = useForm({
+    resolver: yupResolver(schema),
+    defaultValues: {
+      kode_barang: "",
+      nama_barang: "",
+      harga: "",
+      harga_renteng: "",
+      jumlah_lainnya: "",
+      stok: "",
+      satuan_barang: "",
+      limit_stok: "",
+    }
+  })
+
+  const harga = watch("harga")
+  const hargaRenteng = watch("harga_renteng")
+  const stok = watch("stok")
 
   const satuanOptions = [
     { value: "PCS", label: "PCS" },
@@ -59,8 +110,6 @@ export default function CreateProduk() {
   ]
 
   const stokOptions = [
-    { value: "", label: "--Pilih Stok Barang--" },
-    { value: "manual", label: "Masukkan Manual..." },
     { 
       group: "Dus/Karton", 
       options: [
@@ -76,120 +125,58 @@ export default function CreateProduk() {
 
   const generateKode = async () => {
     try {
-      const randomCode = await Getkode();
-      setFormData(prev => ({
-        ...prev,
-        kode_barang: randomCode
-      }));
+      const randomCode = await Getkode()
+      setValue("kode_barang", randomCode)
     } catch (error) {
-    }
-  };
-
-  const validateForm = () => {
-    const newErrors = {}
-
-    if (!formData.kode_barang.trim()) {
-      newErrors.kode_barang = "Kode barang harus diisi"
-    }
-
-    if (!formData.nama_barang.trim()) {
-      newErrors.nama_barang = "Nama barang harus diisi"
-    }
-
-    if (!formData.harga || parseCurrency(formData.harga) <= 0) {
-      newErrors.harga = "Harga harus lebih dari 0"
-    }
-
-    if (!formData.limit_stok || formData.limit_stok < 0) {
-      newErrors.limit_stok = "Limit stok harus diisi dan tidak boleh negatif"
-    }
-
-    const finalStok = showManualStok ? manualStok : formData.stok
-    if (!finalStok || finalStok < 0) {
-      newErrors.stok = "Stok tidak boleh negatif"
-    }
-
-    if (!formData.satuan_barang) {
-      newErrors.satuan_barang = "Satuan barang harus dipilih"
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
-
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    let processedValue = value
-    if (name === 'harga' || name === 'harga_renteng') {
-      processedValue = formatCurrency(value)
-    }
-
-    setFormData(prev => ({
-      ...prev,
-      [name]: processedValue,
-    }))
-    if (name === 'harga_renteng') {
-      setShowRentengan(value.trim() !== '')
-    }
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ""
-      }))
-    }
-  }
-
-  const handleSelectChange = (name, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-    if (name === 'stok') {
-      setShowManualStok(value === 'manual')
-      if (value !== 'manual') {
-        setManualStok("")
-      }
+      console.error("Error generating code:", error)
     }
   }
 
   const formatCurrency = (value) => {
     const numericValue = value.replace(/[^0-9]/g, '')
-    
     if (!numericValue) return ''
     const formatted = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
     return `Rp ${formatted}`
   }
 
   const parseCurrency = (value) => {
-    return parseInt(value.replace(/[^0-9]/g, ''), 10) || 0
+    return parseInt(value?.replace(/[^0-9]/g, '') || '0', 10)
   }
 
   const calculateDiscount = () => {
-    if (formData.harga && formData.harga_renteng) {
-      const hargaNormal = parseCurrency(formData.harga)
-      const hargaRenteng = parseCurrency(formData.harga_renteng)
-      if (hargaNormal > 0 && hargaRenteng > 0) {
-        const discount = ((hargaNormal - hargaRenteng) / hargaNormal * 100).toFixed(1)
+    if (harga && hargaRenteng) {
+      const hargaNormal = parseCurrency(harga)
+      const hargaRentengValue = parseCurrency(hargaRenteng)
+      if (hargaNormal > 0 && hargaRentengValue > 0) {
+        const discount = ((hargaNormal - hargaRentengValue) / hargaNormal * 100).toFixed(1)
         return discount > 0 ? discount : 0
       }
     }
     return 0
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    
-    if (!validateForm()) {
-      return
-    }
-
+  const onSubmit = async (data) => {
     setLoading(true)
-    setSuccess(false)
+    setSubmitError("")
     
     try {
-      await postProduk(formData)
-      setSuccess(true)
-      setFormData(initialFormData)
+      const finalData = {
+        ...data,
+        stok: showManualStok ? manualStok : data.stok
+      }
+
+      // Validate manual stock if shown
+      if (showManualStok && (!manualStok || parseInt(manualStok) < 0)) {
+        setSubmitError("Stok tidak boleh negatif")
+        setLoading(false)
+        return
+      }
+
+      await postProduk(finalData)
+      reset()
+      setShowRentengan(false)
+      setShowManualStok(false)
+      setManualStok("")
       
       navigate('/produk')
       
@@ -206,7 +193,7 @@ export default function CreateProduk() {
         })
       }, 100)
     } catch (error) {
-      setErrors({ submit: 'Gagal menambahkan produk. Silakan coba lagi.' })
+      setSubmitError('Gagal menambahkan produk. Silakan coba lagi.')
     } finally {
       setLoading(false)
     }
@@ -229,14 +216,15 @@ export default function CreateProduk() {
           </div>
           <Package className="w-10 h-10 md:w-12 md:h-12 text-blue-600" />
         </div>
-        {errors.submit && (
+
+        {submitError && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{errors.submit}</AlertDescription>
+            <AlertDescription>{submitError}</AlertDescription>
           </Alert>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -250,15 +238,19 @@ export default function CreateProduk() {
                   Kode Barang 
                 </Label>
                 <div className="flex gap-2">
-                  <Input
-                    id="kode_barang"
+                  <Controller
                     name="kode_barang"
-                    type="number"
-                    value={formData.kode_barang}
-                    onChange={handleChange}
-                    placeholder="Masukkan Kode Barang"
-                    className={`h-12 ${errors.kode_barang ? 'border-red-500' : ''}`}
-                    autoComplete="off"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        id="kode_barang"
+                        type="number"
+                        placeholder="Masukkan Kode Barang"
+                        className={`h-12 ${errors.kode_barang ? 'border-red-500' : ''}`}
+                        autoComplete="off"
+                      />
+                    )}
                   />
                   <Button
                     type="button"
@@ -272,7 +264,7 @@ export default function CreateProduk() {
                   </Button>
                 </div>
                 {errors.kode_barang && (
-                  <p className="text-sm text-red-500">{errors.kode_barang}</p>
+                  <p className="text-sm text-red-500">{errors.kode_barang.message}</p>
                 )}
               </div>
 
@@ -280,17 +272,21 @@ export default function CreateProduk() {
                 <Label htmlFor="nama_barang" className="text-sm font-medium">
                   Nama Barang 
                 </Label>
-                <Input
-                  id="nama_barang"
+                <Controller
                   name="nama_barang"
-                  value={formData.nama_barang}
-                  onChange={handleChange}
-                  placeholder="Masukkan Nama Barang"
-                  className={`h-12 ${errors.nama_barang ? 'border-red-500' : ''}`}
-                  autoComplete="off"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      {...field}
+                      id="nama_barang"
+                      placeholder="Masukkan Nama Barang"
+                      className={`h-12 ${errors.nama_barang ? 'border-red-500' : ''}`}
+                      autoComplete="off"
+                    />
+                  )}
                 />
                 {errors.nama_barang && (
-                  <p className="text-sm text-red-500">{errors.nama_barang}</p>
+                  <p className="text-sm text-red-500">{errors.nama_barang.message}</p>
                 )}
               </div>
 
@@ -298,22 +294,27 @@ export default function CreateProduk() {
                 <Label htmlFor="limit_stok" className="text-sm font-medium">
                   Limit Stok Produk 
                 </Label>
-                <Input
-                  id="limit_stok"
+                <Controller
                   name="limit_stok"
-                  type="number"
-                  value={formData.limit_stok}
-                  onChange={handleChange}
-                  placeholder="Masukkan Limit Barang"
-                  className={`h-12 ${errors.limit_stok ? 'border-red-500' : ''}`}
-                  autoComplete="off"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      {...field}
+                      id="limit_stok"
+                      type="number"
+                      placeholder="Masukkan Limit Barang"
+                      className={`h-12 ${errors.limit_stok ? 'border-red-500' : ''}`}
+                      autoComplete="off"
+                    />
+                  )}
                 />
                 {errors.limit_stok && (
-                  <p className="text-sm text-red-500">{errors.limit_stok}</p>
+                  <p className="text-sm text-red-500">{errors.limit_stok.message}</p>
                 )}
               </div>
             </CardContent>
           </Card>
+
           <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -326,17 +327,22 @@ export default function CreateProduk() {
                 <Label htmlFor="harga" className="text-sm font-medium">
                   Harga Jual *
                 </Label>
-                <Input
-                  id="harga"
+                <Controller
                   name="harga"
-                  value={formData.harga}
-                  onChange={handleChange}
-                  placeholder="Masukkan Harga"
-                  className={`h-12 ${errors.harga ? 'border-red-500' : ''}`}
-                  autoComplete="off"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      {...field}
+                      id="harga"
+                      onChange={(e) => field.onChange(formatCurrency(e.target.value))}
+                      placeholder="Masukkan Harga"
+                      className={`h-12 ${errors.harga ? 'border-red-500' : ''}`}
+                      autoComplete="off"
+                    />
+                  )}
                 />
                 {errors.harga && (
-                  <p className="text-sm text-red-500">{errors.harga}</p>
+                  <p className="text-sm text-red-500">{errors.harga.message}</p>
                 )}
               </div>
 
@@ -344,17 +350,26 @@ export default function CreateProduk() {
                 <Label htmlFor="harga_renteng" className="text-sm font-medium">
                   Harga Rentengan / Lainnya
                 </Label>
-                <Input
-                  id="harga_renteng"
+                <Controller
                   name="harga_renteng"
-                  value={formData.harga_renteng}
-                  onChange={handleChange}
-                  placeholder="Masukkan Harga Rentengan"
-                  className={`h-12 ${errors.harga_renteng ? 'border-red-500' : ''}`}
-                  autoComplete="off"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      {...field}
+                      id="harga_renteng"
+                      onChange={(e) => {
+                        const formatted = formatCurrency(e.target.value)
+                        field.onChange(formatted)
+                        setShowRentengan(e.target.value.trim() !== '')
+                      }}
+                      placeholder="Masukkan Harga Rentengan"
+                      className={`h-12 ${errors.harga_renteng ? 'border-red-500' : ''}`}
+                      autoComplete="off"
+                    />
+                  )}
                 />
                 {errors.harga_renteng && (
-                  <p className="text-sm text-red-500">{errors.harga_renteng}</p>
+                  <p className="text-sm text-red-500">{errors.harga_renteng.message}</p>
                 )}
                 {calculateDiscount() > 0 && (
                   <Badge variant="secondary" className="gap-1">
@@ -369,20 +384,25 @@ export default function CreateProduk() {
                   <Label htmlFor="jumlah_lainnya" className="text-sm font-medium">
                     Isi Rentengan / Lainnya
                   </Label>
-                  <Input
-                    id="jumlah_lainnya"
+                  <Controller
                     name="jumlah_lainnya"
-                    type="number"
-                    value={formData.jumlah_lainnya}
-                    onChange={handleChange}
-                    placeholder="Masukkan Isi Rentengan"
-                    className="h-12"
-                    autoComplete="off"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        id="jumlah_lainnya"
+                        type="number"
+                        placeholder="Masukkan Isi Rentengan"
+                        className="h-12"
+                        autoComplete="off"
+                      />
+                    )}
                   />
                 </div>
               )}
             </CardContent>
           </Card>
+
           <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -395,29 +415,41 @@ export default function CreateProduk() {
                 <Label htmlFor="stok" className="text-sm font-medium">
                   Stok Barang *
                 </Label>
-                <Select
-                  onValueChange={(value) => handleSelectChange("stok", value)}
-                  value={formData.stok}
-                >
-                  <SelectTrigger className="h-12 w-full">
-                    <SelectValue placeholder="--Pilih Stok Barang--" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="manual">Masukkan Manual...</SelectItem>
-                    {stokOptions.slice(2).map((group, index) => (
-                      <div key={index}>
-                        <div className="px-2 py-1 text-sm font-semibold text-gray-600 bg-gray-100">
-                          {group.group}
-                        </div>
-                        {group.options.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
+                <Controller
+                  name="stok"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      onValueChange={(value) => {
+                        field.onChange(value)
+                        setShowManualStok(value === 'manual')
+                        if (value !== 'manual') {
+                          setManualStok("")
+                        }
+                      }}
+                      value={field.value}
+                    >
+                      <SelectTrigger className="h-12 w-full">
+                        <SelectValue placeholder="--Pilih Stok Barang--" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="manual">Masukkan Manual...</SelectItem>
+                        {stokOptions.map((group, index) => (
+                          <div key={index}>
+                            <div className="px-2 py-1 text-sm font-semibold text-gray-600 bg-gray-100">
+                              {group.group}
+                            </div>
+                            {group.options.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </div>
                         ))}
-                      </div>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
                 {showManualStok && (
                   <Input
                     type="number"
@@ -428,7 +460,7 @@ export default function CreateProduk() {
                   />
                 )}
                 {errors.stok && (
-                  <p className="text-sm text-red-500">{errors.stok}</p>
+                  <p className="text-sm text-red-500">{errors.stok.message}</p>
                 )}
               </div>
 
@@ -436,27 +468,34 @@ export default function CreateProduk() {
                 <Label htmlFor="satuan_barang" className="text-sm font-medium">
                   Satuan Barang *
                 </Label>
-                <Select
-                  onValueChange={(value) => handleSelectChange("satuan_barang", value)}
-                  value={formData.satuan_barang}
-                >
-                  <SelectTrigger className="h-12 w-full">
-                    <SelectValue placeholder="Masukkan Satuan Barang" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {satuanOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="satuan_barang"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
+                      <SelectTrigger className="h-12 w-full">
+                        <SelectValue placeholder="Masukkan Satuan Barang" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {satuanOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
                 {errors.satuan_barang && (
-                  <p className="text-sm text-red-500">{errors.satuan_barang}</p>
+                  <p className="text-sm text-red-500">{errors.satuan_barang.message}</p>
                 )}
               </div>
             </CardContent>
           </Card>
+
           <div className="flex flex-col md:flex-row gap-4 pt-6">
             <Link to="/produk" className="hidden md:block">
               <Button variant="outline" className="w-full md:w-auto h-12 px-8" type="button">

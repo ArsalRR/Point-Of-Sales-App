@@ -1,5 +1,8 @@
 import React, { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { useForm } from "react-hook-form"
+import { yupResolver } from "@hookform/resolvers/yup"
+import * as yup from "yup"
 import { login } from "../../api/Userapi"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -13,25 +16,33 @@ import {
 } from "@/components/ui/card"
 import { Eye, EyeOff, Package } from "lucide-react"
 import Swal from "sweetalert2"
+const schema = yup.object({
+  email: yup.string().email("Email tidak valid").required("Email wajib diisi"),
+  password: yup.string().required("Password wajib diisi"),
+})
 
 export default function Login() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const navigate = useNavigate()
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: yupResolver(schema),
+  })
+
+  const onSubmit = async (data) => {
     setIsLoading(true)
-    
     try {
-      const result = await login(email, password)
+      const result = await login(data.email, data.password)
       if (result?.access_token) {
         localStorage.setItem("token", result.access_token)
         localStorage.setItem("token_type", result.token_type || "Bearer")
+        navigate("/dashboard")
       }
-      navigate("/dashboard")
     } catch (error) {
       Swal.fire({
         title: "Login Gagal",
@@ -54,26 +65,20 @@ export default function Login() {
           <div className="grid md:grid-cols-2">
             <div className="hidden md:flex flex-col items-center justify-center bg-black p-12 rounded-l-3xl">
               <div className="mb-8">
-                <img 
-                  src="/icons/login.png" 
-                  alt="Toko IFA" 
+                <img
+                  src="/icons/login.png"
+                  alt="Toko IFA"
                   className="w-full max-w-sm h-auto rounded-lg"
                 />
               </div>
               <div className="text-center space-y-2">
                 <div className="flex items-center justify-center gap-2">
                   <Package className="h-7 w-7 text-white" />
-                  <h1 className="text-3xl font-bold text-white">
-                    Toko IFA
-                  </h1>
+                  <h1 className="text-3xl font-bold text-white">Toko IFA</h1>
                 </div>
-                <p className="text-gray-300 text-sm">
-                  Belanja Sekarang
-                </p>
+                <p className="text-gray-300 text-sm">Belanja Sekarang</p>
               </div>
             </div>
-
-            {/* Right Side - Login Form */}
             <div className="p-8 md:p-12 bg-white rounded-r-3xl">
               <CardHeader className="space-y-2 px-0 pt-0">
                 <div className="md:hidden flex justify-center mb-6">
@@ -91,8 +96,7 @@ export default function Login() {
               </CardHeader>
 
               <CardContent className="px-0 pt-6">
-                <form onSubmit={handleSubmit} className="space-y-5">
-                  {/* Email Input */}
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
                   <div className="space-y-2">
                     <Label htmlFor="email" className="text-gray-900 font-medium">
                       Email
@@ -101,15 +105,18 @@ export default function Login() {
                       id="email"
                       type="email"
                       placeholder="Masukkan email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      {...register("email")}
                       className="h-12 bg-gray-50 border-gray-300 focus:border-black focus:ring-black"
-                      
                     />
+                    {errors.email && (
+                      <p className="text-red-500 text-sm">{errors.email.message}</p>
+                    )}
                   </div>
-
-                      <div className="space-y-2">
-                    <Label htmlFor="password" className="text-gray-900 font-medium">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="password"
+                      className="text-gray-900 font-medium"
+                    >
                       Password
                     </Label>
                     <div className="relative">
@@ -117,10 +124,8 @@ export default function Login() {
                         id="password"
                         type={showPassword ? "text" : "password"}
                         placeholder="Masukkan password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        {...register("password")}
                         className="h-12 pr-10 bg-gray-50 border-gray-300 focus:border-black focus:ring-black"
-                        
                       />
                       <Button
                         type="button"
@@ -136,9 +141,12 @@ export default function Login() {
                         )}
                       </Button>
                     </div>
+                    {errors.password && (
+                      <p className="text-red-500 text-sm">
+                        {errors.password.message}
+                      </p>
+                    )}
                   </div>
-
-                  {/* Submit Button */}
                   <Button
                     type="submit"
                     className="w-full h-12 text-base font-semibold bg-black hover:bg-gray-800 text-white mt-8 transition-all duration-300 shadow-lg hover:shadow-xl"
@@ -153,19 +161,6 @@ export default function Login() {
                       "Login"
                     )}
                   </Button>
-
-                  {/* Register Link - Uncomment if needed */}
-                  {/* <div className="text-center mt-6">
-                    <p className="text-sm text-gray-600">
-                      Belum punya akun?{" "}
-                      <a
-                        href="/register"
-                        className="text-black hover:underline font-semibold"
-                      >
-                        Daftar sekarang
-                      </a>
-                    </p>
-                  </div> */}
                 </form>
               </CardContent>
             </div>
