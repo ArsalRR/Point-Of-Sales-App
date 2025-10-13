@@ -81,6 +81,7 @@ useEffect(() => {
   transaksiRef.current = transaksi
 }, [transaksi])
 
+
 useEffect(() => {
   fetchTransaksi()
   fetchUser()
@@ -238,6 +239,7 @@ useEffect(() => {
     } catch (error) {
     }
   }
+  
 
   const fetchTransaksi = async () => {
     try {
@@ -634,6 +636,49 @@ useEffect(() => {
   const total = getTotalToBePaid() 
   const paymentStatus = getPaymentStatus() 
   const searchResults = searchProducts(searchQuery)
+  useEffect(() => {
+  let clearTimer = null
+
+  const shouldClearInput = 
+    showSearchResults && 
+    searchQuery && 
+    searchQuery.trim().length > 0 &&
+    searchResults.length === 0 && 
+    !barcodeBufferRef.current
+
+  if (shouldClearInput) {
+    clearTimer = setTimeout(() => {
+      const searchTerm = searchQuery.trim()
+      setSearchQuery("")
+      setShowSearchResults(false)
+     Swal.fire({
+  icon: "error",
+  title: "Kode Barcode Tidak Ditemukan",
+  text: `Kode Barcode ini "${searchTerm}". Belum Di Tambahkan ke Daftar Produk.`,
+  toast: true,
+  position: "top-end",
+  showConfirmButton: false,
+  timer: 4000,
+  timerProgressBar: true,
+  didOpen: (toast) => {
+    toast.addEventListener('mouseenter', Swal.stopTimer)
+    toast.addEventListener('mouseleave', Swal.resumeTimer)
+  }
+})    
+      setTimeout(() => {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus()
+        }
+      }, 100)
+    }, 200) 
+  }
+
+  return () => {
+    if (clearTimer) {
+      clearTimeout(clearTimer)
+    }
+  }
+}, [showSearchResults, searchQuery, searchResults])
 
   if (showPrint && printData) {
     return (
@@ -651,48 +696,8 @@ useEffect(() => {
       />
     )
   }
-  useEffect(() => {
-  let clearTimer = null
 
-  const shouldClearInput = 
-    showSearchResults && 
-    searchQuery && 
-    searchQuery.trim().length > 0 &&
-    searchResults.length === 0 && 
-    !barcodeBufferRef.current
-
-  if (shouldClearInput) {
-    clearTimer = setTimeout(() => {
-      const searchTerm = searchQuery.trim()
-      setSearchQuery("")
-      setShowSearchResults(false)
-      Swal.fire({
-        icon: "error",
-        title: ` "Kode Produk Dengan ${searchTerm}"  Belum Ditambahkan`,
-        toast: true,
-        position: "top-end",
-        showConfirmButton: false,
-        timer: 3000,
-        timerProgressBar: true,
-        didOpen: (toast) => {
-          toast.addEventListener('mouseenter', Swal.stopTimer)
-          toast.addEventListener('mouseleave', Swal.resumeTimer)
-        }
-      })
-      setTimeout(() => {
-        if (searchInputRef.current) {
-          searchInputRef.current.focus()
-        }
-      }, 100)
-    }, 300) 
-  }
-
-  return () => {
-    if (clearTimer) {
-      clearTimeout(clearTimer)
-    }
-  }
-}, [showSearchResults, searchQuery, searchResults])
+  
 
   return (
     <div className="min-h-screen bg-gray-50/50 p-4">
@@ -721,123 +726,122 @@ useEffect(() => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-               <div className="relative">
-  <Label htmlFor="unified-search" className="text-lg font-medium text-gray-700 mb-3 block">
-    Scan Barcode / Cari Produk
-  </Label>
-  <div className="relative flex gap-3">
-    <Input 
-      ref={searchInputRef}
-      id="unified-search"
-      value={searchQuery}
-      onChange={(e) => {
-        const value = e.target.value
-        setSearchQuery(value)
-        const exactProduct = transaksi.find(
-          (p) => p.kode_barang.trim() === value.trim()
-        )
+                <div className="relative">
+                  <Label htmlFor="unified-search" className="text-lg font-medium text-gray-700 mb-3 block">
+                    Scan Barcode / Cari Produk
+                  </Label>
+                  <div className="relative flex gap-3">
+                    <Input 
+                      ref={searchInputRef}
+                      id="unified-search"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        setSearchQuery(value)
+                        const exactProduct = transaksi.find(
+                          (p) => p.kode_barang.trim() === value.trim()
+                        )
 
-        if (exactProduct && value.length >= 3) {
-          setTimeout(() => {
-            if (searchQuery === value) {
-              handleSearchSelect(exactProduct)
-              return
-            }
-          }, 50)
-          return 
-        }
-        setShowSearchResults(value.length > 0)
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault()
-          const product = transaksi.find(
-            (p) => p.kode_barang.trim() === searchQuery.trim()
-          )
-          if (product) {
-            handleSearchSelect(product)
-            setSearchQuery("")
-            setShowSearchResults(false)
-            return 
-          }
-          if (searchResults.length > 0) {
-            handleSearchSelect(searchResults[0])
-          }
-        }
-        
-        if (e.key === "Escape") {
-          setShowSearchResults(false)
-        }
-      }}
-      onFocus={() => {
-        if (searchQuery.length > 0) setShowSearchResults(true)
-      }}
-      onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
-      placeholder="Scan barcode atau ketik nama produk..."
-      className="pl-12 pr-12 h-16 text-xl font-medium w-full"
-      autoComplete="off"
-    />
+                        if (exactProduct && value.length >= 3) {
+                          setTimeout(() => {
+                            if (searchQuery === value) {
+                              handleSearchSelect(exactProduct)
+                              return
+                            }
+                          }, 50)
+                          return 
+                        }
+                        setShowSearchResults(value.length > 0)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          const product = transaksi.find(
+                            (p) => p.kode_barang.trim() === searchQuery.trim()
+                          )
+                          if (product) {
+                            handleSearchSelect(product)
+                            setSearchQuery("")
+                            setShowSearchResults(false)
+                            return 
+                          }
+                          if (searchResults.length > 0) {
+                            handleSearchSelect(searchResults[0])
+                          }
+                        }
+                        
+                        if (e.key === "Escape") {
+                          setShowSearchResults(false)
+                        }
+                      }}
+                      onFocus={() => {
+                        if (searchQuery.length > 0) setShowSearchResults(true)
+                      }}
+                      onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
+                      placeholder="Scan barcode atau ketik nama produk..."
+                      className="pl-12 pr-12 h-16 text-xl font-medium w-full"
+                      autoComplete="off"
+                    />
 
-    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-6 h-6 text-gray-400" />
-    {searchQuery && (
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => {
-          setSearchQuery("")
-          setShowSearchResults(false)
-          if (searchInputRef.current) {
-            searchInputRef.current.focus()
-          }
-        }}
-        className="absolute right-2 top-1/2 transform -translate-y-1/2 h-10 w-10 p-0"
-      >
-        <X className="w-5 h-5" />
-      </Button>
-    )}
-  </div>
+                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-6 h-6 text-gray-400" />
+                    {searchQuery && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSearchQuery("")
+                          setShowSearchResults(false)
+                          if (searchInputRef.current) {
+                            searchInputRef.current.focus()
+                          }
+                        }}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 h-10 w-10 p-0"
+                      >
+                        <X className="w-5 h-5" />
+                      </Button>
+                    )}
+                  </div>
 
-  {/* Dropdown hasil pencarian */}
-  {showSearchResults && searchResults.length > 0 && (
-    <Card className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-auto shadow-lg">
-      <CardContent className="p-0">
-        {searchResults.map((product, index) => (
-          <button
-            key={product.kode_barang}
-            onClick={() => {
-              handleSearchSelect(product)
-              setSearchQuery("")
-              setShowSearchResults(false)
-            }}
-            className={`w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors ${
-              index === 0 ? 'bg-blue-50' : ''
-            }`}
-          >
-            <div className="flex justify-between items-start">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900 truncate">{product.nama_barang}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="secondary" className="text-xs">
-                    {product.kode_barang}
-                  </Badge>
-                  <span className="text-sm text-gray-500">
-                    Rp {product.harga.toLocaleString()} / {product.satuan}
-                  </span>
+                  {showSearchResults && searchResults.length > 0 && (
+                    <Card className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-auto shadow-lg">
+                      <CardContent className="p-0">
+                        {searchResults.map((product, index) => (
+                          <button
+                            key={product.kode_barang}
+                            onClick={() => {
+                              handleSearchSelect(product)
+                              setSearchQuery("")
+                              setShowSearchResults(false)
+                            }}
+                            className={`w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors ${
+                              index === 0 ? 'bg-blue-50' : ''
+                            }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900 truncate">{product.nama_barang}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge variant="secondary" className="text-xs">
+                                    {product.kode_barang}
+                                  </Badge>
+                                  <span className="text-sm text-gray-500">
+                                    Rp {product.harga.toLocaleString()} / {product.satuan}
+                                  </span>
+                                </div>
+                              </div>
+                              <Badge
+                                variant={product.stok > 10 ? "default" : "destructive"}
+                                className="ml-2"
+                              >
+                                Stok: {product.stok}
+                              </Badge>
+                            </div>
+                          </button>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
-              </div>
-              <Badge
-                variant={product.stok > 10 ? "default" : "destructive"}
-                className="ml-2"
-              >
-                Stok: {product.stok}
-              </Badge>
-            </div>
-          </button>
-        ))}
-      </CardContent>
-    </Card>
-  )}
-</div>
               </CardContent>
             </Card>
 
