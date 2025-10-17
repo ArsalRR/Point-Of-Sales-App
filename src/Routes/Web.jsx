@@ -1,127 +1,60 @@
 import { Routes, Route, Navigate } from "react-router-dom"
-
+import { lazy, Suspense } from "react"
 import Login from "@/views/Auth/Login"
-import ListProduk from "@/views/Produk/List-produk"
-import CreateProduk from "@/views/Produk/create-produk"
-import EditProduk from "@/views/Produk/Edit-produk"
-import ListKasir from "@/views/Kasir/list-kasir"
-import Dashboard from "@/views/Dasboard/dasboard"
-import LaporanHarian from "@/views/Laporan/laporan-harian"
 import ProtectedRoute from "@/middleware/ProtectRoutes"
-import LaporanBulanan from "@/views/Laporan/laporan-bulanan"
 import DashboardLayout from "@/Template/layout"
-import ListHargaPromo from "@/views/HargaPromo/ListHargaPromo"
-import CreateHargaPromo from "@/views/HargaPromo/CreateHargaPromo"
-import EditHargaPromo from "@/views/HargaPromo/EditHargaPromo"
+
+const ListProduk = lazy(() => import("@/views/Produk/List-produk"))
+const CreateProduk = lazy(() => import("@/views/Produk/create-produk"))
+const EditProduk = lazy(() => import("@/views/Produk/Edit-produk"))
+const ListKasir = lazy(() => import("@/views/Kasir/list-kasir"))
+const Dashboard = lazy(() => import("@/views/Dasboard/dasboard"))
+const LaporanHarian = lazy(() => import("@/views/Laporan/laporan-harian"))
+const LaporanBulanan = lazy(() => import("@/views/Laporan/laporan-bulanan"))
+const ListHargaPromo = lazy(() => import("@/views/HargaPromo/ListHargaPromo"))
+const CreateHargaPromo = lazy(() => import("@/views/HargaPromo/CreateHargaPromo"))
+const EditHargaPromo = lazy(() => import("@/views/HargaPromo/EditHargaPromo"))
+const LoadingFallback = () => <div className="flex items-center justify-center h-screen">Loading...</div>
+const ProtectedWithLayout = ({ children }) => (
+  <ProtectedRoute>
+    <DashboardLayout>
+      <Suspense fallback={<LoadingFallback />}>
+        {children}
+      </Suspense>
+    </DashboardLayout>
+  </ProtectedRoute>
+)
+const protectedRoutes = [
+  { path: "/produk", component: ListProduk },
+  { path: "/produk/create", component: CreateProduk },
+  { path: "/produk/edit/:id", component: EditProduk },
+  { path: "/kasir", component: ListKasir },
+  { path: "/dashboard", component: Dashboard },
+  { path: "/laporanharian", component: LaporanHarian },
+  { path: "/laporanbulanan", component: LaporanBulanan },
+  { path: "/hargapromo", component: ListHargaPromo },
+  { path: "/hargapromo/create", component: CreateHargaPromo },
+  { path: "/hargapromo/edit/:id", component: EditHargaPromo },
+]
 
 export default function Web() {
- return (
-    <>
-      <Routes>
-        <Route path="/" element={<Login />} />
+  return (
+    <Routes>
+      <Route path="/" element={<Login />} />
 
+      {protectedRoutes.map((route) => (
         <Route
-          path="/produk"
+          key={route.path}
+          path={route.path}
           element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <ListProduk />
-              </DashboardLayout>
-            </ProtectedRoute>
+            <ProtectedWithLayout>
+              <route.component />
+            </ProtectedWithLayout>
           }
         />
-        <Route
-          path="/produk/create"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <CreateProduk />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/produk/edit/:id"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <EditProduk />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/kasir"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <ListKasir />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <Dashboard />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/laporanharian"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <LaporanHarian />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/laporanbulanan"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <LaporanBulanan />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/hargapromo"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <ListHargaPromo />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/hargapromo/create"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <CreateHargaPromo />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/hargapromo/edit/:id"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <EditHargaPromo />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </>
+      ))}
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }

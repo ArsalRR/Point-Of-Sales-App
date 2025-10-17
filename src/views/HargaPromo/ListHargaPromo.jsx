@@ -158,6 +158,7 @@ export default function ListHargaPromo() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-50 hover:to-gray-100">
+                      <TableHead className="font-semibold text-gray-700">No</TableHead>
                       <TableHead className="font-semibold text-gray-700">Nama Produk</TableHead>
                       <TableHead className="font-semibold text-gray-700">Harga Jual</TableHead>
                       <TableHead className="font-semibold text-gray-700">Minimal Pembelian</TableHead>
@@ -173,6 +174,9 @@ export default function ListHargaPromo() {
                           index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
                         }`}
                       >
+                        <TableCell className="font-medium text-gray-900">
+                          {startIndex + index + 1 || "-"}
+                        </TableCell>
                         <TableCell className="font-medium text-gray-900">
                           {item.produk?.nama_barang || "-"}
                         </TableCell>

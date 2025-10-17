@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { ShoppingCart, Scan, Trash2, Plus, Minus, CreditCard, Search, X, } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
@@ -12,52 +12,189 @@ import { getProfile } from '@/api/Userapi'
 import Swal from 'sweetalert2'
 import NotaPembelian from '../Kasir/NotaPembelian'
 import { getHargaPromo } from '@/api/HargaPromoapi'
+// ===== CONSTANTS =====
+const SATUAN_TYPES = {
+  SATUAN: 'satuan',
+  RENTENG: 'renteng',
+  DUS: 'dus',
+  PACK: 'pack',
+  GROSIR: 'grosir'
+}
+
+const PAYMENT_STATUS = {
+  EMPTY: 'empty',
+  INSUFFICIENT: 'insufficient',
+  OVERPAID: 'overpaid',
+  EXACT: 'exact'
+}
+
+const BARCODE_CONFIG = {
+  MIN_LENGTH: 3,
+  SCAN_TIMEOUT: 50,
+  FOCUS_DELAY: 100
+}
+
+const TOAST_CONFIG = {
+  toast: true,
+  position: "top-end",
+  showConfirmButton: false,
+  timerProgressBar: true
+}
+
+const EXCLUDED_INPUT_IDS = ['total_uang', 'kembalian']
+const SEARCH_MAX_RESULTS = 8
+const SEARCH_CLEAR_DELAY = 150
+
+// ===== UTILITY FUNCTIONS =====
+const parseRupiah = (value) => {
+  if (!value && value !== 0) return 0
+  const numberString = value.toString().replace(/[^\d]/g, "")
+  return numberString === "" ? 0 : parseInt(numberString, 10)
+}
+
+const formatRupiah = (value) => {
+  if (!value && value !== 0) return ""
+  const number = typeof value === 'string' ? parseRupiah(value) : value
+  if (number < 0) return ""
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(number)
+}
 
 const getCurrentPrice = (item) => {
-  const satuan = item.satuan_terpilih || "satuan"
-  
-  switch (satuan) {
-    case "renteng":
-      return item.harga_renteng || item.harga
-    case "dus":
-      return item.harga_dus || item.harga
-    case "pack":
-      return item.harga_pack || item.harga
-    case "grosir":
-      return item.harga_grosir || item.harga
-    case "satuan":
-    default:
-      return item.harga
+  const satuan = item.satuan_terpilih || SATUAN_TYPES.SATUAN
+  const priceMap = {
+    [SATUAN_TYPES.RENTENG]: item.harga_renteng,
+    [SATUAN_TYPES.DUS]: item.harga_dus,
+    [SATUAN_TYPES.PACK]: item.harga_pack,
+    [SATUAN_TYPES.GROSIR]: item.harga_grosir,
   }
+  return priceMap[satuan] || item.harga
 }
 
 const getSatuanInfo = (item) => {
-  const satuan = item.satuan_terpilih || "satuan"
+  const satuan = item.satuan_terpilih || SATUAN_TYPES.SATUAN
   const basePrice = item.harga
 
-  if (satuan === "satuan" || !basePrice || basePrice === 0) return ""
+  if (satuan === SATUAN_TYPES.SATUAN || !basePrice || basePrice === 0) return ""
 
-  switch (satuan) {
-    case "renteng":
-      return item.jumlah_lainnya
-        ? `1 renteng = ${item.jumlah_lainnya} pcs`
-        : "Harga renteng"
-    case "dus":
-      return item.jumlah_lainnya
-        ? `1 dus = ${item.jumlah_lainnya} pcs`
-        : "Harga dus"
-    case "pack":
-      return item.jumlah_lainnya
-        ? `1 pack = ${item.jumlah_lainnya} pcs`
-        : "Harga pack"
-    case "grosir":
-      return "Harga grosir"
-    default:
-      return ""
+  const infoMap = {
+    [SATUAN_TYPES.RENTENG]: item.jumlah_lainnya ? `1 renteng = ${item.jumlah_lainnya} pcs` : "Harga renteng",
+    [SATUAN_TYPES.DUS]: item.jumlah_lainnya ? `1 dus = ${item.jumlah_lainnya} pcs` : "Harga dus",
+    [SATUAN_TYPES.PACK]: item.jumlah_lainnya ? `1 pack = ${item.jumlah_lainnya} pcs` : "Harga pack",
+    [SATUAN_TYPES.GROSIR]: "Harga grosir",
   }
+  return infoMap[satuan] || ""
 }
 
+const showToast = (title, text, icon, timer = 3000) => {
+  Swal.fire({ ...TOAST_CONFIG, title, text, icon, timer })
+}
+
+const focusSearchInput = (ref, delay = BARCODE_CONFIG.FOCUS_DELAY) => {
+  setTimeout(() => ref.current?.focus(), delay)
+}
+
+// ===== SEARCH UTILITIES =====
+const calculateSimilarity = (str1, str2) => {
+  const set1 = new Set(str1.split(''))
+  const set2 = new Set(str2.split(''))
+  const intersection = new Set([...set1].filter(x => set2.has(x)))
+  const union = new Set([...set1, ...set2])
+  return intersection.size / union.size
+}
+
+const calculateSearchScore = (item, query, queryWords) => {
+  const namaBarang = item.nama_barang.toLowerCase()
+  const kodeBarang = item.kode_barang.toLowerCase()
+  let score = 0
+
+  // Exact kode match
+  if (kodeBarang === query) return 1000
+  if (kodeBarang.startsWith(query)) score += 800
+  if (kodeBarang.includes(query)) score += 600
+
+  // Exact nama match
+  if (namaBarang === query) score += 900
+  if (namaBarang.startsWith(query)) score += 700
+
+  // Multi-word matching
+  const allWordsFound = queryWords.every(word => namaBarang.includes(word))
+  if (allWordsFound) score += 500
+
+  const foundWords = queryWords.filter(word => namaBarang.includes(word))
+  score += (foundWords.length / queryWords.length) * 300
+
+  if (namaBarang.includes(query)) score += 400
+
+  // Phrase matching
+  if (queryWords.length > 1) {
+    const queryPhrase = queryWords.join(' ')
+    if (namaBarang.includes(queryPhrase)) score += 200
+  }
+
+  // Fuzzy matching
+  if (score === 0 && query.length >= 3) {
+    const similarity = calculateSimilarity(query, namaBarang)
+    if (similarity > 0.6) score += similarity * 100
+  }
+
+  return score
+}
+
+const searchProducts = (transaksi, query) => {
+  if (!query.trim() || !Array.isArray(transaksi)) return []
+
+  const lowercaseQuery = query.toLowerCase().trim()
+  const queryWords = lowercaseQuery.split(/\s+/).filter(word => word.length > 0)
+
+  return transaksi
+    .map(item => ({
+      ...item,
+      searchScore: calculateSearchScore(item, lowercaseQuery, queryWords)
+    }))
+    .filter(item => item.searchScore > 0)
+    .sort((a, b) => {
+      if (b.searchScore !== a.searchScore) return b.searchScore - a.searchScore
+      if (a.nama_barang.length !== b.nama_barang.length) {
+        return a.nama_barang.length - b.nama_barang.length
+      }
+      return a.nama_barang.localeCompare(b.nama_barang, 'id', { numeric: true })
+    })
+    .slice(0, SEARCH_MAX_RESULTS)
+}
+
+// ===== PROMO UTILITIES =====
+const findPromo = (hargaPromo, kodeBarang) => {
+  if (!Array.isArray(hargaPromo) || !kodeBarang) return null
+  
+  const normalizedKode = kodeBarang.trim().toLowerCase()
+  
+  return hargaPromo.find(p => 
+    p?.produk?.kode_barang?.trim()?.toLowerCase() === normalizedKode ||
+    p?.kode_barang?.trim()?.toLowerCase() === normalizedKode
+  )
+}
+
+const calculatePromoDiscount = (cart, hargaPromo) => {
+  if (!Array.isArray(hargaPromo) || hargaPromo.length === 0) return 0
+
+  return cart.reduce((totalDiskon, item) => {
+    const promo = findPromo(hargaPromo, item.kode_barang)
+    if (promo && item.jumlah >= promo.min_qty) {
+      const multiplier = Math.floor(item.jumlah / promo.min_qty)
+      return totalDiskon + (promo.potongan_harga * multiplier)
+    }
+    return totalDiskon
+  }, 0)
+}
+
+// ===== MAIN COMPONENT =====
 export default function ListKasir() {
+  // State
   const [transaksi, setTransaksi] = useState([])
   const [formData, setFormData] = useState({
     produk_id: '',
@@ -66,7 +203,6 @@ export default function ListKasir() {
     total_uang: '',
     kembalian: 0
   })
-  const [scan, setScan] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [cart, setCart] = useState([])
@@ -74,19 +210,308 @@ export default function ListKasir() {
   const [showPrint, setShowPrint] = useState(false)
   const [printData, setPrintData] = useState(null)
   const [user, setUser] = useState(null)
+  const [hargaPromo, setHargaPromo] = useState([])
+  const [promoLoaded, setPromoLoaded] = useState(false)
+
+  // Refs
   const searchInputRef = useRef(null)
   const barcodeBufferRef = useRef('')
   const lastKeyTimeRef = useRef(0)
   const transaksiRef = useRef([])
-  const [hargaPromo, setHargaPromo] = useState([])
-  const [promoLoaded, setPromoLoaded] = useState(false)
 
-  useEffect(() => {
-    fetchHargaPromo()
+  // ===== COMPUTED VALUES =====
+  const searchResults = useMemo(() => 
+    searchProducts(transaksi, searchQuery), 
+    [transaksi, searchQuery]
+  )
+
+  const cartSubtotal = useMemo(() => 
+    cart.reduce((sum, item) => sum + (getCurrentPrice(item) * item.jumlah), 0),
+    [cart]
+  )
+
+  const getTotalToBePaid = useCallback(() => {
+    const diskon = parseRupiah(formData.diskon)
+    return Math.max(0, cartSubtotal - diskon)
+  }, [cartSubtotal, formData.diskon])
+
+  const getPaymentStatus = useCallback(() => {
+    const totalUang = parseRupiah(formData.total_uang)
+    const totalToBePaid = getTotalToBePaid()
+
+    if (totalUang === 0 && formData.total_uang === '') {
+      return {
+        status: PAYMENT_STATUS.EMPTY,
+        message: 'Masukkan total uang (opsional)',
+        difference: 0
+      }
+    }
+
+    if (totalUang < totalToBePaid) {
+      return {
+        status: PAYMENT_STATUS.INSUFFICIENT,
+        message: `Uang kurang ${formatRupiah(totalToBePaid - totalUang)}`,
+        difference: totalToBePaid - totalUang
+      }
+    }
+
+    if (totalUang > totalToBePaid) {
+      return {
+        status: PAYMENT_STATUS.OVERPAID,
+        message: `Kembalian ${formatRupiah(totalUang - totalToBePaid)}`,
+        difference: totalUang - totalToBePaid
+      }
+    }
+
+    return {
+      status: PAYMENT_STATUS.EXACT,
+      message: 'Uang pas',
+      difference: 0
+    }
+  }, [formData.total_uang, getTotalToBePaid])
+
+  const total = useMemo(() => getTotalToBePaid(), [getTotalToBePaid])
+
+  const paymentStatus = useMemo(() => getPaymentStatus(), [getPaymentStatus])
+
+  // ===== API CALLS =====
+  const fetchUser = useCallback(async () => {
+    try {
+      const res = await getProfile()
+      setUser(res.data)
+    } catch (error) {
+      console.error("Gagal ambil user:", error)
+    }
   }, [])
 
+  const fetchHargaPromo = useCallback(async () => {
+    try {
+      const res = await getHargaPromo()
+      const promoData = Array.isArray(res) ? res : (Array.isArray(res.data) ? res.data : [])
+      setHargaPromo(promoData)
+    } catch (error) {
+      setHargaPromo([])
+    } finally {
+      setPromoLoaded(true)
+    }
+  }, [])
+
+  const fetchTransaksi = useCallback(async () => {
+    try {
+      const res = await getTransaksi()
+      setTransaksi(Array.isArray(res.data) ? res.data : [])
+    } catch (error) {
+      console.error("Gagal ambil transaksi:", error)
+    }
+  }, [])
+
+  // ===== CART OPERATIONS =====
+  const addProductToCart = useCallback((product) => {
+    if (!product) return
+
+    setCart(prevCart => {
+      const exist = prevCart.find(c => c.kode_barang === product.kode_barang)
+      if (exist) {
+        return prevCart.map(c =>
+          c.kode_barang === product.kode_barang
+            ? { ...c, jumlah: c.jumlah + 1 }
+            : c
+        )
+      }
+      return [...prevCart, { ...product, jumlah: 1, satuan_terpilih: SATUAN_TYPES.SATUAN }]
+    })
+
+    showToast("Berhasil", `${product.nama_barang} ditambahkan ke keranjang`, "success", 2000)
+  }, [])
+
+  const updateQty = useCallback((kode_barang, newQty) => {
+    if (newQty < 1) return
+    setCart(prev =>
+      prev.map(item =>
+        item.kode_barang === kode_barang ? { ...item, jumlah: newQty } : item
+      )
+    )
+  }, [])
+
+  const removeItem = useCallback((kode) => {
+    setCart(prev => prev.filter(c => c.kode_barang !== kode))
+  }, [])
+
+  const subtotal = useCallback((item) => {
+    return getCurrentPrice(item) * item.jumlah
+  }, [])
+
+  const handleChangeSatuan = useCallback((kode_barang, satuan) => {
+    setCart(prevCart =>
+      prevCart.map(item =>
+        item.kode_barang === kode_barang
+          ? { ...item, satuan_terpilih: satuan, jumlah: 1 }
+          : item
+      )
+    )
+  }, [])
+
+  // ===== PROMO CHECK =====
+  const checkAndApplyPromo = useCallback(() => {
+    const totalDiskonPromo = calculatePromoDiscount(cart, hargaPromo)
+    setFormData(prev => ({
+      ...prev,
+      diskon: totalDiskonPromo > 0 ? formatRupiah(totalDiskonPromo) : ""
+    }))
+  }, [cart, hargaPromo])
+
+  // ===== FORM HANDLERS =====
+  const handleDiskonChange = useCallback((e) => {
+    const rawValue = e.target.value
+    if (rawValue === "") {
+      setFormData(prev => ({ ...prev, diskon: "" }))
+      return
+    }
+
+    const numericValue = parseRupiah(rawValue)
+    const finalDiskon = Math.min(numericValue, cartSubtotal)
+
+    setFormData(prev => ({ ...prev, diskon: formatRupiah(finalDiskon) }))
+  }, [cartSubtotal])
+
+  const handleTotalUangChange = useCallback((e) => {
+    const rawValue = e.target.value
+    if (rawValue === "") {
+      setFormData(prev => ({ ...prev, total_uang: "", kembalian: 0 }))
+      return
+    }
+
+    try {
+      const totalUangNumber = parseRupiah(rawValue)
+      const diskonNumber = parseRupiah(formData.diskon)
+      const totalSetelahDiskon = Math.max(0, cartSubtotal - diskonNumber)
+      const kembalian = Math.max(0, totalUangNumber - totalSetelahDiskon)
+
+      setFormData(prev => ({
+        ...prev,
+        total_uang: formatRupiah(totalUangNumber),
+        kembalian
+      }))
+    } catch (error) {
+      console.error("Error calculating total uang:", error)
+      setFormData(prev => ({ ...prev, total_uang: "", kembalian: 0 }))
+    }
+  }, [cartSubtotal, formData.diskon])
+
+  // ===== SEARCH HANDLERS =====
+  const handleSearchSelect = useCallback((product) => {
+    const exactProduct = transaksi.find(p => 
+      p.kode_barang.trim() === searchQuery.trim()
+    )
+
+    if (exactProduct && searchQuery.length >= BARCODE_CONFIG.MIN_LENGTH) {
+      setTimeout(() => {
+        addProductToCart(exactProduct)
+        setSearchQuery("")
+        setShowSearchResults(false)
+      }, 50)
+      return
+    }
+
+    addProductToCart(product)
+    setSearchQuery('')
+    setShowSearchResults(false)
+  }, [transaksi, searchQuery, addProductToCart])
+
+  // ===== BARCODE SCANNER =====
+  const handleBarcodeFound = useCallback((barcode) => {
+    const product = transaksiRef.current.find(p =>
+      p.kode_barang.trim().toLowerCase() === barcode.toLowerCase()
+    )
+
+    if (product) {
+      addProductToCart(product)
+      setSearchQuery('')
+      setShowSearchResults(false)
+      focusSearchInput(searchInputRef)
+    } else {
+      showToast(
+        "Kode Tidak Ditemukan",
+        `Barcode "${barcode}" tidak terdaftar dalam sistem`,
+        "error"
+      )
+      setSearchQuery('')
+      focusSearchInput(searchInputRef)
+    }
+  }, [addProductToCart])
+
+  // ===== TRANSACTION =====
+  const postTransaksi = useCallback(async (data) => {
+    try {
+      setIsProcessing(true)
+      const res = await postKasir(data)
+      const diskon = parseRupiah(formData.diskon)
+      const total_uang = parseRupiah(formData.total_uang)
+      const total = cartSubtotal - diskon
+      const kembalian = total_uang > 0 ? Math.max(0, total_uang - total) : 0
+
+      const transactionData = {
+        no_transaksi: res.no_transaksi,
+        items: cart.map(item => ({
+          jumlah: item.jumlah,
+          nama_barang: item.nama_barang,
+          harga: getCurrentPrice(item),
+          satuan: item.satuan_terpilih || item.satuan,
+        })),
+        subtotal: cartSubtotal,
+        diskon,
+        total,
+        total_uang,
+        kembalian
+      }
+
+      setPrintData(transactionData)
+      setCart([])
+      setFormData({
+        produk_id: '',
+        jumlah_terjual_per_hari: '',
+        diskon: '',
+        total_uang: '',
+        kembalian: 0
+      })
+      setShowPrint(true)
+      focusSearchInput(searchInputRef)
+    } catch (error) {
+      console.error('Error posting transaksi:', error)
+      showToast("Gagal", "Terjadi kesalahan saat memproses transaksi", "error")
+    } finally {
+      setIsProcessing(false)
+    }
+  }, [cart, cartSubtotal, formData.diskon, formData.total_uang])
+
+  const handleSubmit = useCallback((e) => {
+    e.preventDefault()
+
+    if (!user) {
+      showToast("Gagal", "User belum terdeteksi", "error")
+      return
+    }
+
+    if (cart.length === 0) {
+      showToast("Gagal", "Keranjang masih kosong", "error")
+      return
+    }
+
+    const payload = {
+      produk_id: cart.map(i => i.kode_barang),
+      jumlah_terjual_per_hari: cart.map(i => i.jumlah),
+      satuan: cart.map(i => i.satuan_terpilih || i.satuan),
+      users_id: user.id,
+      diskon: parseRupiah(formData.diskon),
+    }
+
+    postTransaksi(payload)
+  }, [user, cart, formData.diskon, postTransaksi])
+
+  // ===== EFFECTS =====
   useEffect(() => {
-  }, [hargaPromo])
+    fetchHargaPromo()
+  }, [fetchHargaPromo])
 
   useEffect(() => {
     transaksiRef.current = transaksi
@@ -95,16 +520,14 @@ export default function ListKasir() {
   useEffect(() => {
     fetchTransaksi()
     fetchUser()
-    if (searchInputRef.current) {
-      searchInputRef.current.focus()
-    }
+    focusSearchInput(searchInputRef, 0)
 
     let scanTimeout = null
 
     const handleGlobalKeyPress = (e) => {
       const activeElement = document.activeElement
       const isTypingInInput = activeElement && (
-        activeElement.tagName === 'INPUT' || 
+        activeElement.tagName === 'INPUT' ||
         activeElement.tagName === 'TEXTAREA' ||
         activeElement.contentEditable === 'true'
       )
@@ -113,23 +536,15 @@ export default function ListKasir() {
         activeElement.closest('[role="combobox"]') !== null ||
         activeElement.closest('[data-radix-select-trigger]') !== null
       )
-      const excludedInputIds = ['total_uang', 'kembalian']
-      const isExcludedInput = activeElement && excludedInputIds.includes(activeElement.id)
-      const isSearchInput = activeElement === searchInputRef.current || 
-                           (activeElement && activeElement.id === 'unified-search')
-      
-      if (isInSelectComponent) {
-        return
-      }
-      if (isTypingInInput && isExcludedInput) {
-        return
-      }
-      if (isTypingInInput && isSearchInput) {
-        return
-      }
-      if (isTypingInInput && !isSearchInput && !isExcludedInput) {
-        return
-      }
+      const isExcludedInput = activeElement && EXCLUDED_INPUT_IDS.includes(activeElement.id)
+      const isSearchInput = activeElement === searchInputRef.current ||
+        (activeElement && activeElement.id === 'unified-search')
+
+      if (isInSelectComponent) return
+      if (isTypingInInput && isExcludedInput) return
+      if (isTypingInInput && isSearchInput) return
+      if (isTypingInInput && !isSearchInput && !isExcludedInput) return
+
       if (e.key.length === 1 && /[a-zA-Z0-9 ]/.test(e.key) && !isTypingInInput) {
         if (searchInputRef.current) {
           searchInputRef.current.focus()
@@ -143,92 +558,25 @@ export default function ListKasir() {
 
       const currentTime = Date.now()
       lastKeyTimeRef.current = currentTime
-      
-      if (e.key.length === 1) { 
+
+      if (e.key.length === 1) {
         barcodeBufferRef.current += e.key
-        if (scanTimeout) {
-          clearTimeout(scanTimeout)
-        }
+        if (scanTimeout) clearTimeout(scanTimeout)
+
         scanTimeout = setTimeout(() => {
-          if (barcodeBufferRef.current.length >= 3) {
+          if (barcodeBufferRef.current.length >= BARCODE_CONFIG.MIN_LENGTH) {
             const scannedBarcode = barcodeBufferRef.current.trim()
-            barcodeBufferRef.current = '' 
-            const product = transaksiRef.current.find(p => 
-              p.kode_barang.trim().toLowerCase() === scannedBarcode.toLowerCase()
-            )
-            
-            if (product) {
-              addProductToCart(product)
-              setSearchQuery('')
-              setShowSearchResults(false)
-              setTimeout(() => {
-                if (searchInputRef.current) {
-                  searchInputRef.current.focus()
-                }
-              }, 100)
-            } else {
-              Swal.fire({
-                title: "Kode Tidak Ditemukan",
-                text: `Barcode "${scannedBarcode}" tidak terdaftar dalam sistem`,
-                icon: "error",
-                toast: true,
-                position: "top-end",
-                showConfirmButton: false,
-                timer: 3000,
-                timerProgressBar: true
-              })
-              setSearchQuery('')
-              setTimeout(() => {
-                if (searchInputRef.current) {
-                  searchInputRef.current.focus()
-                }
-              }, 100)
-            }
+            barcodeBufferRef.current = ''
+            handleBarcodeFound(scannedBarcode)
           }
-        }, 50)
+        }, BARCODE_CONFIG.SCAN_TIMEOUT)
       }
-      
-      if (e.key === 'Enter' && barcodeBufferRef.current.length >= 3) {
-        if (scanTimeout) {
-          clearTimeout(scanTimeout)
-        }
-        
+
+      if (e.key === 'Enter' && barcodeBufferRef.current.length >= BARCODE_CONFIG.MIN_LENGTH) {
+        if (scanTimeout) clearTimeout(scanTimeout)
         const scannedBarcode = barcodeBufferRef.current.trim()
         barcodeBufferRef.current = ''
-        
-        const product = transaksiRef.current.find(p => 
-          p.kode_barang.trim().toLowerCase() === scannedBarcode.toLowerCase()
-        )
-        
-        if (product) {
-          addProductToCart(product)
-          setSearchQuery('')
-          setShowSearchResults(false)
-          setTimeout(() => {
-            if (searchInputRef.current) {
-              searchInputRef.current.focus()
-            }
-          }, 100)
-        } else {
-          Swal.fire({
-            title: "Kode Tidak Ditemukan",
-            text: `Barcode "${scannedBarcode}" tidak terdaftar dalam sistem`,
-            icon: "error",
-            toast: true,
-            position: "top-end",
-            showConfirmButton: false,
-            timer: 3000,
-            timerProgressBar: true
-          })
-          
-          setSearchQuery('')
-          setTimeout(() => {
-            if (searchInputRef.current) {
-              searchInputRef.current.focus()
-            }
-          }, 100)
-        }
-        
+        handleBarcodeFound(scannedBarcode)
         e.preventDefault()
       }
     }
@@ -237,497 +585,22 @@ export default function ListKasir() {
 
     return () => {
       document.removeEventListener('keydown', handleGlobalKeyPress)
-      if (scanTimeout) {
-        clearTimeout(scanTimeout)
-      }
+      if (scanTimeout) clearTimeout(scanTimeout)
     }
-  }, [searchQuery])
-
-  const fetchUser = async () => {
-    try {
-      const res = await getProfile()
-      setUser(res.data)
-    } catch (error) {
-    }
-  }
-
-  const fetchHargaPromo = async () => {
-    try {
-      const res = await getHargaPromo()
-  
-      const promoData = Array.isArray(res) ? res : (Array.isArray(res.data) ? res.data : [])
-      setHargaPromo(promoData)
-      setPromoLoaded(true)
-    } catch (error) {
-      setHargaPromo([])
-      setPromoLoaded(true)
-    }
-  }
-
-  const fetchTransaksi = async () => {
-    try {
-      const res = await getTransaksi()
-      setTransaksi(Array.isArray(res.data) ? res.data : [])
-    } catch (error) {
-      console.error("Gagal ambil transaksi:", error)
-    }
-  }
-
-  const parseRupiah = (value) => {
-    if (!value && value !== 0) return 0
-    const numberString = value.toString().replace(/[^\d]/g, "")
-    return numberString === "" ? 0 : parseInt(numberString, 10)
-  }
-
-  const formatRupiah = (value) => {
-    if (!value && value !== 0) return ""
-    
-    const number = typeof value === 'string' ? parseRupiah(value) : value
-    if (number < 0) return ""
-    
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(number)
-  }
-
-  const getTotalToBePaid = () => {
-    const subtotal = cart.reduce((sum, item) => {
-      const price = getCurrentPrice(item) || 0
-      const quantity = item.jumlah || 0
-      return sum + (price * quantity)
-    }, 0)
-    
-    const diskon = parseRupiah(formData.diskon)
-    return Math.max(0, subtotal - diskon)
-  }
-
-  const getPaymentStatus = () => {
-    const totalUang = parseRupiah(formData.total_uang)
-    const totalToBePaid = getTotalToBePaid()
-    
-    if (totalUang === 0 && formData.total_uang === '') {
-      return {
-        status: 'empty',
-        message: 'Masukkan total uang (opsional)',
-        difference: 0
-      }
-    }
-    
-    if (totalUang < totalToBePaid) {
-      const kurang = totalToBePaid - totalUang
-      return {
-        status: 'insufficient',
-        message: `Uang kurang ${formatRupiah(kurang)}`,
-        difference: kurang
-      }
-    }
-    
-    if (totalUang > totalToBePaid) {
-      const kembalian = totalUang - totalToBePaid
-      return {
-        status: 'overpaid',
-        message: `Kembalian ${formatRupiah(kembalian)}`,
-        difference: kembalian
-      }
-    }
-    
-    return {
-      status: 'exact',
-      message: 'Uang pas',
-      difference: 0
-    }
-  }
-
-  const handleDiskonChange = (e) => {
-    const rawValue = e.target.value
-    if (rawValue === "") {
-      setFormData((prev) => ({
-        ...prev,
-        diskon: "",
-      }))
-      return
-    }
-
-    const numericValue = parseRupiah(rawValue)
-    const subtotal = cart.reduce((sum, item) => sum + (getCurrentPrice(item) * item.jumlah), 0)
-    const maxDiskon = subtotal 
-    
-    const finalDiskon = Math.min(numericValue, maxDiskon)
-    
-    setFormData((prev) => ({
-      ...prev,
-      diskon: formatRupiah(finalDiskon),
-    }))
-  }
-
-  const handleTotalUangChange = (e) => {
-    const rawValue = e.target.value
-    if (rawValue === "") {
-      setFormData((prev) => ({
-        ...prev,
-        total_uang: "",
-        kembalian: 0,
-      }))
-      return
-    }
-    
-    try {
-      const totalUangNumber = parseRupiah(rawValue)
-      const subtotal = cart.reduce((sum, item) => {
-        const price = getCurrentPrice(item) || 0
-        const quantity = item.jumlah || 0
-        return sum + (price * quantity)
-      }, 0)
-      const diskonNumber = parseRupiah(formData.diskon)
-      const totalSetelahDiskon = Math.max(0, subtotal - diskonNumber)
-      const kembalian = Math.max(0, totalUangNumber - totalSetelahDiskon)
-      
-      setFormData((prev) => ({
-        ...prev,
-        total_uang: formatRupiah(totalUangNumber),
-        kembalian: kembalian,
-      }))
-      
-    } catch (error) {
-      console.error("Error calculating total uang:", error)
-      setFormData((prev) => ({
-        ...prev,
-        total_uang: "",
-        kembalian: 0,
-      }))
-    }
-  }
-
-  const handleChangeSatuan = (kode_barang, satuan) => {
-    setCart((prevCart) =>
-      prevCart.map((item) =>
-        item.kode_barang === kode_barang
-          ? { 
-              ...item, 
-              satuan_terpilih: satuan,
-              jumlah: 1
-            }
-          : item
-      )
-    )
-  }
-
-  const checkAndApplyPromo = () => {
-    let totalDiskonPromo = 0
-
-    if (!Array.isArray(hargaPromo) || hargaPromo.length === 0) {
-      setFormData((prev) => ({
-        ...prev,
-        diskon: "",
-      }))
-      return
-    }
-    cart.forEach((item) => {
-      let promo = hargaPromo.find(
-        (p) => p?.produk?.kode_barang?.toLowerCase() === item.kode_barang?.toLowerCase()
-      )
-      if (!promo) {
-        promo = hargaPromo.find(
-          (p) => p?.kode_barang?.toLowerCase() === item.kode_barang?.toLowerCase()
-        )
-      }
-
-      // Jika masih tidak ketemu, coba dengan trim
-      if (!promo) {
-        promo = hargaPromo.find(
-          (p) => p?.produk?.kode_barang?.trim()?.toLowerCase() === item.kode_barang?.trim()?.toLowerCase()
-        )
-      }
-
-      if (promo) {
-        if (item.jumlah >= promo.min_qty) {
-       
-          const multiplier = Math.floor(item.jumlah / promo.min_qty)
-          const diskonItem = promo.potongan_harga * multiplier
-          totalDiskonPromo += diskonItem
-        } else {
-        }
-      } else {
-      }
-    })
-    if (totalDiskonPromo > 0) {
-      setFormData((prev) => ({
-        ...prev,
-        diskon: formatRupiah(totalDiskonPromo),
-      }))
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        diskon: "",
-      }))
-    }
-  }
-
-  const postTransaksi = async (data) => {
-    try {
-      setIsProcessing(true)
-      const res = await postKasir(data)
-      const subtotal = cart.reduce((s, i) => s + (getCurrentPrice(i) * i.jumlah), 0)
-      const diskon = parseRupiah(formData.diskon)
-      const total_uang = parseRupiah(formData.total_uang)
-      
-      const total = subtotal - diskon
-      const kembalian = total_uang > 0 ? Math.max(0, total_uang - total) : 0
-
-      const transactionData = {
-        no_transaksi: res.no_transaksi,
-        items: cart.map(item => ({
-          jumlah: item.jumlah,
-          nama_barang: item.nama_barang,
-          harga: getCurrentPrice(item), 
-          satuan: item.satuan_terpilih || item.satuan,
-        })),
-        subtotal: subtotal,
-        diskon: diskon,
-        total: total,
-        total_uang: total_uang,
-        kembalian: kembalian
-      }
-
-      setPrintData(transactionData)      
-      setCart([])
-      setFormData({
-        produk_id: '',
-        jumlah_terjual_per_hari: '',
-        diskon: '',
-        total_uang: '',
-        kembalian: 0
-      })
-      setShowPrint(true)
-      setTimeout(() => {
-        if (searchInputRef.current) {
-          searchInputRef.current.focus()
-        }
-      }, 100)
-      
-    } catch (error) {
-      console.error('Error posting transaksi:', error)
-      Swal.fire({
-        title: "Gagal",
-        text: "Terjadi kesalahan saat memproses transaksi",
-        icon: "error",
-        toast: true,
-        position: "top-end",
-        showConfirmButton: false,
-        timer: 3000
-      })
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    setFormData({ ...formData, [name]: value })
-  }
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    if (!user) {
-      Swal.fire({
-        title: "Gagal",
-        text: "User belum terdeteksi",
-        icon: "error",
-        toast: true,
-        position: "top-end",
-        showConfirmButton: false,
-        timer: 3000
-      })
-      return
-    }
-    if (cart.length === 0) {
-      Swal.fire({
-        title: "Gagal",
-        text: "Keranjang masih kosong",
-        icon: "error",
-        toast: true,
-        position: "top-end",
-        showConfirmButton: false,
-        timer: 3000
-      })
-      return
-    }
-    const payload = {
-      produk_id: cart.map((i) => i.kode_barang),
-      jumlah_terjual_per_hari: cart.map((i) => i.jumlah),
-      satuan: cart.map((i) => i.satuan_terpilih || i.satuan),
-      users_id: user.id,
-      diskon: parseRupiah(formData.diskon),
-    }
-    postTransaksi(payload)
-  }
-
-  const searchProducts = (query) => {
-    if (!query.trim() || !Array.isArray(transaksi)) return []
-    
-    const lowercaseQuery = query.toLowerCase().trim()
-    const queryWords = lowercaseQuery.split(/\s+/).filter(word => word.length > 0)
-    const calculateScore = (item) => {
-      const namaBarang = item.nama_barang.toLowerCase()
-      const kodeBarang = item.kode_barang.toLowerCase()
-      let score = 0
-      if (kodeBarang === lowercaseQuery) {
-        return 1000
-      }
-      if (kodeBarang.startsWith(lowercaseQuery)) {
-        score += 800
-      }
-      if (kodeBarang.includes(lowercaseQuery)) {
-        score += 600
-      }
-
-      if (namaBarang === lowercaseQuery) {
-        score += 900
-      }
-      if (namaBarang.startsWith(lowercaseQuery)) {
-        score += 700
-      }
-      const allWordsFound = queryWords.every(word => namaBarang.includes(word))
-      if (allWordsFound) {
-        score += 500
-      }
-      const foundWords = queryWords.filter(word => namaBarang.includes(word))
-      score += (foundWords.length / queryWords.length) * 300
-      if (namaBarang.includes(lowercaseQuery)) {
-        score += 400
-      }
-      if (queryWords.length > 1) {
-        const queryPhrase = queryWords.join(' ')
-        if (namaBarang.includes(queryPhrase)) {
-          score += 200
-        }
-      }
-      if (score === 0 && lowercaseQuery.length >= 3) {
-        const similarity = calculateSimilarity(lowercaseQuery, namaBarang)
-        if (similarity > 0.6) {
-          score += similarity * 100
-        }
-      }
-      
-      return score
-    }
-    const calculateSimilarity = (str1, str2) => {
-      const set1 = new Set(str1.split(''))
-      const set2 = new Set(str2.split(''))
-      const intersection = new Set([...set1].filter(x => set2.has(x)))
-      const union = new Set([...set1, ...set2])
-      return intersection.size / union.size
-    }
-    const scoredResults = transaksi
-      .map(item => ({
-        ...item,
-        searchScore: calculateScore(item)
-      }))
-      .filter(item => item.searchScore > 0)
-      .sort((a, b) => {
-        if (b.searchScore !== a.searchScore) {
-          return b.searchScore - a.searchScore
-        }
-        const aLength = a.nama_barang.length
-        const bLength = b.nama_barang.length
-        if (aLength !== bLength) {
-          return aLength - bLength
-        }
-        return a.nama_barang.localeCompare(b.nama_barang, 'id', { numeric: true })
-      })
-    
-    return scoredResults.slice(0, 8) 
-  }
-
-  const addProductToCart = (product) => {
-    if (!product) return
-
-    const exist = cart.find((c) => c.kode_barang === product.kode_barang)
-    if (exist) {
-      setCart(cart.map((c) => 
-        c.kode_barang === product.kode_barang 
-          ? { ...c, jumlah: c.jumlah + 1 } 
-          : c
-      ))
-    } else {
-      setCart([...cart, { 
-        ...product, 
-        jumlah: 1, 
-        satuan_terpilih: "satuan" 
-      }])
-    }
-    
-    Swal.fire({
-      title: "Berhasil",
-      text: `${product.nama_barang} ditambahkan ke keranjang`,
-      icon: "success",
-      toast: true,
-      position: "top-end",
-      showConfirmButton: false,
-      timer: 2000
-    })
-  }
-
-  const handleSearchSelect = (product) => {
-    const exactProduct = transaksi.find(
-      (p) => p.kode_barang.trim() === searchQuery.trim()
-    )
-
-    if (exactProduct && searchQuery.length >= 3) {
-      setTimeout(() => {
-        if (searchQuery === searchQuery) {
-          addProductToCart(exactProduct)
-          setSearchQuery("")
-          setShowSearchResults(false)
-        }
-      }, 50)
-      return
-    }
-    addProductToCart(product)
-    setSearchQuery('')
-    setShowSearchResults(false)
-  }
-
-  const updateQty = (kode_barang, newQty) => {
-    if (newQty < 1) return
-
-    setCart((prev) =>
-      prev.map((item) =>
-        item.kode_barang === kode_barang
-          ? { ...item, jumlah: newQty }
-          : item
-      )
-    )
-  }
+  }, [searchQuery, fetchTransaksi, fetchUser, handleBarcodeFound])
 
   useEffect(() => {
     checkAndApplyPromo()
-  }, [cart, hargaPromo, promoLoaded])
-
-  const removeItem = (kode) => {
-    setCart(cart.filter((c) => c.kode_barang !== kode))
-  }
-
-  const subtotal = (item) => {
-    return getCurrentPrice(item) * item.jumlah
-  }
-
-  const cartSubtotal = cart.reduce((s, i) => s + subtotal(i), 0)
-  const total = getTotalToBePaid() 
-  const paymentStatus = getPaymentStatus() 
-  const searchResults = searchProducts(searchQuery)
+  }, [checkAndApplyPromo])
 
   useEffect(() => {
     let clearTimer = null
 
-    const shouldClearInput = 
-      showSearchResults && 
-      searchQuery && 
+    const shouldClearInput =
+      showSearchResults &&
+      searchQuery &&
       searchQuery.trim().length > 0 &&
-      searchResults.length === 0 && 
+      searchResults.length === 0 &&
       !barcodeBufferRef.current
 
     if (shouldClearInput) {
@@ -739,48 +612,35 @@ export default function ListKasir() {
           icon: "error",
           title: "Kode Barcode Tidak Ditemukan",
           text: `Kode Barcode ini ${searchTerm}. Belum Di Tambahkan ke Daftar Produk.`,
-          toast: true,
-          position: "top-end",
-          showConfirmButton: false,
+          ...TOAST_CONFIG,
           timer: 4000,
-          timerProgressBar: true,
           didOpen: (toast) => {
             toast.addEventListener('mouseenter', Swal.stopTimer)
             toast.addEventListener('mouseleave', Swal.resumeTimer)
           }
-        })    
-        setTimeout(() => {
-          if (searchInputRef.current) {
-            searchInputRef.current.focus()
-          }
-        }, 100)
-      }, 150) 
+        })
+        focusSearchInput(searchInputRef)
+      }, SEARCH_CLEAR_DELAY)
     }
 
     return () => {
-      if (clearTimer) {
-        clearTimeout(clearTimer)
-      }
+      if (clearTimer) clearTimeout(clearTimer)
     }
   }, [showSearchResults, searchQuery, searchResults])
 
+  // ===== RENDER =====
   if (showPrint && printData) {
     return (
-      <NotaPembelian 
-        transactionData={printData} 
+      <NotaPembelian
+        transactionData={printData}
         onClose={() => {
           setShowPrint(false)
           setPrintData(null)
-          setTimeout(() => {
-            if (searchInputRef.current) {
-              searchInputRef.current.focus()
-            }
-          }, 100)
-        }} 
+          focusSearchInput(searchInputRef)
+        }}
       />
     )
   }
-
   return (
     <div className="min-h-screen bg-gray-50/50 p-4">
       <div className="max-w-7xl mx-auto space-y-6">
