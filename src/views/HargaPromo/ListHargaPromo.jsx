@@ -159,6 +159,7 @@ export default function ListHargaPromo() {
                   <TableHeader>
                     <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-50 hover:to-gray-100">
                       <TableHead className="font-semibold text-gray-700">Nama Produk</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Harga Jual</TableHead>
                       <TableHead className="font-semibold text-gray-700">Minimal Pembelian</TableHead>
                       <TableHead className="font-semibold text-gray-700">Potongan Harga</TableHead>
                       <TableHead className="text-center font-semibold text-gray-700">Aksi</TableHead>
@@ -174,6 +175,9 @@ export default function ListHargaPromo() {
                       >
                         <TableCell className="font-medium text-gray-900">
                           {item.produk?.nama_barang || "-"}
+                        </TableCell>
+                        <TableCell className="text-gray-700">
+                          Rp {item.produk.harga.toLocaleString("id-ID")}
                         </TableCell>
                         <TableCell className="text-gray-700">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -206,8 +210,6 @@ export default function ListHargaPromo() {
                   </TableBody>
                 </Table>
               </div>
-
-              {/* Mobile Card View */}
               <div className="md:hidden space-y-3">
                 {currentData.map((item) => (
                   <Card 
@@ -220,6 +222,12 @@ export default function ListHargaPromo() {
                           <p className="text-xs font-medium text-gray-500 mb-1.5">Nama Produk</p>
                           <p className="font-semibold text-gray-900 text-base">
                             {item.produk?.nama_barang || "-"}
+                          </p>
+                        </div>
+                         <div className="pb-3 border-b border-gray-100">
+                          <p className="text-xs font-medium text-gray-500 mb-1.5">Harga Jual</p>
+                          <p className="font-semibold text-gray-900 text-base">
+                            Rp {item.produk.harga.toLocaleString("id-ID")}
                           </p>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -332,8 +340,7 @@ export default function ListHargaPromo() {
         </CardContent>
       </Card>
 
-
-<div className="md:hidden fixed bottom-20 right-6 z-50">
+<div className="md:hidden fixed bottom-37 right-6 z-50">
   <Link to="/hargapromo/create">
     <Button 
       size="lg"
@@ -343,6 +350,7 @@ export default function ListHargaPromo() {
     </Button>
   </Link>
 </div>
+
     </div>
   )
 }

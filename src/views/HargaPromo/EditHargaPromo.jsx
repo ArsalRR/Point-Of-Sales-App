@@ -278,7 +278,7 @@ export default function EditHargaPromo() {
         {/* Back Button */}
         <button
           onClick={() => navigate("/hargapromo")}
-          className="flex items-center gap-2 text-gray-600 hover:text-black mb-6 transition-colors"
+          className="flex items-center gap-2 text-gray-600 hover:text-black mb-6 transition-colors md:hidden"
         >
           <ArrowLeft className="w-5 h-5" />
           <span className="font-medium">Kembali</span>
@@ -440,8 +440,6 @@ export default function EditHargaPromo() {
             </form>
           </CardContent>
         </Card>
-
-        {/* Info Footer */}
         <div className="mt-6 p-4 bg-white border-2 border-gray-200 rounded-lg">
           <p className="text-sm text-gray-600 text-center">
             💡 <strong>Info:</strong> Perubahan akan langsung diterapkan setelah disimpan.

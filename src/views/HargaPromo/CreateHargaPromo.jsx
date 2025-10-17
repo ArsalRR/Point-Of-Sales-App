@@ -13,10 +13,6 @@ import { postHargaPromo } from "@/api/HargaPromoapi"
 import { Tag, PackageOpen, Percent, Search } from "lucide-react"
 import { ArrowLeft } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-
-
-
-// Format dan parsing rupiah
 const formatCurrency = (value) => {
   const numericValue = value.replace(/[^0-9]/g, "")
   if (!numericValue) return ""
@@ -27,8 +23,6 @@ const formatCurrency = (value) => {
 const parseCurrency = (value) => {
   return parseInt(value?.replace(/[^0-9]/g, "") || "0", 10)
 }
-
-// Validasi Yup
 const schema = yup.object().shape({
   produk_id: yup.array().min(1, "Pilih minimal 1 produk"),
   min_qty: yup
@@ -124,54 +118,43 @@ export default function CreateHargaPromo() {
       color: "#6b7280",
     }),
   }
-  useEffect(() => {
-    const fetchAllProduk = async () => {
-      if (isFetchingRef.current || produkCacheRef.current.length > 0) return
-      
-      isFetchingRef.current = true
-      try {
-        const res = await getProduk()
-        
-        let dataArray = []
-        if (Array.isArray(res)) {
-          dataArray = res
-        } else if (res?.data && Array.isArray(res.data)) {
-          dataArray = res.data
-        } else if (res?.data?.data && Array.isArray(res.data.data)) {
-          dataArray = res.data.data
-        }
-        if (dataArray.length > 0) {
-      
-        }
-        
-        if (dataArray.length > 0) {
-          const options = dataArray.map((p) => {
-         
-            const label = 
-              p.nama_barang || 
-            
-              p.nama || 
-              p.name || 
-              p.product_name || 
-              p.productName ||
-              `Produk #${p.id}`
-            
-            return {
-              value: p.id,
-              label: label,
-            }
-          })
-          produkCacheRef.current = options
-        
-        }
-      } catch (error) {
-      } finally {
-        isFetchingRef.current = false
+useEffect(() => {
+  const fetchAllProduk = async () => {
+    if (isFetchingRef.current || produkCacheRef.current.length > 0) return
+
+    isFetchingRef.current = true
+    try {
+      const res = await getProduk()
+
+      let dataArray = []
+      if (Array.isArray(res)) {
+        dataArray = res
+      } else if (res?.data && Array.isArray(res.data)) {
+        dataArray = res.data
+      } else if (res?.data?.data && Array.isArray(res.data.data)) {
+        dataArray = res.data.data
       }
+
+      if (dataArray.length > 0) {
+        const options = dataArray.map((p) => {
+          const label = `${p.nama_barang} - Rp${Number(p.harga).toLocaleString()}`
+          return {
+            value: p.id,
+            label: label,
+          }
+        })
+        produkCacheRef.current = options
+      }
+    } catch (error) {
+      console.error(error)
+    } finally {
+      isFetchingRef.current = false
     }
-    
-    fetchAllProduk()
-  }, [])
+  }
+
+  fetchAllProduk()
+}, [])
+
   const loadOptions = (inputValue, callback) => {
     if (produkCacheRef.current.length === 0) {
       setTimeout(() => {
@@ -230,13 +213,14 @@ export default function CreateHargaPromo() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-3xl mx-auto">
-          <button
-          onClick={() => navigate("/hargapromo")}
-          className="flex items-center gap-2 text-gray-600 hover:text-black mb-6 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span className="font-medium">Kembali</span>
-        </button>
+         <button
+  onClick={() => navigate("/hargapromo")}
+  className="flex items-center gap-2 text-gray-600 hover:text-black mb-6 transition-colors md:hidden"
+>
+  <ArrowLeft className="w-5 h-5" />
+  <span className="font-medium">Kembali</span>
+</button>
+
         {/* Header Section */}
         <div className="mb-8 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-black rounded-2xl mb-4">
@@ -372,7 +356,13 @@ export default function CreateHargaPromo() {
 
               {/* Divider */}
               <div className="border-t-2 border-gray-200 my-6"></div>
-
+    <Button
+  type="button"
+  onClick={() => navigate("/hargapromo")}
+  className="hidden sm:flex flex-1 bg-white hover:bg-gray-100 text-black border-2 border-gray-300 font-semibold h-12 text-base transition-all duration-200 w-full"
+>
+  Batal
+</Button>
               {/* Submit Button */}
               <Button
                 type="submit"
