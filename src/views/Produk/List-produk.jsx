@@ -109,9 +109,7 @@ const filteredAndSortedProduk = useMemo(() => {
 
       return matchesSearch && matchesStockFilter
     })
-    
-    // PERBAIKAN: Hapus kondisi yang mengabaikan sorting
-    // Selalu lakukan sorting berdasarkan pilihan user
+
     filtered.sort((a, b) => {
       let aVal = a[sortBy]
       let bVal = b[sortBy]
@@ -164,7 +162,6 @@ const getStockBadge = (stok, limit_stok) => {
       minimumFractionDigits: 0,
     }).format(amount)
 
-  // Loading
   if (isLoading) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">

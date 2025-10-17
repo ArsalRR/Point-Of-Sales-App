@@ -1,4 +1,4 @@
-import { Home, Package, ScanLine } from "lucide-react"
+import { Home, Package, BadgeDollarSign } from "lucide-react"
 import { useLocation, Link } from "react-router-dom"
 import LaporanMenu from "./LaporanMenu"
 
@@ -9,7 +9,7 @@ export default function BottomNav() {
   const navItems = [
     { path: "/dashboard", icon: Home, label: "Home" },
     { path: "/produk", icon: Package, label: "Produk" },
-    { path: "/kasir", icon: ScanLine, label: "Kasir" }
+    { path: "/hargapromo", icon: BadgeDollarSign, label: "Diskon" }
   ]
 
   return (

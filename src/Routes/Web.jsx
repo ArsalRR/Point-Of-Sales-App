@@ -10,6 +10,9 @@ import LaporanHarian from "@/views/Laporan/laporan-harian"
 import ProtectedRoute from "@/middleware/ProtectRoutes"
 import LaporanBulanan from "@/views/Laporan/laporan-bulanan"
 import DashboardLayout from "@/Template/layout"
+import ListHargaPromo from "@/views/HargaPromo/ListHargaPromo"
+import CreateHargaPromo from "@/views/HargaPromo/CreateHargaPromo"
+import EditHargaPromo from "@/views/HargaPromo/EditHargaPromo"
 
 export default function Web() {
  return (
@@ -83,6 +86,36 @@ export default function Web() {
             <ProtectedRoute>
               <DashboardLayout>
                 <LaporanBulanan />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/hargapromo"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <ListHargaPromo />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/hargapromo/create"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <CreateHargaPromo />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/hargapromo/edit/:id"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <EditHargaPromo />
               </DashboardLayout>
             </ProtectedRoute>
           }

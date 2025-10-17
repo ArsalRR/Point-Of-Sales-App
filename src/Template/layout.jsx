@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
+  BadgeDollarSign,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -107,6 +108,7 @@ export default function ShadcnSidebar({ children }) {
     { title: "Dashboard", icon: Home, href: "/dashboard", badge: null },
     { title: "Data Produk", icon: Package, href: "/produk", badge: totalProduk },
     { title: "Kasir", icon: ScanLine, href: "/kasir", badge: null },
+    { title: "Potongan Harga", icon: BadgeDollarSign , href: "/hargapromo", badge: null },
   ]
 
   const teamItems = [

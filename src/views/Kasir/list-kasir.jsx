@@ -11,6 +11,7 @@ import { postKasir, getTransaksi } from '@/api/Kasirapi'
 import { getProfile } from '@/api/Userapi'
 import Swal from 'sweetalert2'
 import NotaPembelian from '../Kasir/NotaPembelian'
+import { getHargaPromo } from '@/api/HargaPromoapi'
 
 const getCurrentPrice = (item) => {
   const satuan = item.satuan_terpilih || "satuan"
@@ -73,165 +74,175 @@ export default function ListKasir() {
   const [showPrint, setShowPrint] = useState(false)
   const [printData, setPrintData] = useState(null)
   const [user, setUser] = useState(null)
- const searchInputRef = useRef(null)
-const barcodeBufferRef = useRef('')
-const lastKeyTimeRef = useRef(0)
-const transaksiRef = useRef([])
-useEffect(() => {
-  transaksiRef.current = transaksi
-}, [transaksi])
+  const searchInputRef = useRef(null)
+  const barcodeBufferRef = useRef('')
+  const lastKeyTimeRef = useRef(0)
+  const transaksiRef = useRef([])
+  const [hargaPromo, setHargaPromo] = useState([])
+  const [promoLoaded, setPromoLoaded] = useState(false)
 
+  useEffect(() => {
+    fetchHargaPromo()
+  }, [])
 
-useEffect(() => {
-  fetchTransaksi()
-  fetchUser()
-  if (searchInputRef.current) {
-    searchInputRef.current.focus()
-  }
+  useEffect(() => {
+  }, [hargaPromo])
 
-  let scanTimeout = null
+  useEffect(() => {
+    transaksiRef.current = transaksi
+  }, [transaksi])
 
-  const handleGlobalKeyPress = (e) => {
-    const activeElement = document.activeElement
-    const isTypingInInput = activeElement && (
-      activeElement.tagName === 'INPUT' || 
-      activeElement.tagName === 'TEXTAREA' ||
-      activeElement.contentEditable === 'true'
-    )
-    const isInSelectComponent = activeElement && (
-      activeElement.getAttribute('role') === 'combobox' ||
-      activeElement.closest('[role="combobox"]') !== null ||
-      activeElement.closest('[data-radix-select-trigger]') !== null
-    )
-    const excludedInputIds = ['total_uang', 'kembalian']
-    const isExcludedInput = activeElement && excludedInputIds.includes(activeElement.id)
-    const isSearchInput = activeElement === searchInputRef.current || 
-                         (activeElement && activeElement.id === 'unified-search')
-    
-    if (isInSelectComponent) {
-      return
+  useEffect(() => {
+    fetchTransaksi()
+    fetchUser()
+    if (searchInputRef.current) {
+      searchInputRef.current.focus()
     }
-    if (isTypingInInput && isExcludedInput) {
-      return
-    }
-    if (isTypingInInput && isSearchInput) {
-      return
-    }
-    if (isTypingInInput && !isSearchInput && !isExcludedInput) {
-      return
-    }
-    if (e.key.length === 1 && /[a-zA-Z0-9 ]/.test(e.key) && !isTypingInInput) {
-      if (searchInputRef.current) {
-        searchInputRef.current.focus()
-        const newValue = searchQuery + e.key
-        setSearchQuery(newValue)
-        setShowSearchResults(newValue.length > 0)
-        e.preventDefault()
+
+    let scanTimeout = null
+
+    const handleGlobalKeyPress = (e) => {
+      const activeElement = document.activeElement
+      const isTypingInInput = activeElement && (
+        activeElement.tagName === 'INPUT' || 
+        activeElement.tagName === 'TEXTAREA' ||
+        activeElement.contentEditable === 'true'
+      )
+      const isInSelectComponent = activeElement && (
+        activeElement.getAttribute('role') === 'combobox' ||
+        activeElement.closest('[role="combobox"]') !== null ||
+        activeElement.closest('[data-radix-select-trigger]') !== null
+      )
+      const excludedInputIds = ['total_uang', 'kembalian']
+      const isExcludedInput = activeElement && excludedInputIds.includes(activeElement.id)
+      const isSearchInput = activeElement === searchInputRef.current || 
+                           (activeElement && activeElement.id === 'unified-search')
+      
+      if (isInSelectComponent) {
         return
       }
-    }
-
-    const currentTime = Date.now()
-    lastKeyTimeRef.current = currentTime
-    
-    if (e.key.length === 1) { 
-      barcodeBufferRef.current += e.key
-      if (scanTimeout) {
-        clearTimeout(scanTimeout)
+      if (isTypingInInput && isExcludedInput) {
+        return
       }
-      scanTimeout = setTimeout(() => {
-        if (barcodeBufferRef.current.length >= 3) {
-          const scannedBarcode = barcodeBufferRef.current.trim()
-          barcodeBufferRef.current = '' 
-          const product = transaksiRef.current.find(p => 
-            p.kode_barang.trim().toLowerCase() === scannedBarcode.toLowerCase()
-          )
-          
-          if (product) {
-            addProductToCart(product)
-            setSearchQuery('')
-            setShowSearchResults(false)
-            setTimeout(() => {
-              if (searchInputRef.current) {
-                searchInputRef.current.focus()
-              }
-            }, 100)
-          } else {
-            Swal.fire({
-              title: "Kode Tidak Ditemukan",
-              text: `Barcode "${scannedBarcode}" tidak terdaftar dalam sistem`,
-              icon: "error",
-              toast: true,
-              position: "top-end",
-              showConfirmButton: false,
-              timer: 3000,
-              timerProgressBar: true
-            })
-            setSearchQuery('')
-            setTimeout(() => {
-              if (searchInputRef.current) {
-                searchInputRef.current.focus()
-              }
-            }, 100)
-          }
+      if (isTypingInInput && isSearchInput) {
+        return
+      }
+      if (isTypingInInput && !isSearchInput && !isExcludedInput) {
+        return
+      }
+      if (e.key.length === 1 && /[a-zA-Z0-9 ]/.test(e.key) && !isTypingInInput) {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus()
+          const newValue = searchQuery + e.key
+          setSearchQuery(newValue)
+          setShowSearchResults(newValue.length > 0)
+          e.preventDefault()
+          return
         }
-      }, 50)
+      }
+
+      const currentTime = Date.now()
+      lastKeyTimeRef.current = currentTime
+      
+      if (e.key.length === 1) { 
+        barcodeBufferRef.current += e.key
+        if (scanTimeout) {
+          clearTimeout(scanTimeout)
+        }
+        scanTimeout = setTimeout(() => {
+          if (barcodeBufferRef.current.length >= 3) {
+            const scannedBarcode = barcodeBufferRef.current.trim()
+            barcodeBufferRef.current = '' 
+            const product = transaksiRef.current.find(p => 
+              p.kode_barang.trim().toLowerCase() === scannedBarcode.toLowerCase()
+            )
+            
+            if (product) {
+              addProductToCart(product)
+              setSearchQuery('')
+              setShowSearchResults(false)
+              setTimeout(() => {
+                if (searchInputRef.current) {
+                  searchInputRef.current.focus()
+                }
+              }, 100)
+            } else {
+              Swal.fire({
+                title: "Kode Tidak Ditemukan",
+                text: `Barcode "${scannedBarcode}" tidak terdaftar dalam sistem`,
+                icon: "error",
+                toast: true,
+                position: "top-end",
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true
+              })
+              setSearchQuery('')
+              setTimeout(() => {
+                if (searchInputRef.current) {
+                  searchInputRef.current.focus()
+                }
+              }, 100)
+            }
+          }
+        }, 50)
+      }
+      
+      if (e.key === 'Enter' && barcodeBufferRef.current.length >= 3) {
+        if (scanTimeout) {
+          clearTimeout(scanTimeout)
+        }
+        
+        const scannedBarcode = barcodeBufferRef.current.trim()
+        barcodeBufferRef.current = ''
+        
+        const product = transaksiRef.current.find(p => 
+          p.kode_barang.trim().toLowerCase() === scannedBarcode.toLowerCase()
+        )
+        
+        if (product) {
+          addProductToCart(product)
+          setSearchQuery('')
+          setShowSearchResults(false)
+          setTimeout(() => {
+            if (searchInputRef.current) {
+              searchInputRef.current.focus()
+            }
+          }, 100)
+        } else {
+          Swal.fire({
+            title: "Kode Tidak Ditemukan",
+            text: `Barcode "${scannedBarcode}" tidak terdaftar dalam sistem`,
+            icon: "error",
+            toast: true,
+            position: "top-end",
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true
+          })
+          
+          setSearchQuery('')
+          setTimeout(() => {
+            if (searchInputRef.current) {
+              searchInputRef.current.focus()
+            }
+          }, 100)
+        }
+        
+        e.preventDefault()
+      }
     }
-    
-    if (e.key === 'Enter' && barcodeBufferRef.current.length >= 3) {
+
+    document.addEventListener('keydown', handleGlobalKeyPress)
+
+    return () => {
+      document.removeEventListener('keydown', handleGlobalKeyPress)
       if (scanTimeout) {
         clearTimeout(scanTimeout)
       }
-      
-      const scannedBarcode = barcodeBufferRef.current.trim()
-      barcodeBufferRef.current = ''
-      
-      const product = transaksiRef.current.find(p => 
-        p.kode_barang.trim().toLowerCase() === scannedBarcode.toLowerCase()
-      )
-      
-      if (product) {
-        addProductToCart(product)
-        setSearchQuery('')
-        setShowSearchResults(false)
-        setTimeout(() => {
-          if (searchInputRef.current) {
-            searchInputRef.current.focus()
-          }
-        }, 100)
-      } else {
-        Swal.fire({
-          title: "Kode Tidak Ditemukan",
-          text: `Barcode "${scannedBarcode}" tidak terdaftar dalam sistem`,
-          icon: "error",
-          toast: true,
-          position: "top-end",
-          showConfirmButton: false,
-          timer: 3000,
-          timerProgressBar: true
-        })
-        
-        setSearchQuery('')
-        setTimeout(() => {
-          if (searchInputRef.current) {
-            searchInputRef.current.focus()
-          }
-        }, 100)
-      }
-      
-      e.preventDefault()
     }
-  }
+  }, [searchQuery])
 
-  document.addEventListener('keydown', handleGlobalKeyPress)
-
-  return () => {
-    document.removeEventListener('keydown', handleGlobalKeyPress)
-    if (scanTimeout) {
-      clearTimeout(scanTimeout)
-    }
-  }
-}, [searchQuery])
   const fetchUser = async () => {
     try {
       const res = await getProfile()
@@ -239,7 +250,19 @@ useEffect(() => {
     } catch (error) {
     }
   }
+
+  const fetchHargaPromo = async () => {
+    try {
+      const res = await getHargaPromo()
   
+      const promoData = Array.isArray(res) ? res : (Array.isArray(res.data) ? res.data : [])
+      setHargaPromo(promoData)
+      setPromoLoaded(true)
+    } catch (error) {
+      setHargaPromo([])
+      setPromoLoaded(true)
+    }
+  }
 
   const fetchTransaksi = async () => {
     try {
@@ -249,6 +272,7 @@ useEffect(() => {
       console.error("Gagal ambil transaksi:", error)
     }
   }
+
   const parseRupiah = (value) => {
     if (!value && value !== 0) return 0
     const numberString = value.toString().replace(/[^\d]/g, "")
@@ -268,6 +292,7 @@ useEffect(() => {
       maximumFractionDigits: 0,
     }).format(number)
   }
+
   const getTotalToBePaid = () => {
     const subtotal = cart.reduce((sum, item) => {
       const price = getCurrentPrice(item) || 0
@@ -337,6 +362,7 @@ useEffect(() => {
       diskon: formatRupiah(finalDiskon),
     }))
   }
+
   const handleTotalUangChange = (e) => {
     const rawValue = e.target.value
     if (rawValue === "") {
@@ -387,6 +413,57 @@ useEffect(() => {
           : item
       )
     )
+  }
+
+  const checkAndApplyPromo = () => {
+    let totalDiskonPromo = 0
+
+    if (!Array.isArray(hargaPromo) || hargaPromo.length === 0) {
+      setFormData((prev) => ({
+        ...prev,
+        diskon: "",
+      }))
+      return
+    }
+    cart.forEach((item) => {
+      let promo = hargaPromo.find(
+        (p) => p?.produk?.kode_barang?.toLowerCase() === item.kode_barang?.toLowerCase()
+      )
+      if (!promo) {
+        promo = hargaPromo.find(
+          (p) => p?.kode_barang?.toLowerCase() === item.kode_barang?.toLowerCase()
+        )
+      }
+
+      // Jika masih tidak ketemu, coba dengan trim
+      if (!promo) {
+        promo = hargaPromo.find(
+          (p) => p?.produk?.kode_barang?.trim()?.toLowerCase() === item.kode_barang?.trim()?.toLowerCase()
+        )
+      }
+
+      if (promo) {
+        if (item.jumlah >= promo.min_qty) {
+       
+          const multiplier = Math.floor(item.jumlah / promo.min_qty)
+          const diskonItem = promo.potongan_harga * multiplier
+          totalDiskonPromo += diskonItem
+        } else {
+        }
+      } else {
+      }
+    })
+    if (totalDiskonPromo > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        diskon: formatRupiah(totalDiskonPromo),
+      }))
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        diskon: "",
+      }))
+    }
   }
 
   const postTransaksi = async (data) => {
@@ -489,81 +566,81 @@ useEffect(() => {
   }
 
   const searchProducts = (query) => {
-  if (!query.trim() || !Array.isArray(transaksi)) return []
-  
-  const lowercaseQuery = query.toLowerCase().trim()
-  const queryWords = lowercaseQuery.split(/\s+/).filter(word => word.length > 0)
-  const calculateScore = (item) => {
-    const namaBarang = item.nama_barang.toLowerCase()
-    const kodeBarang = item.kode_barang.toLowerCase()
-    let score = 0
-    if (kodeBarang === lowercaseQuery) {
-      return 1000
-    }
-    if (kodeBarang.startsWith(lowercaseQuery)) {
-      score += 800
-    }
-    if (kodeBarang.includes(lowercaseQuery)) {
-      score += 600
-    }
-
-    if (namaBarang === lowercaseQuery) {
-      score += 900
-    }
-    if (namaBarang.startsWith(lowercaseQuery)) {
-      score += 700
-    }
-    const allWordsFound = queryWords.every(word => namaBarang.includes(word))
-    if (allWordsFound) {
-      score += 500
-    }
-    const foundWords = queryWords.filter(word => namaBarang.includes(word))
-    score += (foundWords.length / queryWords.length) * 300
-    if (namaBarang.includes(lowercaseQuery)) {
-      score += 400
-    }
-    if (queryWords.length > 1) {
-      const queryPhrase = queryWords.join(' ')
-      if (namaBarang.includes(queryPhrase)) {
-        score += 200
-      }
-    }
-    if (score === 0 && lowercaseQuery.length >= 3) {
-      const similarity = calculateSimilarity(lowercaseQuery, namaBarang)
-      if (similarity > 0.6) {
-        score += similarity * 100
-      }
-    }
+    if (!query.trim() || !Array.isArray(transaksi)) return []
     
-    return score
-  }
-  const calculateSimilarity = (str1, str2) => {
-    const set1 = new Set(str1.split(''))
-    const set2 = new Set(str2.split(''))
-    const intersection = new Set([...set1].filter(x => set2.has(x)))
-    const union = new Set([...set1, ...set2])
-    return intersection.size / union.size
-  }
-  const scoredResults = transaksi
-    .map(item => ({
-      ...item,
-      searchScore: calculateScore(item)
-    }))
-    .filter(item => item.searchScore > 0)
-    .sort((a, b) => {
-      if (b.searchScore !== a.searchScore) {
-        return b.searchScore - a.searchScore
+    const lowercaseQuery = query.toLowerCase().trim()
+    const queryWords = lowercaseQuery.split(/\s+/).filter(word => word.length > 0)
+    const calculateScore = (item) => {
+      const namaBarang = item.nama_barang.toLowerCase()
+      const kodeBarang = item.kode_barang.toLowerCase()
+      let score = 0
+      if (kodeBarang === lowercaseQuery) {
+        return 1000
       }
-      const aLength = a.nama_barang.length
-      const bLength = b.nama_barang.length
-      if (aLength !== bLength) {
-        return aLength - bLength
+      if (kodeBarang.startsWith(lowercaseQuery)) {
+        score += 800
       }
-      return a.nama_barang.localeCompare(b.nama_barang, 'id', { numeric: true })
-    })
-  
-  return scoredResults.slice(0, 8) 
-}
+      if (kodeBarang.includes(lowercaseQuery)) {
+        score += 600
+      }
+
+      if (namaBarang === lowercaseQuery) {
+        score += 900
+      }
+      if (namaBarang.startsWith(lowercaseQuery)) {
+        score += 700
+      }
+      const allWordsFound = queryWords.every(word => namaBarang.includes(word))
+      if (allWordsFound) {
+        score += 500
+      }
+      const foundWords = queryWords.filter(word => namaBarang.includes(word))
+      score += (foundWords.length / queryWords.length) * 300
+      if (namaBarang.includes(lowercaseQuery)) {
+        score += 400
+      }
+      if (queryWords.length > 1) {
+        const queryPhrase = queryWords.join(' ')
+        if (namaBarang.includes(queryPhrase)) {
+          score += 200
+        }
+      }
+      if (score === 0 && lowercaseQuery.length >= 3) {
+        const similarity = calculateSimilarity(lowercaseQuery, namaBarang)
+        if (similarity > 0.6) {
+          score += similarity * 100
+        }
+      }
+      
+      return score
+    }
+    const calculateSimilarity = (str1, str2) => {
+      const set1 = new Set(str1.split(''))
+      const set2 = new Set(str2.split(''))
+      const intersection = new Set([...set1].filter(x => set2.has(x)))
+      const union = new Set([...set1, ...set2])
+      return intersection.size / union.size
+    }
+    const scoredResults = transaksi
+      .map(item => ({
+        ...item,
+        searchScore: calculateScore(item)
+      }))
+      .filter(item => item.searchScore > 0)
+      .sort((a, b) => {
+        if (b.searchScore !== a.searchScore) {
+          return b.searchScore - a.searchScore
+        }
+        const aLength = a.nama_barang.length
+        const bLength = b.nama_barang.length
+        if (aLength !== bLength) {
+          return aLength - bLength
+        }
+        return a.nama_barang.localeCompare(b.nama_barang, 'id', { numeric: true })
+      })
+    
+    return scoredResults.slice(0, 8) 
+  }
 
   const addProductToCart = (product) => {
     if (!product) return
@@ -614,15 +691,21 @@ useEffect(() => {
     setShowSearchResults(false)
   }
 
-  const updateQty = (kode, qty) => {
-  const validQty = Math.max(1, Math.floor(qty))  
-  setCart((prevCart) => 
-    prevCart.map((c) => 
-      c.kode_barang === kode ? { ...c, jumlah: validQty } : c
+  const updateQty = (kode_barang, newQty) => {
+    if (newQty < 1) return
+
+    setCart((prev) =>
+      prev.map((item) =>
+        item.kode_barang === kode_barang
+          ? { ...item, jumlah: newQty }
+          : item
+      )
     )
-  )
-  
-}
+  }
+
+  useEffect(() => {
+    checkAndApplyPromo()
+  }, [cart, hargaPromo, promoLoaded])
 
   const removeItem = (kode) => {
     setCart(cart.filter((c) => c.kode_barang !== kode))
@@ -636,49 +719,50 @@ useEffect(() => {
   const total = getTotalToBePaid() 
   const paymentStatus = getPaymentStatus() 
   const searchResults = searchProducts(searchQuery)
+
   useEffect(() => {
-  let clearTimer = null
+    let clearTimer = null
 
-  const shouldClearInput = 
-    showSearchResults && 
-    searchQuery && 
-    searchQuery.trim().length > 0 &&
-    searchResults.length === 0 && 
-    !barcodeBufferRef.current
+    const shouldClearInput = 
+      showSearchResults && 
+      searchQuery && 
+      searchQuery.trim().length > 0 &&
+      searchResults.length === 0 && 
+      !barcodeBufferRef.current
 
-  if (shouldClearInput) {
-    clearTimer = setTimeout(() => {
-      const searchTerm = searchQuery.trim()
-      setSearchQuery("")
-      setShowSearchResults(false)
-     Swal.fire({
-  icon: "error",
-  title: "Kode Barcode Tidak Ditemukan",
-  text: `Kode Barcode ini "${searchTerm}". Belum Di Tambahkan ke Daftar Produk.`,
-  toast: true,
-  position: "top-end",
-  showConfirmButton: false,
-  timer: 4000,
-  timerProgressBar: true,
-  didOpen: (toast) => {
-    toast.addEventListener('mouseenter', Swal.stopTimer)
-    toast.addEventListener('mouseleave', Swal.resumeTimer)
-  }
-})    
-      setTimeout(() => {
-        if (searchInputRef.current) {
-          searchInputRef.current.focus()
-        }
-      }, 100)
-    }, 200) 
-  }
-
-  return () => {
-    if (clearTimer) {
-      clearTimeout(clearTimer)
+    if (shouldClearInput) {
+      clearTimer = setTimeout(() => {
+        const searchTerm = searchQuery.trim()
+        setSearchQuery("")
+        setShowSearchResults(false)
+        Swal.fire({
+          icon: "error",
+          title: "Kode Barcode Tidak Ditemukan",
+          text: `Kode Barcode ini ${searchTerm}. Belum Di Tambahkan ke Daftar Produk.`,
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 4000,
+          timerProgressBar: true,
+          didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer)
+            toast.addEventListener('mouseleave', Swal.resumeTimer)
+          }
+        })    
+        setTimeout(() => {
+          if (searchInputRef.current) {
+            searchInputRef.current.focus()
+          }
+        }, 100)
+      }, 150) 
     }
-  }
-}, [showSearchResults, searchQuery, searchResults])
+
+    return () => {
+      if (clearTimer) {
+        clearTimeout(clearTimer)
+      }
+    }
+  }, [showSearchResults, searchQuery, searchResults])
 
   if (showPrint && printData) {
     return (
@@ -696,8 +780,6 @@ useEffect(() => {
       />
     )
   }
-
-  
 
   return (
     <div className="min-h-screen bg-gray-50/50 p-4">
@@ -906,14 +988,14 @@ useEffect(() => {
                               </Select>
                             </div>
                             <div className="flex items-center gap-2">
-                             <Button
-  variant="outline"
-  size="sm"
-  onClick={() => updateQty(item.kode_barang, item.jumlah - 1)}
-  className="h-8 w-8 p-0"
->
-  <Minus className="w-4 h-4" />
-</Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateQty(item.kode_barang, item.jumlah - 1)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Minus className="w-4 h-4" />
+                              </Button>
                               <Input
                                 type="number"
                                 value={item.jumlah}
@@ -931,7 +1013,6 @@ useEffect(() => {
                               </Button>
                             </div>
 
-                            {/* Subtotal */}
                             <div className="text-right min-w-0">
                               <div className="font-bold text-gray-900">
                                 Rp {subtotal(item).toLocaleString()}
@@ -943,7 +1024,6 @@ useEffect(() => {
                               )}
                             </div>
 
-                            {/* Delete Button */}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -992,74 +1072,72 @@ useEffect(() => {
                   </div>
                 </div>
 
-               <div className="space-y-4">        
-  <div>
-    <Label htmlFor="diskon" className="text-base font-medium">Potongan Harga (Opsional)</Label>
-    <Input 
-      id="diskon"
-      type="text" 
-      name="diskon" 
-      value={formData.diskon} 
-      onChange={handleDiskonChange}
-      onBlur={() => {
-        setTimeout(() => {
-          if (searchInputRef.current) {
-            searchInputRef.current.focus()
-          }
-        }, 100)
-      }}
-      placeholder="Masukkan potongan harga"
-      className="mt-2 h-12 text-lg" 
-      autoComplete="off"
-    />
-  </div>
+                <div className="space-y-4">        
+                  <div>
+                    <Label htmlFor="diskon" className="text-base font-medium">Potongan Harga (Otomatis)</Label>
+                    <Input 
+                      id="diskon"
+                      type="text" 
+                      name="diskon" 
+                      value={formData.diskon} 
+                      onChange={handleDiskonChange}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          if (searchInputRef.current) {
+                            searchInputRef.current.focus()
+                          }
+                        }, 100)
+                      }}
+                      placeholder="Diskon otomatis dari promo"
+                      className="mt-2 h-12 text-lg" 
+                      autoComplete="off"
+                    />
+                  </div>
 
-  <div>
-    <Label htmlFor="total_uang" className="text-base font-medium">Total Uang (Opsional)</Label>
-    <Input 
-      id="total_uang"
-      type="text" 
-      name="total_uang" 
-      value={formData.total_uang} 
-      onChange={handleTotalUangChange}
-      onBlur={() => {
-        setTimeout(() => {
-          if (searchInputRef.current) {
-            searchInputRef.current.focus()
-          }
-        }, 100)
-      }}
-      placeholder="Masukkan total uang yang dibayar"
-      className="mt-2 h-12 text-lg"
-       autoComplete="off"
-    />
-  </div>
+                  <div>
+                    <Label htmlFor="total_uang" className="text-base font-medium">Total Uang (Opsional)</Label>
+                    <Input 
+                      id="total_uang"
+                      type="text" 
+                      name="total_uang" 
+                      value={formData.total_uang} 
+                      onChange={handleTotalUangChange}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          if (searchInputRef.current) {
+                            searchInputRef.current.focus()
+                          }
+                        }, 100)
+                      }}
+                      placeholder="Masukkan total uang yang dibayar"
+                      className="mt-2 h-12 text-lg"
+                      autoComplete="off"
+                    />
+                  </div>
 
-  <div>
-    <Label htmlFor="kembalian" className="text-base font-medium">Kembalian</Label>
-    <Input 
-      id="kembalian"
-      type="text"
-      name="kembalian" 
-      value={formatRupiah(formData.kembalian) || formatRupiah(0)}
-      placeholder="Kembalian akan dihitung otomatis"
-      disabled
-      className="mt-2 bg-gray-50 h-12 text-lg"
-     
-    />
-  </div>
+                  <div>
+                    <Label htmlFor="kembalian" className="text-base font-medium">Kembalian</Label>
+                    <Input 
+                      id="kembalian"
+                      type="text"
+                      name="kembalian" 
+                      value={formatRupiah(formData.kembalian) || formatRupiah(0)}
+                      placeholder="Kembalian akan dihitung otomatis"
+                      disabled
+                      className="mt-2 bg-gray-50 h-12 text-lg"
+                    />
+                  </div>
 
-  {/* Status pembayaran */}
-  {formData.total_uang && (
-    <div className={`text-sm p-3 rounded-md ${
-      paymentStatus.status === 'insufficient' ? 'bg-red-50 text-red-600' :
-      paymentStatus.status === 'overpaid' ? 'bg-green-50 text-green-600' :
-      'bg-blue-50 text-blue-600'
-    }`}>
-      {paymentStatus.message}
-    </div>
-  )}
-</div>
+                  {formData.total_uang && (
+                    <div className={`text-sm p-3 rounded-md ${
+                      paymentStatus.status === 'insufficient' ? 'bg-red-50 text-red-600' :
+                      paymentStatus.status === 'overpaid' ? 'bg-green-50 text-green-600' :
+                      'bg-blue-50 text-blue-600'
+                    }`}>
+                      {paymentStatus.message}
+                    </div>
+                  )}
+                </div>
                 <Button 
                   onClick={handleSubmit}
                   disabled={cart.length === 0 || isProcessing}
@@ -1100,7 +1178,6 @@ useEffect(() => {
                         showConfirmButton: false,
                         timer: 3000
                       })
-                      // Focus kembali ke input search
                       setTimeout(() => {
                         if (searchInputRef.current) {
                           searchInputRef.current.focus()
@@ -1120,7 +1197,6 @@ useEffect(() => {
                     setScan('')
                     setSearchQuery('')
                     setShowSearchResults(false)
-                    setBarcodeBuffer('')
                     if (searchInputRef.current) {
                       searchInputRef.current.focus()
                     }
