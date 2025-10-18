@@ -14,7 +14,8 @@ export default function BottomNav() {
 
   return (
     <>
-      <nav className="md:hidden fixed bottom-3 left-1/2 transform -translate-x-1/2 w-[90%] max-w-sm bg-white rounded-full shadow-2xl border border-gray-100 z-50 px-3 py-3">
+      {/* HAPUS fixed, bottom-3, left-1/2, transform -translate-x-1/2 */}
+      <nav className="md:hidden w-full bg-white rounded-full shadow-2xl border border-gray-100 px-3 py-3 mx-auto max-w-sm">
         <ul className="flex justify-around items-center relative">
           {navItems.map((item, index) => {
             const IconComponent = item.icon

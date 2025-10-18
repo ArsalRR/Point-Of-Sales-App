@@ -60,7 +60,37 @@ export default function ShadcnSidebar({ children }) {
   })
   const [user, setUser] = useState(null)
   const location = useLocation()
+const [visible, setVisible] = useState(true);
+const [lastScrollY, setLastScrollY] = useState(0);
 
+useEffect(() => {
+  let scrollTimeout;
+
+  const handleScroll = () => {
+    const currentScrollY = window.scrollY;
+    
+    if (currentScrollY > lastScrollY && currentScrollY > 50) {
+      setVisible(false);
+    } 
+    else if (currentScrollY < lastScrollY) {
+      setVisible(true);
+    }
+    
+    setLastScrollY(currentScrollY);
+    clearTimeout(scrollTimeout);
+
+    scrollTimeout = setTimeout(() => {
+      setVisible(true);
+    }, 200); 
+  };
+
+  window.addEventListener('scroll', handleScroll, { passive: true });
+
+  return () => {
+    window.removeEventListener('scroll', handleScroll);
+    clearTimeout(scrollTimeout);
+  };
+}, [lastScrollY]);
   const handleLogout = async () => {
     try {
       await logout()
@@ -309,13 +339,15 @@ export default function ShadcnSidebar({ children }) {
         </div>
 
         {/* Bottom Navigation - Fixed untuk Mobile */}
-        <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50">
-          <div className="bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-            <div className="pb-safe">
-              <BottomNav />
-            </div>
-          </div>
-        </div>
+       <div
+  className={`sm:hidden fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ${
+    visible ? "translate-y-0" : "translate-y-full"
+  }`}
+>
+  <div className="px-4 pb-3 pt-2">
+    <BottomNav />
+  </div>
+</div>
       </div>
     </TooltipProvider>
   )
