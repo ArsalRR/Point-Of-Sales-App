@@ -593,44 +593,53 @@ export default function ListKasir() {
     checkAndApplyPromo()
   }, [checkAndApplyPromo])
 
+const showBarcodeNotFoundAlert = useCallback((searchTerm, inputRef) => {
+  Swal.fire({
+    icon: "error",
+    title: "Kode Barcode Tidak Ditemukan",
+    text: `Kode Barcode ${searchTerm} belum ditambahkan ke daftar produk.`,
+    ...TOAST_CONFIG,
+    timer: 4000,
+    didOpen: (toast) => {
+      toast.addEventListener('mouseenter', Swal.stopTimer)
+      toast.addEventListener('mouseleave', Swal.resumeTimer)
+    },
+    didClose: () => {
+      focusSearchInput(inputRef)
+    }
+  })
+}, [])
 useEffect(() => {
   let clearTimer = null
-
+  let isCleanedUp = false
+  
   const shouldClearInput =
     showSearchResults &&
     searchQuery &&
     searchQuery.trim().length > 0 &&
     searchResults.length === 0 &&
     !barcodeBufferRef.current 
-
+  
   if (shouldClearInput) {
     clearTimer = setTimeout(() => {
+      if (isCleanedUp) return
+      
       const searchTerm = searchQuery.trim()
+      
       if (searchResults.length === 0 && !barcodeBufferRef.current) {
         setSearchQuery("")
         setShowSearchResults(false)
-        
-        Swal.fire({
-          icon: "error",
-          title: "Kode Barcode Tidak Ditemukan",
-          text: `Kode Barcode ${searchTerm} belum ditambahkan ke daftar produk.`,
-          ...TOAST_CONFIG,
-          timer: 4000,
-          didOpen: (toast) => {
-            toast.addEventListener('mouseenter', Swal.stopTimer)
-            toast.addEventListener('mouseleave', Swal.resumeTimer)
-          }
-        })
-        
-        focusSearchInput(searchInputRef)
+        showBarcodeNotFoundAlert(searchTerm, searchInputRef)
       }
     }, SEARCH_CLEAR_DELAY)
   }
-
+  
   return () => {
+    isCleanedUp = true
     if (clearTimer) clearTimeout(clearTimer)
   }
-}, [showSearchResults, searchQuery, searchResults, barcodeBufferRef.current])
+}, [showSearchResults, searchQuery, searchResults, showBarcodeNotFoundAlert])
+
 
   // ===== RENDER =====
   if (showPrint && printData) {
