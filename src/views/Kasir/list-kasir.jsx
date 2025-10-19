@@ -593,25 +593,27 @@ export default function ListKasir() {
     checkAndApplyPromo()
   }, [checkAndApplyPromo])
 
-  useEffect(() => {
-    let clearTimer = null
+useEffect(() => {
+  let clearTimer = null
 
-    const shouldClearInput =
-      showSearchResults &&
-      searchQuery &&
-      searchQuery.trim().length > 0 &&
-      searchResults.length === 0 &&
-      !barcodeBufferRef.current
+  const shouldClearInput =
+    showSearchResults &&
+    searchQuery &&
+    searchQuery.trim().length > 0 &&
+    searchResults.length === 0 &&
+    !barcodeBufferRef.current 
 
-    if (shouldClearInput) {
-      clearTimer = setTimeout(() => {
-        const searchTerm = searchQuery.trim()
+  if (shouldClearInput) {
+    clearTimer = setTimeout(() => {
+      const searchTerm = searchQuery.trim()
+      if (searchResults.length === 0 && !barcodeBufferRef.current) {
         setSearchQuery("")
         setShowSearchResults(false)
+        
         Swal.fire({
           icon: "error",
           title: "Kode Barcode Tidak Ditemukan",
-          text: `Kode Barcode ini ${searchTerm}. Belum Di Tambahkan ke Daftar Produk.`,
+          text: `Kode Barcode ${searchTerm} belum ditambahkan ke daftar produk.`,
           ...TOAST_CONFIG,
           timer: 4000,
           didOpen: (toast) => {
@@ -619,14 +621,16 @@ export default function ListKasir() {
             toast.addEventListener('mouseleave', Swal.resumeTimer)
           }
         })
+        
         focusSearchInput(searchInputRef)
-      }, SEARCH_CLEAR_DELAY)
-    }
+      }
+    }, SEARCH_CLEAR_DELAY)
+  }
 
-    return () => {
-      if (clearTimer) clearTimeout(clearTimer)
-    }
-  }, [showSearchResults, searchQuery, searchResults])
+  return () => {
+    if (clearTimer) clearTimeout(clearTimer)
+  }
+}, [showSearchResults, searchQuery, searchResults, barcodeBufferRef.current])
 
   // ===== RENDER =====
   if (showPrint && printData) {
