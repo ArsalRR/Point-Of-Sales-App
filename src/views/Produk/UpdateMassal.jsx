@@ -229,12 +229,12 @@ export default function UpdateMassal() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8 px-4">
       <div className="container mx-auto max-w-2xl">
         <button
-          onClick={() => navigate("/produk")}
-          className="flex items-center gap-2 text-gray-700 hover:text-black mb-4 transition-all duration-200 group"
-        >
-          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-          <span className="font-semibold">Kembali</span>
-        </button>
+  onClick={() => navigate(-1)}
+  className="flex items-center gap-2 text-gray-700 hover:text-black mb-4 transition-all duration-200 group block md:hidden"
+>
+  <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+  <span className="font-semibold">Kembali</span>
+</button>
 
         <Card className="shadow-2xl border-2 border-gray-200 overflow-hidden">
           <CardHeader className="bg-gradient-to-r from-black to-gray-800 text-white py-6">
