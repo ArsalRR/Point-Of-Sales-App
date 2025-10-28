@@ -2,8 +2,9 @@ import { Routes, Route, Navigate } from "react-router-dom"
 import { lazy, Suspense } from "react"
 import Login from "@/views/Auth/Login"
 import ProtectedRoute from "@/middleware/ProtectRoutes"
-import DashboardLayout from "@/Template/layout"
+import DashboardLayout from "@/views/Template/layout"
 
+const UpdateMassalRoute = lazy(() => import("@/views/Produk/UpdateMassal"))
 const ListProduk = lazy(() => import("@/views/Produk/List-produk"))
 const CreateProduk = lazy(() => import("@/views/Produk/create-produk"))
 const EditProduk = lazy(() => import("@/views/Produk/Edit-produk"))
@@ -26,6 +27,7 @@ const ProtectedWithLayout = ({ children }) => (
 )
 const protectedRoutes = [
   { path: "/produk", component: ListProduk },
+  { path: "/produk/update-massal", component: UpdateMassalRoute },
   { path: "/produk/create", component: CreateProduk },
   { path: "/produk/edit/:id", component: EditProduk },
   { path: "/kasir", component: ListKasir },

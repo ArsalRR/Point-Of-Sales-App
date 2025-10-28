@@ -168,12 +168,12 @@ const searchProducts = (transaksi, query) => {
 }
 
 // ===== PROMO UTILITIES =====
-const findPromo = (hargaPromo, kodeBarang) => {
-  if (!Array.isArray(hargaPromo) || !kodeBarang) return null
+const findAllPromos = (hargaPromo, kodeBarang) => {
+  if (!Array.isArray(hargaPromo) || !kodeBarang) return []
   
   const normalizedKode = kodeBarang.trim().toLowerCase()
   
-  return hargaPromo.find(p => 
+  return hargaPromo.filter(p => 
     p?.produk?.kode_barang?.trim()?.toLowerCase() === normalizedKode ||
     p?.kode_barang?.trim()?.toLowerCase() === normalizedKode
   )
@@ -183,12 +183,22 @@ const calculatePromoDiscount = (cart, hargaPromo) => {
   if (!Array.isArray(hargaPromo) || hargaPromo.length === 0) return 0
 
   return cart.reduce((totalDiskon, item) => {
-    const promo = findPromo(hargaPromo, item.kode_barang)
-    if (promo && item.jumlah >= promo.min_qty) {
-      const multiplier = Math.floor(item.jumlah / promo.min_qty)
-      return totalDiskon + (promo.potongan_harga * multiplier)
-    }
-    return totalDiskon
+    const promos = findAllPromos(hargaPromo, item.kode_barang)
+    
+    if (promos.length === 0) return totalDiskon
+    let maxDiskon = 0
+    
+    promos.forEach(promo => {
+      if (item.jumlah >= promo.min_qty) {
+        const multiplier = Math.floor(item.jumlah / promo.min_qty)
+        const diskonPromo = promo.potongan_harga * multiplier
+        if (diskonPromo > maxDiskon) {
+          maxDiskon = diskonPromo
+        }
+      }
+    })
+
+    return totalDiskon + maxDiskon
   }, 0)
 }
 

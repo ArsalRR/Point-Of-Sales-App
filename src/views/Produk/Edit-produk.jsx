@@ -27,6 +27,7 @@ import {
   ArrowLeft,
   Eye,
   EyeOff,
+  Layers,
 } from "lucide-react"
 import Swal from "sweetalert2"
 
@@ -129,8 +130,6 @@ export default function EditProduk() {
       try {
         setLoading(true)
         const data = await getProdukById(id)
-        
-        // Set form values
         reset({
           kode_barang: data.kode_barang || "",
           nama_barang: data.nama_barang || "",
@@ -141,8 +140,6 @@ export default function EditProduk() {
           limit_stok: data.limit_stok ? data.limit_stok.toString() : "",
           jumlah_lainnya: data.jumlah_lainnya || "",
         })
-
-        // Check if stok is manual (not in predefined options)
         const stokValue = data.stok ? data.stok.toString() : ""
         const isManual = !stokOptions[0].options.some(opt => opt.value === stokValue)
         setShowManualStok(isManual)
@@ -321,6 +318,7 @@ export default function EditProduk() {
                 )}
               </div>
 
+
               <div className="space-y-2">
                 <Label htmlFor="nama_barang">Nama Barang *</Label>
                 <Controller
@@ -344,89 +342,111 @@ export default function EditProduk() {
           </Card>
 
           {/* Informasi Harga */}
-          <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5" /> Informasi Harga
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="harga">Harga Jual *</Label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Controller
-                    name="harga"
-                    control={control}
-                    render={({ field }) => (
-                      <Input
-                        {...field}
-                        id="harga"
-                        value={formatCurrency(field.value)}
-                        onChange={(e) => {
-                          const numericValue = parseCurrency(e.target.value).toString()
-                          field.onChange(numericValue)
-                        }}
-                        placeholder="Masukkan Harga"
-                        autoComplete="off"
-                        className={`pl-10 ${errors.harga ? 'border-red-500' : ''}`}
-                      />
-                    )}
-                  />
-                </div>
-                {errors.harga && (
-                  <p className="text-sm text-red-500">{errors.harga.message}</p>
-                )}
-              </div>
+           <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2">
+          <DollarSign className="w-5 h-5" /> Informasi Harga
+        </CardTitle>
+      </CardHeader>
 
-              <div className="space-y-2">
-                <Label htmlFor="harga_renteng">Harga Rentengan</Label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Controller
-                    name="harga_renteng"
-                    control={control}
-                    render={({ field }) => (
-                      <Input
-                        {...field}
-                        id="harga_renteng"
-                        value={formatCurrency(field.value)}
-                        onChange={(e) => {
-                          const numericValue = parseCurrency(e.target.value).toString()
-                          field.onChange(numericValue)
-                        }}
-                        placeholder="Masukkan Harga Rentengan"
-                        autoComplete="off"
-                        className={`pl-10 ${errors.harga_renteng ? 'border-red-500' : ''}`}
-                      />
-                    )}
-                  />
-                </div>
-                {errors.harga_renteng && (
-                  <p className="text-sm text-red-500">{errors.harga_renteng.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="jumlah_lainnya">Isi Rentengan / Lainnya</Label>
-                <Controller
-                  name="jumlah_lainnya"
-                  control={control}
-                  render={({ field }) => (
-                    <Input
-                      {...field}
-                      id="jumlah_lainnya"
-                      type="number"
-                      placeholder="Masukkan Isi Rentengan"
-                      autoComplete="off"
-                    />
-                  )}
+      <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+        {/* Harga Jual */}
+        <div className="space-y-2">
+          <Label htmlFor="harga">Harga Jual *</Label>
+          <div className="relative">
+            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Controller
+              name="harga"
+              control={control}
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  id="harga"
+                  value={formatCurrency(field.value)}
+                  onChange={(e) => {
+                    const numericValue = parseCurrency(e.target.value).toString()
+                    field.onChange(numericValue)
+                  }}
+                  placeholder="Masukkan Harga"
+                  autoComplete="off"
+                  className={`pl-10 ${errors.harga ? 'border-red-500' : ''}`}
                 />
-              </div>
+              )}
+            />
+          </div>
+          {errors.harga && (
+            <p className="text-sm text-red-500">{errors.harga.message}</p>
+          )}
+        </div>
+
+        {/* Harga Rentengan */}
+        <div className="space-y-2">
+          <Label htmlFor="harga_renteng">Harga Rentengan</Label>
+          <div className="relative">
+            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Controller
+              name="harga_renteng"
+              control={control}
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  id="harga_renteng"
+                  value={formatCurrency(field.value)}
+                  onChange={(e) => {
+                    const numericValue = parseCurrency(e.target.value).toString()
+                    field.onChange(numericValue)
+                  }}
+                  placeholder="Masukkan Harga Rentengan"
+                  autoComplete="off"
+                  className={`pl-10 ${errors.harga_renteng ? 'border-red-500' : ''}`}
+                />
+              )}
+            />
+          </div>
+          {errors.harga_renteng && (
+            <p className="text-sm text-red-500">{errors.harga_renteng.message}</p>
+          )}
+        </div>
+
+        {/* Update Massal */}
+        <div className="md:col-span-2">
+          <Card className="border border-dashed rounded-xl">
+            <CardContent className="py-4 px-5">
+              <h5 className="text-base font-semibold mb-1">
+                Perlu Ubah Banyak Produk?
+              </h5>
+              <p className="text-sm text-muted-foreground mb-3">
+                Gunakan fitur Update Keseluruhan untuk mengubah banyak produk sekaligus secara efisien
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/produk/update-massal" className="flex items-center">
+                  <Layers className="w-4 h-4 mr-2" />
+                  Update Keseluruhan
+                </Link>
+              </Button>
             </CardContent>
           </Card>
+        </div>
 
-          {/* Informasi Stok */}
+        {/* Isi Rentengan */}
+        <div className="space-y-2">
+          <Label htmlFor="jumlah_lainnya">Isi Rentengan / Lainnya</Label>
+          <Controller
+            name="jumlah_lainnya"
+            control={control}
+            render={({ field }) => (
+              <Input
+                {...field}
+                id="jumlah_lainnya"
+                type="number"
+                placeholder="Masukkan Isi Rentengan"
+                autoComplete="off"
+              />
+            )}
+          />
+        </div>
+      </CardContent>
+    </Card>
           <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

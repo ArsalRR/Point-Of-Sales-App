@@ -1,9 +1,5 @@
-
 import NetworkNotifier from "./hooks/NetworkNotifier"
 import Web from "./Routes/Web"
-
-
-
 function App() {
   return (
     <>
@@ -12,5 +8,4 @@ function App() {
     </>
   )
 }
-
 export default App

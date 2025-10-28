@@ -134,7 +134,6 @@ export default function CreateHargaPromo() {
 
       isFetchingRef.current = true
       try {
-        // Fetch produk
         const res = await getProduk()
 
         let dataArray = []
@@ -145,8 +144,6 @@ export default function CreateHargaPromo() {
         } else if (res?.data?.data && Array.isArray(res.data.data)) {
           dataArray = res.data.data
         }
-
-        // Fetch harga promo yang sudah ada
         try {
           const promoRes = await getHargaPromo()
           let promoData = []
@@ -201,8 +198,6 @@ export default function CreateHargaPromo() {
     )
     callback(filtered.slice(0, 100))
   }
-
-  // Fungsi untuk mendapatkan info promo yang sudah ada
   const getExistingPromoInfo = (produkId) => {
     return existingPromos
       .filter((promo) => {
@@ -216,8 +211,6 @@ export default function CreateHargaPromo() {
         potongan_harga: promo.potongan_harga,
       }))
   }
-
-  // Format label dengan badge
   const formatOptionLabel = ({ value, label }) => {
     const promoInfo = getExistingPromoInfo(value)
 
@@ -240,8 +233,6 @@ export default function CreateHargaPromo() {
       </div>
     )
   }
-
-  // Validasi duplikasi: min_qty ATAU potongan_harga tidak boleh sama
   const validateDuplicatePromo = (selectedProducts, minQty, potonganHarga) => {
     if (!minQty || !potonganHarga || !selectedProducts || selectedProducts.length === 0) {
       return { isValid: true }
@@ -256,13 +247,9 @@ export default function CreateHargaPromo() {
           : [promo.produk_id]
         return produkIds.includes(product.value)
       })
-
-      // Cek apakah ada min_qty yang sama
       const hasSameMinQty = existingPromoForProduct.find(
         (promo) => promo.min_qty === Number(minQty)
       )
-
-      // Cek apakah ada potongan_harga yang sama
       const hasSamePotongan = existingPromoForProduct.find(
         (promo) => promo.potongan_harga === potonganHargaValue
       )
@@ -290,7 +277,6 @@ export default function CreateHargaPromo() {
   }
 
   const onSubmit = async (data) => {
-    // Validasi duplikasi: min_qty dan potongan_harga harus unik
     const validation = validateDuplicatePromo(
       data.produk_id, 
       data.min_qty, 
@@ -320,8 +306,6 @@ export default function CreateHargaPromo() {
     setIsLoading(true)
     try {
       const response = await postHargaPromo(payload)
-      
-      // Handle success dengan detail
       const data = response.data || response
       const sukses = data.sukses || 0
       const gagal = data.gagal || []
@@ -347,7 +331,6 @@ export default function CreateHargaPromo() {
         reset()
         setFormattedHarga("")
       } else {
-        // Semua gagal
         Swal.fire({
           icon: "error",
           title: "Semua Produk Ditolak!",
@@ -368,8 +351,6 @@ export default function CreateHargaPromo() {
       setIsLoading(false)
     }
   }
-
-  // Cek apakah ada duplikasi untuk warning real-time
   const duplicateCheck = validateDuplicatePromo(selectedProducts, minQty, potonganHarga)
 
   return (
@@ -383,7 +364,6 @@ export default function CreateHargaPromo() {
           <span className="font-medium">Kembali</span>
         </button>
 
-        {/* Header Section */}
         <div className="mb-8 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-black rounded-2xl mb-4">
             <Percent className="w-8 h-8 text-white" />
@@ -424,7 +404,7 @@ export default function CreateHargaPromo() {
                         produkCacheRef.current.length === 0
                           ? "Memuat daftar produk..."
                           : inputValue.length < 2
-                          ? "Ketik minimal 2 huruf"
+                          ? "Ketik Untuk Mencari Produk"
                           : `Tidak ditemukan "${inputValue}"`
                       }
                       loadingMessage={() => "Mencari produk..."}
@@ -537,8 +517,6 @@ export default function CreateHargaPromo() {
                   Jumlah minimal pembelian untuk mendapat potongan harga
                 </p>
               </div>
-
-              {/* Potongan Harga */}
               <div className="space-y-2">
                 <Label
                   htmlFor="potongan_harga"
