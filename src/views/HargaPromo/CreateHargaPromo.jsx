@@ -398,7 +398,7 @@ export default function CreateHargaPromo() {
                       loadOptions={loadOptions}
                       isMulti
                       formatOptionLabel={formatOptionLabel}
-                      placeholder="Ketik minimal 2 huruf untuk mencari..."
+                      placeholder="Ketik nama produk untuk mencari..."
                       styles={customSelectStyles}
                       noOptionsMessage={({ inputValue }) =>
                         produkCacheRef.current.length === 0

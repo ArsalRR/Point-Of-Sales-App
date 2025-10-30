@@ -3,6 +3,7 @@ import { lazy, Suspense } from "react"
 import Login from "@/views/Auth/Login"
 import ProtectedRoute from "@/middleware/ProtectRoutes"
 import DashboardLayout from "@/views/Template/layout"
+import { Spinner } from "@/components/ui/spinner"
 
 const UpdateMassalRoute = lazy(() => import("@/views/Produk/UpdateMassal"))
 const ListProduk = lazy(() => import("@/views/Produk/List-produk"))
@@ -15,7 +16,7 @@ const LaporanBulanan = lazy(() => import("@/views/Laporan/laporan-bulanan"))
 const ListHargaPromo = lazy(() => import("@/views/HargaPromo/ListHargaPromo"))
 const CreateHargaPromo = lazy(() => import("@/views/HargaPromo/CreateHargaPromo"))
 const EditHargaPromo = lazy(() => import("@/views/HargaPromo/EditHargaPromo"))
-const LoadingFallback = () => <div className="flex items-center justify-center h-screen">Loading...</div>
+const LoadingFallback = () => <div className="flex items-center justify-center h-screen"> <Spinner /></div>
 const ProtectedWithLayout = ({ children }) => (
   <ProtectedRoute>
     <DashboardLayout>

@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input"
 import Swal from "sweetalert2"
 import { Link } from "react-router-dom"
 import AddHargaPromoButtom from "@/components/ui/spesialcomponent/AddHargaPromoButtom"
+import { Spinner } from "@/components/ui/spinner"
 
 export default function ListHargaPromo() {
   const [data, setData] = useState([])
@@ -34,7 +35,6 @@ export default function ListHargaPromo() {
         const response = await getHargaPromo()
         setData(Array.isArray(response) ? response : [])
       } catch (error) {
-        console.error("Gagal memuat harga promo:", error)
         Swal.fire({
           icon: "error",
           title: "Gagal Memuat Data",
@@ -134,7 +134,7 @@ export default function ListHargaPromo() {
         <CardContent className="p-4 md:p-6">
           {loading ? (
             <div className="flex flex-col justify-center items-center py-16">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-500 mb-3" />
+              <Spinner className="w-8 h-8 animate-spin text-blue-500 mb-3" />
               <span className="text-gray-600 font-medium">Memuat data...</span>
             </div>
           ) : filteredData.length === 0 ? (

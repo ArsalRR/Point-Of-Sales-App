@@ -2,10 +2,11 @@ import React, { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getProduk, deleteProduk } from '../../api/Produkapi'
 import { Badge } from '@/components/ui/badge'
+import { Spinner } from '@/components/ui/spinner'
 import { 
   Search,
   ChevronLeft, ChevronRight, Package, AlertCircle, 
-  Loader2, Trash, Edit, Filter, X
+   Trash, Edit, Filter, X
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Swal from 'sweetalert2'
@@ -167,8 +168,7 @@ const getStockBadge = (stok, limit_stok) => {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-gray-400" />
-            <p className="text-gray-500">Memuat data produk...</p>
+           <Spinner />
           </div>
         </div>
       </div>
