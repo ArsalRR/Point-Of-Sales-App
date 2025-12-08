@@ -665,446 +665,464 @@ useEffect(() => {
     )
   }
   return (
-    <div className="min-h-screen bg-gray-50/50 p-4">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-sm">
-                <ShoppingCart className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <CardTitle className="text-2xl font-bold text-gray-900">Kasir Toko IFA</CardTitle>
-                <p className="text-gray-600 mt-1">Sistem Point Of Sales </p>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <div className="xl:col-span-2 space-y-6">
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Scan className="w-5 h-5" />
-                  Tambah Produk
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="relative">
-                  <Label htmlFor="unified-search" className="text-lg font-medium text-gray-700 mb-3 block">
-                    Scan Barcode / Cari Produk
-                  </Label>
-                  <div className="relative flex gap-3">
-                    <Input 
-                      ref={searchInputRef}
-                      id="unified-search"
-                      value={searchQuery}
-                      onChange={(e) => {
-                        const value = e.target.value
-                        setSearchQuery(value)
-                        const exactProduct = transaksi.find(
-                          (p) => p.kode_barang.trim() === value.trim()
-                        )
-
-                        if (exactProduct && value.length >= 3) {
-                          setTimeout(() => {
-                            if (searchQuery === value) {
-                              handleSearchSelect(exactProduct)
-                              return
-                            }
-                          }, 50)
-                          return 
-                        }
-                        setShowSearchResults(value.length > 0)
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault()
-                          const product = transaksi.find(
-                            (p) => p.kode_barang.trim() === searchQuery.trim()
-                          )
-                          if (product) {
-                            handleSearchSelect(product)
-                            setSearchQuery("")
-                            setShowSearchResults(false)
-                            return 
-                          }
-                          if (searchResults.length > 0) {
-                            handleSearchSelect(searchResults[0])
-                          }
-                        }
-                        
-                        if (e.key === "Escape") {
-                          setShowSearchResults(false)
-                        }
-                      }}
-                      onFocus={() => {
-                        if (searchQuery.length > 0) setShowSearchResults(true)
-                      }}
-                      onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
-                      placeholder="Scan barcode atau ketik nama produk..."
-                      className="pl-12 pr-12 h-16 text-xl font-medium w-full"
-                      autoComplete="off"
-                    />
-
-                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-6 h-6 text-gray-400" />
-                    {searchQuery && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSearchQuery("")
-                          setShowSearchResults(false)
-                          if (searchInputRef.current) {
-                            searchInputRef.current.focus()
-                          }
-                        }}
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2 h-10 w-10 p-0"
-                      >
-                        <X className="w-5 h-5" />
-                      </Button>
-                    )}
-                  </div>
-
-                  {showSearchResults && searchResults.length > 0 && (
-                    <Card className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-auto shadow-lg">
-                      <CardContent className="p-0">
-                        {searchResults.map((product, index) => (
-                          <button
-                            key={product.kode_barang}
-                            onClick={() => {
-                              handleSearchSelect(product)
-                              setSearchQuery("")
-                              setShowSearchResults(false)
-                            }}
-                            className={`w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors ${
-                              index === 0 ? 'bg-blue-50' : ''
-                            }`}
-                          >
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-gray-900 truncate">{product.nama_barang}</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge variant="secondary" className="text-xs">
-                                    {product.kode_barang}
-                                  </Badge>
-                                  <span className="text-sm text-gray-500">
-                                    Rp {product.harga.toLocaleString()} / {product.satuan}
-                                  </span>
-                                </div>
-                              </div>
-                              <Badge
-                                variant={product.stok > 10 ? "default" : "destructive"}
-                                className="ml-2"
-                              >
-                                Stok: {product.stok}
-                              </Badge>
-                            </div>
-                          </button>
-                        ))}
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <ShoppingCart className="w-5 h-5" />
-                  Keranjang Belanja
-                  {cart.length > 0 && (
-                    <Badge variant="secondary" className="ml-2">
-                      {cart.length} item
-                    </Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              
-              <CardContent>
-                {cart.length === 0 ? (
-                  <div className="text-center py-12">
-                    <ShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Keranjang masih kosong</h3>
-                    <p className="text-gray-500">Scan barcode atau cari produk untuk menambah item</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {cart.map((item) => (
-                      <Card key={item.kode_barang} className="border border-gray-200">
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-4">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-gray-900 truncate">{item.nama_barang}</h3>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="outline" className="text-xs">
-                                  {item.kode_barang}
-                                </Badge>
-                                <span className="text-sm text-gray-600">
-                                  Rp {getCurrentPrice(item).toLocaleString()} / {item.satuan_terpilih || item.satuan}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex flex-col gap-1">
-                              <Label className="text-xs text-gray-500">Satuan</Label>
-                              <Select
-                                value={item.satuan_terpilih || "satuan"}
-                                onValueChange={(value) => handleChangeSatuan(item.kode_barang, value)}
-                              >
-                                <SelectTrigger className="w-24 h-8 text-xs">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="satuan">Satuan</SelectItem>
-                                  {item.harga_renteng && (
-                                    <SelectItem value="renteng">Renteng</SelectItem>
-                                  )}
-                                  {item.harga_renteng && (
-                                    <SelectItem value="Dus">Dus</SelectItem>
-                                  )}
-                                  {item.harga_renteng && (
-                                    <SelectItem value="pack">Pack</SelectItem>
-                                  )}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => updateQty(item.kode_barang, item.jumlah - 1)}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Minus className="w-4 h-4" />
-                              </Button>
-                              <Input
-                                type="number"
-                                value={item.jumlah}
-                                onChange={(e) => updateQty(item.kode_barang, Math.max(1, Number(e.target.value)))}
-                                className="w-16 text-center h-8 px-2"
-                                min="1"
-                              />
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => updateQty(item.kode_barang, item.jumlah + 1)}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Plus className="w-4 h-4" />
-                              </Button>
-                            </div>
-
-                            <div className="text-right min-w-0">
-                              <div className="font-bold text-gray-900">
-                                Rp {subtotal(item).toLocaleString()}
-                              </div>
-                              {item.satuan_terpilih && item.satuan_terpilih !== "satuan" && (
-                                <div className="text-xs text-blue-600">
-                                  {getSatuanInfo(item)}
-                                </div>
-                              )}
-                            </div>
-
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeItem(item.kode_barang)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+   <div className="min-h-screen bg-gray-50/50 p-3 sm:p-4">
+  <div className="max-w-6xl mx-auto space-y-4">
+    {/* Header */}
+    <Card className="border-0 shadow-sm">
+      <CardHeader className="pb-3 pt-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-sm">
+            <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
-          
-          <div className="space-y-6">
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg">Ringkasan Pesanan</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Subtotal ({cart.length} item)</span>
-                    <span className="font-medium">
-                      Rp {cartSubtotal.toLocaleString()}
-                    </span>
-                  </div>
-                  {formData.diskon && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Diskon</span>
-                      <span className="font-medium text-green-600">
-                        -{formatRupiah(parseRupiah(formData.diskon))}
-                      </span>
-                    </div>
-                  )}
-                  <Separator />
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-semibold text-gray-900">Total</span>
-                    <span className="text-2xl font-bold text-blue-600">
-                      Rp {total.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-4">        
-                  <div>
-                    <Label htmlFor="diskon" className="text-base font-medium">Potongan Harga (Otomatis)</Label>
-                    <Input 
-                      id="diskon"
-                      type="text" 
-                      name="diskon" 
-                      value={formData.diskon} 
-                      onChange={handleDiskonChange}
-                      onBlur={() => {
-                        setTimeout(() => {
-                          if (searchInputRef.current) {
-                            searchInputRef.current.focus()
-                          }
-                        }, 100)
-                      }}
-                      placeholder="Diskon otomatis dari promo"
-                      className="mt-2 h-12 text-lg" 
-                      autoComplete="off"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="total_uang" className="text-base font-medium">Total Uang (Opsional)</Label>
-                    <Input 
-                      id="total_uang"
-                      type="text" 
-                      name="total_uang" 
-                      value={formData.total_uang} 
-                      onChange={handleTotalUangChange}
-                      onBlur={() => {
-                        setTimeout(() => {
-                          if (searchInputRef.current) {
-                            searchInputRef.current.focus()
-                          }
-                        }, 100)
-                      }}
-                      placeholder="Masukkan total uang yang dibayar"
-                      className="mt-2 h-12 text-lg"
-                      autoComplete="off"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="kembalian" className="text-base font-medium">Kembalian</Label>
-                    <Input 
-                      id="kembalian"
-                      type="text"
-                      name="kembalian" 
-                      value={formatRupiah(formData.kembalian) || formatRupiah(0)}
-                      placeholder="Kembalian akan dihitung otomatis"
-                      disabled
-                      className="mt-2 bg-gray-50 h-12 text-lg"
-                    />
-                  </div>
-
-                  {formData.total_uang && (
-                    <div className={`text-sm p-3 rounded-md ${
-                      paymentStatus.status === 'insufficient' ? 'bg-red-50 text-red-600' :
-                      paymentStatus.status === 'overpaid' ? 'bg-green-50 text-green-600' :
-                      'bg-blue-50 text-blue-600'
-                    }`}>
-                      {paymentStatus.message}
-                    </div>
-                  )}
-                </div>
-                <Button 
-                  onClick={handleSubmit}
-                  disabled={cart.length === 0 || isProcessing}
-                  className="w-full h-14 text-lg font-semibold"
-                  size="lg"
-                >
-                  <CreditCard className="w-6 h-6 mr-2" />
-                  {isProcessing ? 'Memproses...' : 'Proses Transaksi'}
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Aksi Cepat</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button 
-                  variant="outline"
-                  onClick={() => {
-                    if (cart.length === 0) return
-                    
-                    if (confirm('Semua item dalam keranjang akan dihapus. Apakah Anda yakin?')) {
-                      setCart([])
-                      setFormData({
-                        produk_id: '',
-                        jumlah_terjual_per_hari: '',
-                        diskon: '',
-                        total_uang: '',
-                        kembalian: 0
-                      })
-                      Swal.fire({
-                        title: "Berhasil",
-                        text: "Keranjang berhasil dikosongkan",
-                        icon: "success",
-                        toast: true,
-                        position: "top-end",
-                        showConfirmButton: false,
-                        timer: 3000
-                      })
-                      setTimeout(() => {
-                        if (searchInputRef.current) {
-                          searchInputRef.current.focus()
-                        }
-                      }, 100)
-                    }
-                  }}
-                  disabled={cart.length === 0}
-                  className="w-full"
-                >
-                  Kosongkan Keranjang
-                </Button>
-                
-                <Button 
-                  variant="outline"
-                  onClick={() => {
-                    setScan('')
-                    setSearchQuery('')
-                    setShowSearchResults(false)
-                    if (searchInputRef.current) {
-                      searchInputRef.current.focus()
-                    }
-                  }}
-                  className="w-full"
-                >
-                  Reset Scanner & Pencarian
-                </Button>
-
-                <Button 
-                  variant="outline"
-                  onClick={() => {
-                    if (searchInputRef.current) {
-                      searchInputRef.current.focus()
-                    }
-                  }}
-                  className="w-full"
-                >
-                  Focus ke Scanner
-                </Button>
-              </CardContent>
-            </Card>
+          <div>
+            <CardTitle className="text-xl sm:text-2xl font-bold text-gray-900">Kasir Toko IFA</CardTitle>
+            <p className="text-sm sm:text-base text-gray-600 mt-0.5">Sistem Point Of Sales</p>
           </div>
         </div>
+      </CardHeader>
+    </Card>
+
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+      {/* Left Section - Products & Cart */}
+      <div className="lg:col-span-3 space-y-4">
+        {/* Search Section */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Scan className="w-4 h-4 sm:w-5 sm:h-5" />
+              Tambah Produk
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="relative">
+              <Label htmlFor="unified-search" className="text-base sm:text-lg font-medium text-gray-700 mb-2 block">
+                Scan Barcode / Cari Produk
+              </Label>
+              <div className="relative flex gap-2">
+                <Input 
+                  ref={searchInputRef}
+                  id="unified-search"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setSearchQuery(value)
+                    const exactProduct = transaksi.find(
+                      (p) => p.kode_barang.trim() === value.trim()
+                    )
+
+                    if (exactProduct && value.length >= 3) {
+                      setTimeout(() => {
+                        if (searchQuery === value) {
+                          handleSearchSelect(exactProduct)
+                          return
+                        }
+                      }, 50)
+                      return 
+                    }
+                    setShowSearchResults(value.length > 0)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      const product = transaksi.find(
+                        (p) => p.kode_barang.trim() === searchQuery.trim()
+                      )
+                      if (product) {
+                        handleSearchSelect(product)
+                        setSearchQuery("")
+                        setShowSearchResults(false)
+                        return 
+                      }
+                      if (searchResults.length > 0) {
+                        handleSearchSelect(searchResults[0])
+                      }
+                    }
+                    
+                    if (e.key === "Escape") {
+                      setShowSearchResults(false)
+                    }
+                  }}
+                  onFocus={() => {
+                    if (searchQuery.length > 0) setShowSearchResults(true)
+                  }}
+                  onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
+                  placeholder="Scan barcode atau ketik nama produk..."
+                  className="pl-10 sm:pl-12 pr-10 sm:pr-12 h-12 sm:h-14 text-base sm:text-lg font-medium w-full"
+                  autoComplete="off"
+                />
+
+                <Search className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 sm:w-6 sm:h-6 text-gray-400" />
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery("")
+                      setShowSearchResults(false)
+                      if (searchInputRef.current) {
+                        searchInputRef.current.focus()
+                      }
+                    }}
+                    className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 h-8 sm:h-10 w-8 sm:w-10 p-0"
+                  >
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </Button>
+                )}
+              </div>
+
+              {showSearchResults && searchResults.length > 0 && (
+                <Card className="absolute top-full left-0 right-0 z-50 mt-1 max-h-56 sm:max-h-64 overflow-auto shadow-lg">
+                  <CardContent className="p-0">
+                    {searchResults.map((product, index) => (
+                      <button
+                        key={product.kode_barang}
+                        onClick={() => {
+                          handleSearchSelect(product)
+                          setSearchQuery("")
+                          setShowSearchResults(false)
+                        }}
+                        className={`w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors ${
+                          index === 0 ? 'bg-blue-50' : ''
+                        }`}
+                      >
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm sm:text-base text-gray-900 truncate">{product.nama_barang}</p>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <Badge variant="secondary" className="text-xs">
+                                {product.kode_barang}
+                              </Badge>
+                              <span className="text-xs sm:text-sm text-gray-500">
+                                Rp {product.harga.toLocaleString()} / {product.satuan}
+                              </span>
+                            </div>
+                          </div>
+                          <Badge
+                            variant={product.stok > 10 ? "default" : "destructive"}
+                            className="ml-2 text-xs"
+                          >
+                            {product.stok}
+                          </Badge>
+                        </div>
+                      </button>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cart Section */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
+              Keranjang Belanja
+              {cart.length > 0 && (
+                <Badge variant="secondary" className="ml-2 text-xs">
+                  {cart.length} item
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          
+          <CardContent>
+            {cart.length === 0 ? (
+              <div className="text-center py-8 sm:py-12">
+                <ShoppingCart className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Keranjang masih kosong</h3>
+                <p className="text-sm sm:text-base text-gray-500">Scan barcode atau cari produk untuk menambah item</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {cart.map((item) => (
+                  <Card key={item.kode_barang} className="border border-gray-200">
+                    <CardContent className="p-3">
+                      <div className="space-y-3">
+                        {/* Product Info */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-sm sm:text-base text-gray-900 truncate">{item.nama_barang}</h3>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <Badge variant="outline" className="text-xs">
+                                {item.kode_barang}
+                              </Badge>
+                              <span className="text-xs sm:text-sm text-gray-600">
+                                Rp {getCurrentPrice(item).toLocaleString()} / {item.satuan_terpilih || item.satuan}
+                              </span>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeItem(item.kode_barang)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0 flex-shrink-0"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+
+                        {/* Controls */}
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex flex-col gap-1">
+                            <Label className="text-xs text-gray-500">Satuan</Label>
+                            <Select
+                              value={item.satuan_terpilih || "satuan"}
+                              onValueChange={(value) => handleChangeSatuan(item.kode_barang, value)}
+                            >
+                              <SelectTrigger className="w-20 sm:w-24 h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="satuan">Satuan</SelectItem>
+                                {item.harga_renteng && (
+                                  <SelectItem value="renteng">Renteng</SelectItem>
+                                )}
+                                {item.harga_renteng && (
+                                  <SelectItem value="Dus">Dus</SelectItem>
+                                )}
+                                {item.harga_renteng && (
+                                  <SelectItem value="pack">Pack</SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateQty(item.kode_barang, item.jumlah - 1)}
+                              className="h-8 w-8 sm:h-9 sm:w-9 p-0"
+                            >
+                              <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </Button>
+                            <Input
+                              type="number"
+                              value={item.jumlah}
+                              onChange={(e) => updateQty(item.kode_barang, Math.max(1, Number(e.target.value)))}
+                              className="w-14 sm:w-16 text-center h-8 sm:h-9 px-2 text-sm"
+                              min="1"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateQty(item.kode_barang, item.jumlah + 1)}
+                              className="h-8 w-8 sm:h-9 sm:w-9 p-0"
+                            >
+                              <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </Button>
+                          </div>
+
+                          <div className="text-right min-w-0">
+                            <div className="font-bold text-sm sm:text-base text-gray-900">
+                              Rp {subtotal(item).toLocaleString()}
+                            </div>
+                            {item.satuan_terpilih && item.satuan_terpilih !== "satuan" && (
+                              <div className="text-xs text-blue-600 truncate">
+                                {getSatuanInfo(item)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Right Section - Summary & Payment */}
+      <div className="lg:col-span-2 space-y-4">
+        {/* Order Summary */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base sm:text-lg">Ringkasan Pesanan</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2.5">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Subtotal ({cart.length} item)</span>
+                <span className="font-medium">
+                  Rp {cartSubtotal.toLocaleString()}
+                </span>
+              </div>
+              {formData.diskon && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Diskon</span>
+                  <span className="font-medium text-green-600">
+                    -{formatRupiah(parseRupiah(formData.diskon))}
+                  </span>
+                </div>
+              )}
+              <Separator />
+              <div className="flex justify-between items-center">
+                <span className="text-base sm:text-lg font-semibold text-gray-900">Total</span>
+                <span className="text-xl sm:text-2xl font-bold text-blue-600">
+                  Rp {total.toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-3">        
+              <div>
+                <Label htmlFor="diskon" className="text-sm sm:text-base font-medium">Potongan Harga (Otomatis)</Label>
+                <Input 
+                  id="diskon"
+                  type="text" 
+                  name="diskon" 
+                  value={formData.diskon} 
+                  onChange={handleDiskonChange}
+                  onBlur={() => {
+                    setTimeout(() => {
+                      if (searchInputRef.current) {
+                        searchInputRef.current.focus()
+                      }
+                    }, 100)
+                  }}
+                  placeholder="Diskon otomatis dari promo"
+                  className="mt-1.5 h-10 sm:h-12 text-sm sm:text-base" 
+                  autoComplete="off"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="total_uang" className="text-sm sm:text-base font-medium">Total Uang (Opsional)</Label>
+                <Input 
+                  id="total_uang"
+                  type="text" 
+                  name="total_uang" 
+                  value={formData.total_uang} 
+                  onChange={handleTotalUangChange}
+                  onBlur={() => {
+                    setTimeout(() => {
+                      if (searchInputRef.current) {
+                        searchInputRef.current.focus()
+                      }
+                    }, 100)
+                  }}
+                  placeholder="Masukkan total uang yang dibayar"
+                  className="mt-1.5 h-10 sm:h-12 text-sm sm:text-base"
+                  autoComplete="off"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="kembalian" className="text-sm sm:text-base font-medium text-gray-700">Kembalian</Label>
+                <div className={`mt-1.5 h-14 sm:h-16 rounded-lg border-2 flex items-center justify-between px-4 transition-all ${
+                  formData.kembalian > 0 
+                    ? 'bg-green-50 border-green-300' 
+                    : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <span className="text-xs sm:text-sm font-medium text-gray-600">Rp</span>
+                  <span className={`text-2xl sm:text-3xl font-bold ${
+                    formData.kembalian > 0 ? 'text-green-600' : 'text-gray-400'
+                  }`}>
+                    {formData.kembalian.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {formData.total_uang && (
+                <div className={`text-sm sm:text-base p-3 sm:p-4 rounded-lg font-medium ${
+                  paymentStatus.status === 'insufficient' ? 'bg-red-100 text-red-700 border-2 border-red-300' :
+                  paymentStatus.status === 'overpaid' ? 'bg-green-100 text-green-700 border-2 border-green-300' :
+                  'bg-blue-100 text-blue-700 border-2 border-blue-300'
+                }`}>
+                  {paymentStatus.message}
+                </div>
+              )}
+            </div>
+
+            <Button 
+              onClick={handleSubmit}
+              disabled={cart.length === 0 || isProcessing}
+              className="w-full h-12 sm:h-14 text-base sm:text-lg font-semibold"
+              size="lg"
+            >
+              <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
+              {isProcessing ? 'Memproses...' : 'Proses Transaksi'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader className="pb-2.5">
+            <CardTitle className="text-sm sm:text-base">Aksi Cepat</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Button 
+              variant="outline"
+              onClick={() => {
+                if (cart.length === 0) return
+                
+                if (confirm('Semua item dalam keranjang akan dihapus. Apakah Anda yakin?')) {
+                  setCart([])
+                  setFormData({
+                    produk_id: '',
+                    jumlah_terjual_per_hari: '',
+                    diskon: '',
+                    total_uang: '',
+                    kembalian: 0
+                  })
+                  Swal.fire({
+                    title: "Berhasil",
+                    text: "Keranjang berhasil dikosongkan",
+                    icon: "success",
+                    toast: true,
+                    position: "top-end",
+                    showConfirmButton: false,
+                    timer: 3000
+                  })
+                  setTimeout(() => {
+                    if (searchInputRef.current) {
+                      searchInputRef.current.focus()
+                    }
+                  }, 100)
+                }
+              }}
+              disabled={cart.length === 0}
+              className="w-full h-9 sm:h-10 text-sm"
+            >
+              Kosongkan Keranjang
+            </Button>
+            
+            <Button 
+              variant="outline"
+              onClick={() => {
+                setScan('')
+                setSearchQuery('')
+                setShowSearchResults(false)
+                if (searchInputRef.current) {
+                  searchInputRef.current.focus()
+                }
+              }}
+              className="w-full h-9 sm:h-10 text-sm"
+            >
+              Reset Scanner & Pencarian
+            </Button>
+
+            <Button 
+              variant="outline"
+              onClick={() => {
+                if (searchInputRef.current) {
+                  searchInputRef.current.focus()
+                }
+              }}
+              className="w-full h-9 sm:h-10 text-sm"
+            >
+              Focus ke Scanner
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
+  </div>
+</div>
   )
 }

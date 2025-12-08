@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Menu,
   BadgeDollarSign,
+  X,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -52,7 +53,7 @@ export default function ShadcnSidebar({ children }) {
 
   const isActive = (path) => location.pathname === path
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [totalProduk, setTotalProduk] = useState(0)
   const [openMenus, setOpenMenus] = useState({
     teams: false,
@@ -60,37 +61,63 @@ export default function ShadcnSidebar({ children }) {
   })
   const [user, setUser] = useState(null)
   const location = useLocation()
-const [visible, setVisible] = useState(true);
-const [lastScrollY, setLastScrollY] = useState(0);
+  const [visible, setVisible] = useState(true)
+  const [lastScrollY, setLastScrollY] = useState(0)
 
-useEffect(() => {
-  let scrollTimeout;
-
-  const handleScroll = () => {
-    const currentScrollY = window.scrollY;
-    
-    if (currentScrollY > lastScrollY && currentScrollY > 50) {
-      setVisible(false);
-    } 
-    else if (currentScrollY < lastScrollY) {
-      setVisible(true);
+  // Auto-collapse untuk tablet
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth
+      
+      // Tablet mode (768px - 1024px): auto collapse
+      if (width >= 768 && width < 1024) {
+        setIsCollapsed(true)
+      }
+      // Desktop mode (>= 1024px): expand
+      else if (width >= 1024) {
+        setIsCollapsed(false)
+      }
     }
+
+    // Jalankan saat pertama kali load
+    handleResize()
+
+    // Listen resize event
+    window.addEventListener('resize', handleResize)
     
-    setLastScrollY(currentScrollY);
-    clearTimeout(scrollTimeout);
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
-    scrollTimeout = setTimeout(() => {
-      setVisible(true);
-    }, 200); 
-  };
+  // Handle scroll untuk bottom nav
+  useEffect(() => {
+    let scrollTimeout
 
-  window.addEventListener('scroll', handleScroll, { passive: true });
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY
+      
+      if (currentScrollY > lastScrollY && currentScrollY > 50) {
+        setVisible(false)
+      } 
+      else if (currentScrollY < lastScrollY) {
+        setVisible(true)
+      }
+      
+      setLastScrollY(currentScrollY)
+      clearTimeout(scrollTimeout)
 
-  return () => {
-    window.removeEventListener('scroll', handleScroll);
-    clearTimeout(scrollTimeout);
-  };
-}, [lastScrollY]);
+      scrollTimeout = setTimeout(() => {
+        setVisible(true)
+      }, 200) 
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      clearTimeout(scrollTimeout)
+    }
+  }, [lastScrollY])
+
   const handleLogout = async () => {
     try {
       await logout()
@@ -148,13 +175,13 @@ useEffect(() => {
 
   return (
     <TooltipProvider>
-      <div className="flex min-h-screen relative">
-        {/* Sidebar Desktop */}        
+      <div className="flex min-h-screen relative">  
+        {/* Desktop/Tablet Sidebar */}
         <div 
           className={`
             ${isCollapsed ? 'w-16' : 'w-72'} 
-            hidden sm:block
-            transition-all duration-300 border-r bg-background flex-col fixed sm:static z-40 h-full
+            hidden md:block
+            transition-all duration-300 border-r bg-background flex-col fixed md:static z-40 h-full
           `}
         >
           <div className="p-4 border-b flex items-center justify-between">
@@ -169,7 +196,8 @@ useEffect(() => {
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            {/* Hide button di tablet, show di desktop */}
+            <div className="flex items-center gap-2 lg:block hidden">
               <Button
                 variant="ghost"
                 size="icon"
@@ -274,19 +302,10 @@ useEffect(() => {
             </div>
           </nav>
         </div>
-        
-        {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-h-screen w-full">
-          {/* Header */}
+
           <header className="h-16 border-b bg-background flex items-center justify-end px-6 sticky top-0 z-30 w-full">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-4 w-4" />
-                <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full text-xs flex items-center justify-center text-white">
-                  3
-                </span>
-              </Button>
-              
+            <div className="flex items-center gap-4">  
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -333,21 +352,118 @@ useEffect(() => {
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 p-6 pb-20 sm:pb-6 overflow-y-auto">
+          <main className="flex-1 p-3 md:p-6 pb-20 md:pb-6 overflow-y-auto">
             {children}
           </main>
         </div>
 
-        {/* Bottom Navigation - Fixed untuk Mobile */}
-       <div
-  className={`sm:hidden fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ${
-    visible ? "translate-y-0" : "translate-y-full"
-  }`}
->
-  <div className="px-4 pb-3 pt-2">
-    <BottomNav />
-  </div>
-</div>
+        {/* Mobile Sidebar Overlay */}
+        {mobileMenuOpen && (
+          <>
+            <div 
+              className="fixed inset-0 bg-black/50 z-40 md:hidden"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            <div className="fixed left-0 top-0 bottom-0 w-72 bg-background z-50 md:hidden border-r overflow-y-auto">
+              <div className="p-4 border-b flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+                    <Package className="h-4 w-4 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <h1 className="font-semibold text-lg">Toko IFA</h1>
+                    <p className="text-xs text-muted-foreground">Admin Panel</p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="h-8 w-8"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <nav className="flex-1 p-4 space-y-2">
+                <div className="space-y-1">
+                  {navigationItems.map((item) => {
+                    const isActive = location.pathname === item.href
+                    return (
+                      <Button
+                        key={item.title}
+                        variant={isActive ? "secondary" : "ghost"}
+                        className="w-full justify-start px-3 h-10"
+                        asChild
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Link to={item.href}>
+                          <item.icon className="h-4 w-4" />
+                          <span className="ml-3">{item.title}</span>
+                          {item.badge && (
+                            <Badge 
+                              variant={item.badge === "Pro" ? "default" : "secondary"}
+                              className="ml-auto text-xs"
+                            >
+                              {item.badge}
+                            </Badge>
+                          )}
+                        </Link>
+                      </Button>
+                    )
+                  })}
+                </div>
+
+                <div className="my-4 h-px bg-border" />
+                
+                <div className="space-y-1">
+                  <Collapsible
+                    open={openMenus.teams}
+                    onOpenChange={() => toggleMenu('teams')}
+                  >
+                    <CollapsibleTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start px-3 h-10"
+                      >
+                        <NotebookText className="h-4 w-4" />
+                        <span className="ml-3">Laporan Penjualan</span>
+                        <ChevronDown className={`ml-auto h-4 w-4 transition-transform ${openMenus.teams ? 'rotate-180' : ''}`} />
+                      </Button>
+                    </CollapsibleTrigger>
+
+                    <CollapsibleContent className="space-y-1 ml-6 mt-2">
+                      {teamItems.map((item) => (
+                        <Button
+                          key={item.title}
+                          variant={location.pathname === item.href ? "secondary" : "ghost"}
+                          size="sm"
+                          className="w-full justify-start h-8"
+                          asChild
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          <Link to={item.href}>
+                            <item.icon className="h-3 w-3" />
+                            <span className="ml-3 text-sm">{item.title}</span>
+                          </Link>
+                        </Button>
+                      ))}
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
+              </nav>
+            </div>
+          </>
+        )}
+        <div
+          className={`md:hidden fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ${
+            visible ? "translate-y-0" : "translate-y-full"
+          }`}
+        >
+          <div className="px-4 pb-3 pt-2">
+            <BottomNav />
+          </div>
+        </div>
       </div>
     </TooltipProvider>
   )

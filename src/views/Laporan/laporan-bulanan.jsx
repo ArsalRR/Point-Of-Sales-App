@@ -256,7 +256,7 @@ export default function LaporanBulanan() {
         </div>
 
         {(viewMode === "bulanan" || selectedDate) && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
             <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
@@ -270,21 +270,6 @@ export default function LaporanBulanan() {
                 </p>
               </CardContent>
             </Card>
-
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                  <Package2 className="w-4 h-4 text-blue-600" />
-                  Jumlah Terjual
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xl sm:text-2xl font-bold text-blue-600">
-                  {parseInt(laporanBulanan?.totalKeseluruhan?.jumlah_terjual || 0).toLocaleString('id-ID')}
-                </p>
-              </CardContent>
-            </Card>
-
             <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm sm:col-span-2 lg:col-span-1">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
