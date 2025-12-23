@@ -27,7 +27,7 @@ const NotaPembelian = ({ transactionData, onClose }) => {
   return (
     <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
       <div className="w-full max-w-sm mx-auto p-4">
-        {/* Print styles */}
+        {/* Print styles sesuai template */}
         <style jsx>{`
           * {
             font-size: 12px;
@@ -100,7 +100,6 @@ const NotaPembelian = ({ transactionData, onClose }) => {
             Jl. Perumahan Limas No. 08<br />
             Telp: 085868287956<br />
             {currentDate}<br />
-            No Trans: {transactionData.no_transaksi}
           </p>
 
           <table>
@@ -128,13 +127,15 @@ const NotaPembelian = ({ transactionData, onClose }) => {
                   Rp {formatCurrency(transactionData.subtotal)}
                 </td>
               </tr>
-              <tr>
-                <td></td>
-                <td className="description">Diskon</td>
-                <td className="price">
-                  Rp {formatCurrency(transactionData.diskon)}
-                </td>
-              </tr>
+              {transactionData.diskon > 0 && (
+                <tr>
+                  <td></td>
+                  <td className="description">Diskon</td>
+                  <td className="price">
+                    -Rp {formatCurrency(transactionData.diskon)}
+                  </td>
+                </tr>
+              )}
               <tr>
                 <td></td>
                 <td className="description"><strong>Total</strong></td>

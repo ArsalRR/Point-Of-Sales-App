@@ -12,7 +12,7 @@ import {
   PAYMENT_STATUS,
   BARCODE_CONFIG,
   EXCLUDED_INPUT_IDS,
-  SEARCH_CLEAR_DELAY,
+  SEARCH_CLEAR_DELAY, // TAMBAHKAN INI
   TOAST_CONFIG
 } from '@/utils/kasirUtils'
 import { searchProducts } from '@/utils/searchUtils'
@@ -46,11 +46,6 @@ export const useKasir = () => {
   const barcodeBufferRef = useRef('')
   const lastKeyTimeRef = useRef(0)
   const transaksiRef = useRef([])
-  
-  // TAMBAHAN: Refs untuk debounce barcode scanner
-  const lastScannedBarcodeRef = useRef('')
-  const lastScannedTimeRef = useRef(0)
-  const BARCODE_DEBOUNCE_TIME = 500 // 500ms untuk mencegah scan ganda
 
   // ===== UTILITY FUNCTIONS =====
 
@@ -202,23 +197,40 @@ export const useKasir = () => {
    * Menambahkan produk ke cart
    * @param {Object} product - Produk yang akan ditambahkan
    */
-  const addProductToCart = useCallback((product) => {
-    if (!product) return
+/**
+ * Menambahkan produk ke cart
+ * @param {Object} product - Produk yang akan ditambahkan
+ * @param {number} quantity - Jumlah yang akan ditambahkan (default: 1)
+ */
+const addProductToCart = useCallback((product, quantity = 1) => {
+  if (!product) return
 
-    setCart(prevCart => {
-      const exist = prevCart.find(c => c.kode_barang === product.kode_barang)
-      if (exist) {
-        return prevCart.map(c =>
-          c.kode_barang === product.kode_barang
-            ? { ...c, jumlah: c.jumlah + 1 }
-            : c
-        )
-      }
-      return [...prevCart, { ...product, jumlah: 1, satuan_terpilih: SATUAN_TYPES.SATUAN }]
-    })
+  setCart(prevCart => {
+    const exist = prevCart.find(c => c.kode_barang === product.kode_barang)
+    if (exist) {
+      // Jumlah tetap tidak bertambah, hanya notifikasi
+      // Atau jika ingin bertambah, gunakan:
+      // return prevCart.map(c =>
+      //   c.kode_barang === product.kode_barang
+      //     ? { ...c, jumlah: c.jumlah + quantity }
+      //     : c
+      // )
+      return prevCart
+    }
+    return [...prevCart, { 
+      ...product, 
+      jumlah: quantity, 
+      satuan_terpilih: SATUAN_TYPES.SATUAN 
+    }]
+  })
 
-    showToast("Berhasil", `${product.nama_barang} ditambahkan ke keranjang`, "success", 2000)
-  }, [showToast])
+  showToast(
+    "Berhasil", 
+    `${product.nama_barang} ditambahkan ke keranjang`, 
+    "success", 
+    2000
+  )
+}, [showToast])
 
   /**
    * Mengupdate quantity item di cart
@@ -332,63 +344,85 @@ export const useKasir = () => {
    * Handler untuk memilih hasil pencarian
    * @param {Object} product - Produk yang dipilih
    */
-  const handleSearchSelect = useCallback((product) => {
-    const exactProduct = transaksi.find(p => 
-      p.kode_barang.trim() === searchQuery.trim()
-    )
+/**
+ * Handler untuk memilih hasil pencarian
+ * @param {Object} product - Produk yang dipilih
+ */
+const handleSearchSelect = useCallback((product) => {
+  const exactProduct = transaksi.find(p => 
+    p.kode_barang.trim() === searchQuery.trim()
+  )
 
-    if (exactProduct && searchQuery.length >= BARCODE_CONFIG.MIN_LENGTH) {
-      setTimeout(() => {
-        addProductToCart(exactProduct)
-        setSearchQuery("")
-        setShowSearchResults(false)
-      }, 50)
-      return
+  const productToAdd = exactProduct || product
+  
+  if (productToAdd) {
+    // Cek apakah sudah ada di cart
+    const existingInCart = cart.find(c => c.kode_barang === productToAdd.kode_barang)
+    
+    if (!existingInCart) {
+      addProductToCart(productToAdd, 1)
+    } else {
+      // Tampilkan pesan sudah ada
+      showToast(
+        "Info", 
+        `${productToAdd.nama_barang} sudah ada di keranjang`, 
+        "info", 
+        2000
+      )
     }
-
-    addProductToCart(product)
-    setSearchQuery('')
+    
+    setSearchQuery("")
     setShowSearchResults(false)
-  }, [transaksi, searchQuery, addProductToCart])
+  }
+}, [transaksi, searchQuery, cart, addProductToCart, showToast])
 
   // ===== BARCODE SCANNER =====
 
   /**
    * Handler ketika barcode ditemukan
-   * DIPERBAIKI: Menambahkan debounce untuk mencegah scan ganda
    * @param {string} barcode - Barcode yang discan
    */
-  const handleBarcodeFound = useCallback((barcode) => {
-    const currentTime = Date.now()
-    
-    // Cek apakah barcode yang sama di-scan dalam waktu dekat (debounce)
-    if (
-      lastScannedBarcodeRef.current === barcode &&
-      currentTime - lastScannedTimeRef.current < BARCODE_DEBOUNCE_TIME
-    ) {
-      console.log('Duplicate barcode scan ignored:', barcode)
-      return // Abaikan scan duplikat
-    }
-    
-    // Update tracking untuk barcode terakhir yang di-scan
-    lastScannedBarcodeRef.current = barcode
-    lastScannedTimeRef.current = currentTime
-    
-    const product = transaksiRef.current.find(p =>
-      p.kode_barang.trim().toLowerCase() === barcode.toLowerCase()
-    )
+ /**
+ * Handler ketika barcode ditemukan
+ * @param {string} barcode - Barcode yang discan
+ */
+const handleBarcodeFound = useCallback((barcode) => {
+  const product = transaksiRef.current.find(p =>
+    p.kode_barang.trim().toLowerCase() === barcode.toLowerCase()
+  )
 
-    if (product) {
+  if (product) {
+    // Cek apakah produk sudah ada di cart
+    const existingInCart = cart.find(c => c.kode_barang === product.kode_barang)
+    
+    if (!existingInCart) {
+      // Jika belum ada di cart, tambahkan dengan jumlah 1
       addProductToCart(product)
-      setSearchQuery('')
-      setShowSearchResults(false)
-      focusSearchInput(searchInputRef)
     } else {
-      showBarcodeNotFoundAlert(barcode)
-      setSearchQuery('')
-      focusSearchInput(searchInputRef)
+      // Jika sudah ada, tampilkan pesan atau bisa juga tambah 1
+      // Untuk kasus kasir, biasanya scan barcode = tambah 1 item
+      // Tapi tergantung kebijakan, bisa juga tidak menambah jika sudah ada
+      // Pilihan 1: Tetap tambah 1 (uncomment kode dibawah)
+      // updateQty(product.kode_barang, existingInCart.jumlah + 1)
+      
+      // Pilihan 2: Tampilkan pesan sudah ada (saya gunakan ini)
+      showToast(
+        "Info", 
+        `${product.nama_barang} sudah ada di keranjang`, 
+        "info", 
+        2000
+      )
     }
-  }, [addProductToCart, focusSearchInput, showBarcodeNotFoundAlert])
+    
+    setSearchQuery('')
+    setShowSearchResults(false)
+    focusSearchInput(searchInputRef)
+  } else {
+    showBarcodeNotFoundAlert(barcode)
+    setSearchQuery('')
+    focusSearchInput(searchInputRef)
+  }
+}, [cart, addProductToCart, updateQty, focusSearchInput, showBarcodeNotFoundAlert, showToast])
 
   // ===== TRANSACTION PROCESSING =====
 
