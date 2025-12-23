@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { ShoppingCart, Scan, Trash2, Plus, Minus, CreditCard, Search, X, } from 'lucide-react'
+import { ShoppingCart, Scan, Trash2, Plus, Minus, CreditCard, Search, X } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -7,651 +6,68 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { postKasir, getTransaksi } from '@/api/Kasirapi'
-import { getProfile } from '@/api/Userapi'
-import Swal from 'sweetalert2'
 import NotaPembelian from '../Kasir/NotaPembelian'
-import { getHargaPromo } from '@/api/HargaPromoapi'
-// ===== CONSTANTS =====
-const SATUAN_TYPES = {
-  SATUAN: 'satuan',
-  RENTENG: 'renteng',
-  DUS: 'dus',
-  PACK: 'pack',
-  GROSIR: 'grosir'
-}
+import { useKasir } from '@/hooks/useKasir'
+import { parseRupiah } from '@/utils/kasirUtils' // IMPORT parseRupiah
 
-const PAYMENT_STATUS = {
-  EMPTY: 'empty',
-  INSUFFICIENT: 'insufficient',
-  OVERPAID: 'overpaid',
-  EXACT: 'exact'
-}
-
-const BARCODE_CONFIG = {
-  MIN_LENGTH: 3,
-  SCAN_TIMEOUT: 50,
-  FOCUS_DELAY: 100
-}
-
-const TOAST_CONFIG = {
-  toast: true,
-  position: "top-end",
-  showConfirmButton: false,
-  timerProgressBar: true
-}
-
-const EXCLUDED_INPUT_IDS = ['total_uang', 'kembalian']
-const SEARCH_MAX_RESULTS = 8
-const SEARCH_CLEAR_DELAY = 150
-
-// ===== UTILITY FUNCTIONS =====
-const parseRupiah = (value) => {
-  if (!value && value !== 0) return 0
-  const numberString = value.toString().replace(/[^\d]/g, "")
-  return numberString === "" ? 0 : parseInt(numberString, 10)
-}
-
-const formatRupiah = (value) => {
-  if (!value && value !== 0) return ""
-  const number = typeof value === 'string' ? parseRupiah(value) : value
-  if (number < 0) return ""
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(number)
-}
-
-const getCurrentPrice = (item) => {
-  const satuan = item.satuan_terpilih || SATUAN_TYPES.SATUAN
-  const priceMap = {
-    [SATUAN_TYPES.RENTENG]: item.harga_renteng,
-    [SATUAN_TYPES.DUS]: item.harga_dus,
-    [SATUAN_TYPES.PACK]: item.harga_pack,
-    [SATUAN_TYPES.GROSIR]: item.harga_grosir,
-  }
-  return priceMap[satuan] || item.harga
-}
-
-const getSatuanInfo = (item) => {
-  const satuan = item.satuan_terpilih || SATUAN_TYPES.SATUAN
-  const basePrice = item.harga
-
-  if (satuan === SATUAN_TYPES.SATUAN || !basePrice || basePrice === 0) return ""
-
-  const infoMap = {
-    [SATUAN_TYPES.RENTENG]: item.jumlah_lainnya ? `1 renteng = ${item.jumlah_lainnya} pcs` : "Harga renteng",
-    [SATUAN_TYPES.DUS]: item.jumlah_lainnya ? `1 dus = ${item.jumlah_lainnya} pcs` : "Harga dus",
-    [SATUAN_TYPES.PACK]: item.jumlah_lainnya ? `1 pack = ${item.jumlah_lainnya} pcs` : "Harga pack",
-    [SATUAN_TYPES.GROSIR]: "Harga grosir",
-  }
-  return infoMap[satuan] || ""
-}
-
-const showToast = (title, text, icon, timer = 3000) => {
-  Swal.fire({ ...TOAST_CONFIG, title, text, icon, timer })
-}
-
-const focusSearchInput = (ref, delay = BARCODE_CONFIG.FOCUS_DELAY) => {
-  setTimeout(() => ref.current?.focus(), delay)
-}
-
-// ===== SEARCH UTILITIES =====
-const calculateSimilarity = (str1, str2) => {
-  const set1 = new Set(str1.split(''))
-  const set2 = new Set(str2.split(''))
-  const intersection = new Set([...set1].filter(x => set2.has(x)))
-  const union = new Set([...set1, ...set2])
-  return intersection.size / union.size
-}
-
-const calculateSearchScore = (item, query, queryWords) => {
-  const namaBarang = item.nama_barang.toLowerCase()
-  const kodeBarang = item.kode_barang.toLowerCase()
-  let score = 0
-
-  // Exact kode match
-  if (kodeBarang === query) return 1000
-  if (kodeBarang.startsWith(query)) score += 800
-  if (kodeBarang.includes(query)) score += 600
-
-  // Exact nama match
-  if (namaBarang === query) score += 900
-  if (namaBarang.startsWith(query)) score += 700
-
-  // Multi-word matching
-  const allWordsFound = queryWords.every(word => namaBarang.includes(word))
-  if (allWordsFound) score += 500
-
-  const foundWords = queryWords.filter(word => namaBarang.includes(word))
-  score += (foundWords.length / queryWords.length) * 300
-
-  if (namaBarang.includes(query)) score += 400
-
-  // Phrase matching
-  if (queryWords.length > 1) {
-    const queryPhrase = queryWords.join(' ')
-    if (namaBarang.includes(queryPhrase)) score += 200
-  }
-
-  // Fuzzy matching
-  if (score === 0 && query.length >= 3) {
-    const similarity = calculateSimilarity(query, namaBarang)
-    if (similarity > 0.6) score += similarity * 100
-  }
-
-  return score
-}
-
-const searchProducts = (transaksi, query) => {
-  if (!query.trim() || !Array.isArray(transaksi)) return []
-
-  const lowercaseQuery = query.toLowerCase().trim()
-  const queryWords = lowercaseQuery.split(/\s+/).filter(word => word.length > 0)
-
-  return transaksi
-    .map(item => ({
-      ...item,
-      searchScore: calculateSearchScore(item, lowercaseQuery, queryWords)
-    }))
-    .filter(item => item.searchScore > 0)
-    .sort((a, b) => {
-      if (b.searchScore !== a.searchScore) return b.searchScore - a.searchScore
-      if (a.nama_barang.length !== b.nama_barang.length) {
-        return a.nama_barang.length - b.nama_barang.length
-      }
-      return a.nama_barang.localeCompare(b.nama_barang, 'id', { numeric: true })
-    })
-    .slice(0, SEARCH_MAX_RESULTS)
-}
-
-// ===== PROMO UTILITIES =====
-const findAllPromos = (hargaPromo, kodeBarang) => {
-  if (!Array.isArray(hargaPromo) || !kodeBarang) return []
-  
-  const normalizedKode = kodeBarang.trim().toLowerCase()
-  
-  return hargaPromo.filter(p => 
-    p?.produk?.kode_barang?.trim()?.toLowerCase() === normalizedKode ||
-    p?.kode_barang?.trim()?.toLowerCase() === normalizedKode
-  )
-}
-
-const calculatePromoDiscount = (cart, hargaPromo) => {
-  if (!Array.isArray(hargaPromo) || hargaPromo.length === 0) return 0
-
-  return cart.reduce((totalDiskon, item) => {
-    const promos = findAllPromos(hargaPromo, item.kode_barang)
-    
-    if (promos.length === 0) return totalDiskon
-    let maxDiskon = 0
-    
-    promos.forEach(promo => {
-      if (item.jumlah >= promo.min_qty) {
-        const multiplier = Math.floor(item.jumlah / promo.min_qty)
-        const diskonPromo = promo.potongan_harga * multiplier
-        if (diskonPromo > maxDiskon) {
-          maxDiskon = diskonPromo
-        }
-      }
-    })
-
-    return totalDiskon + maxDiskon
-  }, 0)
-}
-
-// ===== MAIN COMPONENT =====
+/**
+ * Komponen utama untuk halaman Kasir
+ */
 export default function ListKasir() {
-  // State
-  const [transaksi, setTransaksi] = useState([])
-  const [formData, setFormData] = useState({
-    produk_id: '',
-    jumlah_terjual_per_hari: '',
-    diskon: '',
-    total_uang: '',
-    kembalian: 0
-  })
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showSearchResults, setShowSearchResults] = useState(false)
-  const [cart, setCart] = useState([])
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [showPrint, setShowPrint] = useState(false)
-  const [printData, setPrintData] = useState(null)
-  const [user, setUser] = useState(null)
-  const [hargaPromo, setHargaPromo] = useState([])
-  const [promoLoaded, setPromoLoaded] = useState(false)
-
-  // Refs
-  const searchInputRef = useRef(null)
-  const barcodeBufferRef = useRef('')
-  const lastKeyTimeRef = useRef(0)
-  const transaksiRef = useRef([])
-
-  // ===== COMPUTED VALUES =====
-  const searchResults = useMemo(() => 
-    searchProducts(transaksi, searchQuery), 
-    [transaksi, searchQuery]
-  )
-
-  const cartSubtotal = useMemo(() => 
-    cart.reduce((sum, item) => sum + (getCurrentPrice(item) * item.jumlah), 0),
-    [cart]
-  )
-
-  const getTotalToBePaid = useCallback(() => {
-    const diskon = parseRupiah(formData.diskon)
-    return Math.max(0, cartSubtotal - diskon)
-  }, [cartSubtotal, formData.diskon])
-
-  const getPaymentStatus = useCallback(() => {
-    const totalUang = parseRupiah(formData.total_uang)
-    const totalToBePaid = getTotalToBePaid()
-
-    if (totalUang === 0 && formData.total_uang === '') {
-      return {
-        status: PAYMENT_STATUS.EMPTY,
-        message: 'Masukkan total uang (opsional)',
-        difference: 0
-      }
-    }
-
-    if (totalUang < totalToBePaid) {
-      return {
-        status: PAYMENT_STATUS.INSUFFICIENT,
-        message: `Uang kurang ${formatRupiah(totalToBePaid - totalUang)}`,
-        difference: totalToBePaid - totalUang
-      }
-    }
-
-    if (totalUang > totalToBePaid) {
-      return {
-        status: PAYMENT_STATUS.OVERPAID,
-        message: `Kembalian ${formatRupiah(totalUang - totalToBePaid)}`,
-        difference: totalUang - totalToBePaid
-      }
-    }
-
-    return {
-      status: PAYMENT_STATUS.EXACT,
-      message: 'Uang pas',
-      difference: 0
-    }
-  }, [formData.total_uang, getTotalToBePaid])
-
-  const total = useMemo(() => getTotalToBePaid(), [getTotalToBePaid])
-
-  const paymentStatus = useMemo(() => getPaymentStatus(), [getPaymentStatus])
-
-  // ===== API CALLS =====
-  const fetchUser = useCallback(async () => {
-    try {
-      const res = await getProfile()
-      setUser(res.data)
-    } catch (error) {
-      console.error("Gagal ambil user:", error)
-    }
-  }, [])
-
-  const fetchHargaPromo = useCallback(async () => {
-    try {
-      const res = await getHargaPromo()
-      const promoData = Array.isArray(res) ? res : (Array.isArray(res.data) ? res.data : [])
-      setHargaPromo(promoData)
-    } catch (error) {
-      setHargaPromo([])
-    } finally {
-      setPromoLoaded(true)
-    }
-  }, [])
-
-  const fetchTransaksi = useCallback(async () => {
-    try {
-      const res = await getTransaksi()
-      setTransaksi(Array.isArray(res.data) ? res.data : [])
-    } catch (error) {
-      console.error("Gagal ambil transaksi:", error)
-    }
-  }, [])
-
-  // ===== CART OPERATIONS =====
-  const addProductToCart = useCallback((product) => {
-    if (!product) return
-
-    setCart(prevCart => {
-      const exist = prevCart.find(c => c.kode_barang === product.kode_barang)
-      if (exist) {
-        return prevCart.map(c =>
-          c.kode_barang === product.kode_barang
-            ? { ...c, jumlah: c.jumlah + 1 }
-            : c
-        )
-      }
-      return [...prevCart, { ...product, jumlah: 1, satuan_terpilih: SATUAN_TYPES.SATUAN }]
-    })
-
-    showToast("Berhasil", `${product.nama_barang} ditambahkan ke keranjang`, "success", 2000)
-  }, [])
-
-  const updateQty = useCallback((kode_barang, newQty) => {
-    if (newQty < 1) return
-    setCart(prev =>
-      prev.map(item =>
-        item.kode_barang === kode_barang ? { ...item, jumlah: newQty } : item
-      )
-    )
-  }, [])
-
-  const removeItem = useCallback((kode) => {
-    setCart(prev => prev.filter(c => c.kode_barang !== kode))
-  }, [])
-
-  const subtotal = useCallback((item) => {
-    return getCurrentPrice(item) * item.jumlah
-  }, [])
-
-  const handleChangeSatuan = useCallback((kode_barang, satuan) => {
-    setCart(prevCart =>
-      prevCart.map(item =>
-        item.kode_barang === kode_barang
-          ? { ...item, satuan_terpilih: satuan, jumlah: 1 }
-          : item
-      )
-    )
-  }, [])
-
-  // ===== PROMO CHECK =====
-  const checkAndApplyPromo = useCallback(() => {
-    const totalDiskonPromo = calculatePromoDiscount(cart, hargaPromo)
-    setFormData(prev => ({
-      ...prev,
-      diskon: totalDiskonPromo > 0 ? formatRupiah(totalDiskonPromo) : ""
-    }))
-  }, [cart, hargaPromo])
-
-  // ===== FORM HANDLERS =====
-  const handleDiskonChange = useCallback((e) => {
-    const rawValue = e.target.value
-    if (rawValue === "") {
-      setFormData(prev => ({ ...prev, diskon: "" }))
-      return
-    }
-
-    const numericValue = parseRupiah(rawValue)
-    const finalDiskon = Math.min(numericValue, cartSubtotal)
-
-    setFormData(prev => ({ ...prev, diskon: formatRupiah(finalDiskon) }))
-  }, [cartSubtotal])
-
-  const handleTotalUangChange = useCallback((e) => {
-    const rawValue = e.target.value
-    if (rawValue === "") {
-      setFormData(prev => ({ ...prev, total_uang: "", kembalian: 0 }))
-      return
-    }
-
-    try {
-      const totalUangNumber = parseRupiah(rawValue)
-      const diskonNumber = parseRupiah(formData.diskon)
-      const totalSetelahDiskon = Math.max(0, cartSubtotal - diskonNumber)
-      const kembalian = Math.max(0, totalUangNumber - totalSetelahDiskon)
-
-      setFormData(prev => ({
-        ...prev,
-        total_uang: formatRupiah(totalUangNumber),
-        kembalian
-      }))
-    } catch (error) {
-      console.error("Error calculating total uang:", error)
-      setFormData(prev => ({ ...prev, total_uang: "", kembalian: 0 }))
-    }
-  }, [cartSubtotal, formData.diskon])
-
-  // ===== SEARCH HANDLERS =====
-  const handleSearchSelect = useCallback((product) => {
-    const exactProduct = transaksi.find(p => 
-      p.kode_barang.trim() === searchQuery.trim()
-    )
-
-    if (exactProduct && searchQuery.length >= BARCODE_CONFIG.MIN_LENGTH) {
-      setTimeout(() => {
-        addProductToCart(exactProduct)
-        setSearchQuery("")
-        setShowSearchResults(false)
-      }, 50)
-      return
-    }
-
-    addProductToCart(product)
-    setSearchQuery('')
-    setShowSearchResults(false)
-  }, [transaksi, searchQuery, addProductToCart])
-
-  // ===== BARCODE SCANNER =====
-  const handleBarcodeFound = useCallback((barcode) => {
-    const product = transaksiRef.current.find(p =>
-      p.kode_barang.trim().toLowerCase() === barcode.toLowerCase()
-    )
-
-    if (product) {
-      addProductToCart(product)
-      setSearchQuery('')
-      setShowSearchResults(false)
-      focusSearchInput(searchInputRef)
-    } else {
-      showToast(
-        "Kode Tidak Ditemukan",
-        `Barcode "${barcode}" tidak terdaftar dalam sistem`,
-        "error"
-      )
-      setSearchQuery('')
-      focusSearchInput(searchInputRef)
-    }
-  }, [addProductToCart])
-
-  // ===== TRANSACTION =====
-  const postTransaksi = useCallback(async (data) => {
-    try {
-      setIsProcessing(true)
-      const res = await postKasir(data)
-      const diskon = parseRupiah(formData.diskon)
-      const total_uang = parseRupiah(formData.total_uang)
-      const total = cartSubtotal - diskon
-      const kembalian = total_uang > 0 ? Math.max(0, total_uang - total) : 0
-
-      const transactionData = {
-        no_transaksi: res.no_transaksi,
-        items: cart.map(item => ({
-          jumlah: item.jumlah,
-          nama_barang: item.nama_barang,
-          harga: getCurrentPrice(item),
-          satuan: item.satuan_terpilih || item.satuan,
-        })),
-        subtotal: cartSubtotal,
-        diskon,
-        total,
-        total_uang,
-        kembalian
-      }
-
-      setPrintData(transactionData)
-      setCart([])
-      setFormData({
-        produk_id: '',
-        jumlah_terjual_per_hari: '',
-        diskon: '',
-        total_uang: '',
-        kembalian: 0
-      })
-      setShowPrint(true)
-      focusSearchInput(searchInputRef)
-    } catch (error) {
-      console.error('Error posting transaksi:', error)
-      showToast("Gagal", "Terjadi kesalahan saat memproses transaksi", "error")
-    } finally {
-      setIsProcessing(false)
-    }
-  }, [cart, cartSubtotal, formData.diskon, formData.total_uang])
-
-  const handleSubmit = useCallback((e) => {
-    e.preventDefault()
-
-    if (!user) {
-      showToast("Gagal", "User belum terdeteksi", "error")
-      return
-    }
-
-    if (cart.length === 0) {
-      showToast("Gagal", "Keranjang masih kosong", "error")
-      return
-    }
-
-    const payload = {
-      produk_id: cart.map(i => i.kode_barang),
-      jumlah_terjual_per_hari: cart.map(i => i.jumlah),
-      satuan: cart.map(i => i.satuan_terpilih || i.satuan),
-      users_id: user.id,
-      diskon: parseRupiah(formData.diskon),
-    }
-
-    postTransaksi(payload)
-  }, [user, cart, formData.diskon, postTransaksi])
-
-  // ===== EFFECTS =====
-  useEffect(() => {
-    fetchHargaPromo()
-  }, [fetchHargaPromo])
-
-  useEffect(() => {
-    transaksiRef.current = transaksi
-  }, [transaksi])
-
-  useEffect(() => {
-    fetchTransaksi()
-    fetchUser()
-    focusSearchInput(searchInputRef, 0)
-
-    let scanTimeout = null
-
-    const handleGlobalKeyPress = (e) => {
-      const activeElement = document.activeElement
-      const isTypingInInput = activeElement && (
-        activeElement.tagName === 'INPUT' ||
-        activeElement.tagName === 'TEXTAREA' ||
-        activeElement.contentEditable === 'true'
-      )
-      const isInSelectComponent = activeElement && (
-        activeElement.getAttribute('role') === 'combobox' ||
-        activeElement.closest('[role="combobox"]') !== null ||
-        activeElement.closest('[data-radix-select-trigger]') !== null
-      )
-      const isExcludedInput = activeElement && EXCLUDED_INPUT_IDS.includes(activeElement.id)
-      const isSearchInput = activeElement === searchInputRef.current ||
-        (activeElement && activeElement.id === 'unified-search')
-
-      if (isInSelectComponent) return
-      if (isTypingInInput && isExcludedInput) return
-      if (isTypingInInput && isSearchInput) return
-      if (isTypingInInput && !isSearchInput && !isExcludedInput) return
-
-      if (e.key.length === 1 && /[a-zA-Z0-9 ]/.test(e.key) && !isTypingInInput) {
-        if (searchInputRef.current) {
-          searchInputRef.current.focus()
-          const newValue = searchQuery + e.key
-          setSearchQuery(newValue)
-          setShowSearchResults(newValue.length > 0)
-          e.preventDefault()
-          return
-        }
-      }
-
-      const currentTime = Date.now()
-      lastKeyTimeRef.current = currentTime
-
-      if (e.key.length === 1) {
-        barcodeBufferRef.current += e.key
-        if (scanTimeout) clearTimeout(scanTimeout)
-
-        scanTimeout = setTimeout(() => {
-          if (barcodeBufferRef.current.length >= BARCODE_CONFIG.MIN_LENGTH) {
-            const scannedBarcode = barcodeBufferRef.current.trim()
-            barcodeBufferRef.current = ''
-            handleBarcodeFound(scannedBarcode)
-          }
-        }, BARCODE_CONFIG.SCAN_TIMEOUT)
-      }
-
-      if (e.key === 'Enter' && barcodeBufferRef.current.length >= BARCODE_CONFIG.MIN_LENGTH) {
-        if (scanTimeout) clearTimeout(scanTimeout)
-        const scannedBarcode = barcodeBufferRef.current.trim()
-        barcodeBufferRef.current = ''
-        handleBarcodeFound(scannedBarcode)
-        e.preventDefault()
-      }
-    }
-
-    document.addEventListener('keydown', handleGlobalKeyPress)
-
-    return () => {
-      document.removeEventListener('keydown', handleGlobalKeyPress)
-      if (scanTimeout) clearTimeout(scanTimeout)
-    }
-  }, [searchQuery, fetchTransaksi, fetchUser, handleBarcodeFound])
-
-  useEffect(() => {
-    checkAndApplyPromo()
-  }, [checkAndApplyPromo])
-
-const showBarcodeNotFoundAlert = useCallback((searchTerm, inputRef) => {
-  Swal.fire({
-    icon: "error",
-    title: "Kode Barcode Tidak Ditemukan",
-    text: `Kode Barcode ${searchTerm} belum ditambahkan ke daftar produk.`,
-    ...TOAST_CONFIG,
-    timer: 4000,
-    didOpen: (toast) => {
-      toast.addEventListener('mouseenter', Swal.stopTimer)
-      toast.addEventListener('mouseleave', Swal.resumeTimer)
-    },
-    didClose: () => {
-      focusSearchInput(inputRef)
-    }
-  })
-}, [])
-useEffect(() => {
-  let clearTimer = null
-  let isCleanedUp = false
+  const kasir = useKasir()
   
-  const shouldClearInput =
-    showSearchResults &&
-    searchQuery &&
-    searchQuery.trim().length > 0 &&
-    searchResults.length === 0 &&
-    !barcodeBufferRef.current 
-  
-  if (shouldClearInput) {
-    clearTimer = setTimeout(() => {
-      if (isCleanedUp) return
-      
-      const searchTerm = searchQuery.trim()
-      
-      if (searchResults.length === 0 && !barcodeBufferRef.current) {
-        setSearchQuery("")
-        setShowSearchResults(false)
-        showBarcodeNotFoundAlert(searchTerm, searchInputRef)
-      }
-    }, SEARCH_CLEAR_DELAY)
-  }
-  
-  return () => {
-    isCleanedUp = true
-    if (clearTimer) clearTimeout(clearTimer)
-  }
-}, [showSearchResults, searchQuery, searchResults, showBarcodeNotFoundAlert])
+  // Destructure semua values yang diperlukan
+  const {
+    // State
+    showPrint,
+    printData,
+    searchQuery,
+    setSearchQuery,
+    showSearchResults,
+    setShowSearchResults,
+    cart,
+    isProcessing,
+    formData,
+    transaksi,
+    
+    // Refs
+    searchInputRef,
+    
+    // Computed values
+    searchResults,
+    cartSubtotal,
+    total,
+    paymentStatus,
+    
+    // Setters untuk state
+    setShowPrint,
+    setPrintData,
+    
+    // Cart operations
+    addProductToCart,
+    updateQty,
+    removeItem,
+    subtotal,
+    handleChangeSatuan,
+    
+    // Form handlers
+    handleDiskonChange,
+    handleTotalUangChange,
+    
+    // Search handlers
+    handleSearchSelect,
+    
+    // Transaction handlers
+    handleSubmit,
+    
+    // Utility functions
+    getCurrentPrice,
+    getSatuanInfo,
+    formatRupiah,
+    focusSearchInput
+  } = kasir
 
-
-  // ===== RENDER =====
+  // Tampilkan nota pembelian jika showPrint true
   if (showPrint && printData) {
     return (
       <NotaPembelian
@@ -664,465 +80,392 @@ useEffect(() => {
       />
     )
   }
+
   return (
-   <div className="min-h-screen bg-gray-50/50 p-3 sm:p-4">
-  <div className="max-w-6xl mx-auto space-y-4">
-    {/* Header */}
-    <Card className="border-0 shadow-sm">
-      <CardHeader className="pb-3 pt-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-sm">
-            <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+      <div className="max-w-6xl mx-auto space-y-4 md:space-y-6">
+        {/* Header Section */}
+        <Card className="border border-gray-200 bg-white shadow-sm rounded-xl">
+          <CardHeader className="pb-4 pt-5 md:pt-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-gray-900 to-black rounded-2xl flex items-center justify-center shadow-md">
+                <ShoppingCart className="w-7 h-7 md:w-8 md:h-8 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
+                  Kasir Toko IFA
+                </CardTitle>
+                <p className="text-gray-600 mt-1 md:mt-1.5 font-medium">Sistem Point Of Sales</p>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+        
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 md:gap-6">
+          {/* Left Column: Search and Cart */}
+          <div className="md:col-span-3 space-y-4 md:space-y-6">
+            {/* Search Section */}
+            <Card className="border border-gray-200 bg-white rounded-xl shadow-sm">
+              <CardHeader className="pb-4 pt-5">
+                <CardTitle className="flex items-center gap-3 text-xl font-bold text-gray-900">
+                  <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center">
+                    <Scan className="w-5 h-5 text-white" />
+                  </div>
+                  Tambah Produk
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="relative">
+                  <Label htmlFor="unified-search" className="text-base font-semibold text-gray-800 mb-3 block">
+                    Scan Barcode / Cari Produk
+                  </Label>
+                  <div className="relative">
+                    <div className="relative flex items-center">
+                      <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-6 h-6 text-gray-500" />
+                      <Input 
+                        ref={searchInputRef}
+                        id="unified-search"
+                        value={searchQuery}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          setSearchQuery(value)
+                          const exactProduct = transaksi.find(
+                            (p) => p.kode_barang.trim() === value.trim()
+                          )
+                          if (exactProduct && value.length >= 3) {
+                            setTimeout(() => {
+                              handleSearchSelect(exactProduct)
+                            }, 50)
+                            return 
+                          }
+                          setShowSearchResults(value.length > 0)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault()
+                            const product = transaksi.find(
+                              (p) => p.kode_barang.trim() === searchQuery.trim()
+                            )
+                            if (product) {
+                              handleSearchSelect(product)
+                              setSearchQuery("")
+                              setShowSearchResults(false)
+                              return 
+                            }
+                            if (searchResults.length > 0) {
+                              handleSearchSelect(searchResults[0])
+                            }
+                          }
+                          if (e.key === "Escape") {
+                            setShowSearchResults(false)
+                          }
+                        }}
+                        onFocus={() => {
+                          if (searchQuery.length > 0) setShowSearchResults(true)
+                        }}
+                        onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
+                        placeholder="Scan barcode atau ketik nama produk..."
+                        className="pl-12 pr-12 h-14 text-base font-medium w-full border-2 border-gray-300 focus:border-black focus:ring-2 focus:ring-black/20 rounded-xl"
+                        autoComplete="off"
+                      />
+                      {searchQuery && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSearchQuery("")
+                            setShowSearchResults(false)
+                            if (searchInputRef.current) {
+                              searchInputRef.current.focus()
+                            }
+                          }}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 h-10 w-10 p-0 hover:bg-gray-100"
+                        >
+                          <X className="w-5 h-5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {showSearchResults && searchResults.length > 0 && (
+                    <Card className="absolute top-full left-0 right-0 z-50 mt-2 max-h-80 overflow-auto shadow-2xl border border-gray-300 rounded-xl">
+                      <CardContent className="p-0">
+                        {searchResults.map((product, index) => (
+                          <button
+                            key={product.kode_barang}
+                            onClick={() => {
+                              handleSearchSelect(product)
+                              setSearchQuery("")
+                              setShowSearchResults(false)
+                            }}
+                            className={`w-full text-left p-4 hover:bg-gray-50 border-b border-gray-200 last:border-b-0 transition-colors ${
+                              index === 0 ? 'bg-black/5' : ''
+                            }`}
+                          >
+                            <div className="flex justify-between items-center gap-3">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-gray-900 text-base truncate">{product.nama_barang}</p>
+                                <div className="flex items-center gap-3 mt-2">
+                                  <Badge variant="secondary" className="bg-gray-900 text-white text-xs font-semibold">
+                                    {product.kode_barang}
+                                  </Badge>
+                                  <span className="text-sm text-gray-600">
+                                    Rp {product.harga.toLocaleString()} / {product.satuan}
+                                  </span>
+                                </div>
+                              </div>
+                              <Badge
+                                variant={product.stok > 10 ? "default" : "destructive"}
+                                className="ml-2 text-xs font-bold bg-gray-900 text-white"
+                              >
+                                {product.stok}
+                              </Badge>
+                            </div>
+                          </button>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Cart Section */}
+            <Card className="border border-gray-200 bg-white rounded-xl shadow-sm">
+              <CardHeader className="pb-4 pt-5">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-3 text-xl font-bold text-gray-900">
+                    <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center">
+                      <ShoppingCart className="w-5 h-5 text-white" />
+                    </div>
+                    Keranjang Belanja
+                  </CardTitle>
+                  {cart.length > 0 && (
+                    <Badge variant="secondary" className="bg-gray-900 text-white px-3 py-1.5 text-sm font-bold">
+                      {cart.length} item
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+              
+              <CardContent>
+                {cart.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <ShoppingCart className="w-10 h-10 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">Keranjang masih kosong</h3>
+                    <p className="text-gray-600">Scan barcode atau cari produk untuk menambah item</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {cart.map((item) => (
+                      <Card key={item.kode_barang} className="border-2 border-gray-200 rounded-xl bg-white">
+                        <CardContent className="p-4">
+                          <div className="space-y-4">
+                            {/* Product Info */}
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-bold text-base text-gray-900 truncate">{item.nama_barang}</h3>
+                                <div className="flex items-center gap-3 mt-2">
+                                  <Badge variant="outline" className="border-gray-300 text-gray-700 text-xs font-semibold">
+                                    {item.kode_barang}
+                                  </Badge>
+                                  <span className="text-sm text-gray-600">
+                                    Rp {getCurrentPrice(item).toLocaleString()} / {item.satuan_terpilih || item.satuan}
+                                  </span>
+                                </div>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeItem(item.kode_barang)}
+                                className="text-gray-700 hover:text-black hover:bg-gray-100 h-10 w-10 p-0 rounded-lg flex-shrink-0"
+                              >
+                                <Trash2 className="w-5 h-5" />
+                              </Button>
+                            </div>
+
+                            {/* Controls */}
+                            <div className="grid grid-cols-3 gap-4 items-center">
+                              <div className="flex flex-col gap-1.5">
+                                <Label className="text-xs font-semibold text-gray-700">Satuan</Label>
+                                <Select
+                                  value={item.satuan_terpilih || "satuan"}
+                                  onValueChange={(value) => handleChangeSatuan(item.kode_barang, value)}
+                                >
+                                  <SelectTrigger className="h-10 w-full border-2 border-gray-300 rounded-lg text-sm font-medium">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="border-2 border-gray-300 rounded-lg">
+                                    <SelectItem value="satuan">Satuan</SelectItem>
+                                    {item.harga_renteng && (
+                                      <SelectItem value="renteng">Renteng</SelectItem>
+                                    )}
+                                    {item.harga_renteng && (
+                                      <SelectItem value="Dus">Dus</SelectItem>
+                                    )}
+                                    {item.harga_renteng && (
+                                      <SelectItem value="pack">Pack</SelectItem>
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div className="flex items-center justify-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => updateQty(item.kode_barang, item.jumlah - 1)}
+                                  className="h-10 w-10 p-0 border-2 border-gray-300 rounded-lg hover:bg-gray-50"
+                                >
+                                  <Minus className="w-4 h-4" />
+                                </Button>
+                                <Input
+                                  type="number"
+                                  value={item.jumlah}
+                                  onChange={(e) => updateQty(item.kode_barang, Math.max(1, Number(e.target.value)))}
+                                  className="w-16 h-10 text-center border-2 border-gray-300 rounded-lg text-base font-bold"
+                                  min="1"
+                                />
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => updateQty(item.kode_barang, item.jumlah + 1)}
+                                  className="h-10 w-10 p-0 border-2 border-gray-300 rounded-lg hover:bg-gray-50"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </Button>
+                              </div>
+
+                              <div className="text-right">
+                                <div className="font-black text-base text-gray-900">
+                                  Rp {subtotal(item).toLocaleString()}
+                                </div>
+                                {item.satuan_terpilih && item.satuan_terpilih !== "satuan" && (
+                                  <div className="text-xs text-gray-600 truncate mt-1">
+                                    {getSatuanInfo(item)}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
-          <div>
-            <CardTitle className="text-xl sm:text-2xl font-bold text-gray-900">Kasir Toko IFA</CardTitle>
-            <p className="text-sm sm:text-base text-gray-600 mt-0.5">Sistem Point Of Sales</p>
+          
+          {/* Right Column: Order Summary */}
+          <div className="md:col-span-2 space-y-4 md:space-y-6">
+            <Card className="border border-gray-200 bg-white rounded-xl shadow-sm">
+              <CardHeader className="pb-4 pt-5">
+                <CardTitle className="text-xl font-bold text-gray-900">Ringkasan Pesanan</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-gray-700 font-medium">Subtotal ({cart.length} item)</span>
+                    <span className="font-bold text-gray-900">
+                      Rp {cartSubtotal.toLocaleString()}
+                    </span>
+                  </div>
+                  {formData.diskon && (
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-gray-700 font-medium">Diskon</span>
+                      <span className="font-bold text-red-600">
+                        -{formatRupiah(parseRupiah(formData.diskon))} {/* GUNAKAN parseRupiah */}
+                      </span>
+                    </div>
+                  )}
+                  <Separator className="bg-gray-300" />
+                  <div className="flex justify-between items-center py-3">
+                    <span className="text-lg font-black text-gray-900">Total</span>
+                    <span className="text-2xl md:text-3xl font-black text-gray-900">
+                      Rp {total.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-4">        
+                  <div>
+                    <Label htmlFor="diskon" className="text-base font-semibold text-gray-800 mb-2 block">
+                      Potongan Harga (Otomatis)
+                    </Label>
+                    <Input 
+                      id="diskon"
+                      type="text" 
+                      name="diskon" 
+                      value={formData.diskon} 
+                      onChange={handleDiskonChange}
+                      placeholder="Diskon otomatis dari promo"
+                      className="h-12 text-base border-2 border-gray-300 focus:border-black focus:ring-2 focus:ring-black/20 rounded-lg" 
+                      autoComplete="off"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="total_uang" className="text-base font-semibold text-gray-800 mb-2 block">
+                      Total Uang (Opsional)
+                    </Label>
+                    <Input 
+                      id="total_uang"
+                      type="text" 
+                      name="total_uang" 
+                      value={formData.total_uang} 
+                      onChange={handleTotalUangChange}
+                      placeholder="Masukkan total uang yang dibayar"
+                      className="h-12 text-base border-2 border-gray-300 focus:border-black focus:ring-2 focus:ring-black/20 rounded-lg"
+                      autoComplete="off"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="kembalian" className="text-base font-semibold text-gray-800 mb-2 block">
+                      Kembalian
+                    </Label>
+                    <div className={`h-16 rounded-xl border-2 flex items-center justify-between px-5 transition-all ${
+                      formData.kembalian > 0 
+                        ? 'bg-gray-900 text-white border-gray-900' 
+                        : 'bg-gray-100 border-gray-300 text-gray-600'
+                    }`}>
+                      <span className="text-base font-semibold">Rp</span>
+                      <span className={`text-2xl font-black ${
+                        formData.kembalian > 0 ? 'text-white' : 'text-gray-500'
+                      }`}>
+                        {formData.kembalian.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {formData.total_uang && (
+                    <div className={`text-base p-4 rounded-xl font-semibold border-2 ${
+                      paymentStatus.status === 'insufficient' ? 'bg-red-50 text-red-800 border-red-300' :
+                      paymentStatus.status === 'overpaid' ? 'bg-green-50 text-green-800 border-green-300' :
+                      'bg-gray-900 text-white border-gray-900'
+                    }`}>
+                      {paymentStatus.message}
+                    </div>
+                  )}
+                </div>
+
+                <Button 
+                  onClick={handleSubmit}
+                  disabled={cart.length === 0 || isProcessing}
+                  className="w-full h-14 text-base font-black bg-gray-900 hover:bg-black text-white rounded-xl border-2 border-gray-900 hover:border-black shadow-md"
+                  size="lg"
+                >
+                  <CreditCard className="w-6 h-6 mr-3" />
+                  {isProcessing ? 'Memproses...' : 'PROSES TRANSAKSI'}
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </div>
-      </CardHeader>
-    </Card>
-
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-      {/* Left Section - Products & Cart */}
-      <div className="lg:col-span-3 space-y-4">
-        {/* Search Section */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <Scan className="w-4 h-4 sm:w-5 sm:h-5" />
-              Tambah Produk
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="relative">
-              <Label htmlFor="unified-search" className="text-base sm:text-lg font-medium text-gray-700 mb-2 block">
-                Scan Barcode / Cari Produk
-              </Label>
-              <div className="relative flex gap-2">
-                <Input 
-                  ref={searchInputRef}
-                  id="unified-search"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    setSearchQuery(value)
-                    const exactProduct = transaksi.find(
-                      (p) => p.kode_barang.trim() === value.trim()
-                    )
-
-                    if (exactProduct && value.length >= 3) {
-                      setTimeout(() => {
-                        if (searchQuery === value) {
-                          handleSearchSelect(exactProduct)
-                          return
-                        }
-                      }, 50)
-                      return 
-                    }
-                    setShowSearchResults(value.length > 0)
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault()
-                      const product = transaksi.find(
-                        (p) => p.kode_barang.trim() === searchQuery.trim()
-                      )
-                      if (product) {
-                        handleSearchSelect(product)
-                        setSearchQuery("")
-                        setShowSearchResults(false)
-                        return 
-                      }
-                      if (searchResults.length > 0) {
-                        handleSearchSelect(searchResults[0])
-                      }
-                    }
-                    
-                    if (e.key === "Escape") {
-                      setShowSearchResults(false)
-                    }
-                  }}
-                  onFocus={() => {
-                    if (searchQuery.length > 0) setShowSearchResults(true)
-                  }}
-                  onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
-                  placeholder="Scan barcode atau ketik nama produk..."
-                  className="pl-10 sm:pl-12 pr-10 sm:pr-12 h-12 sm:h-14 text-base sm:text-lg font-medium w-full"
-                  autoComplete="off"
-                />
-
-                <Search className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 sm:w-6 sm:h-6 text-gray-400" />
-                {searchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSearchQuery("")
-                      setShowSearchResults(false)
-                      if (searchInputRef.current) {
-                        searchInputRef.current.focus()
-                      }
-                    }}
-                    className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 h-8 sm:h-10 w-8 sm:w-10 p-0"
-                  >
-                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </Button>
-                )}
-              </div>
-
-              {showSearchResults && searchResults.length > 0 && (
-                <Card className="absolute top-full left-0 right-0 z-50 mt-1 max-h-56 sm:max-h-64 overflow-auto shadow-lg">
-                  <CardContent className="p-0">
-                    {searchResults.map((product, index) => (
-                      <button
-                        key={product.kode_barang}
-                        onClick={() => {
-                          handleSearchSelect(product)
-                          setSearchQuery("")
-                          setShowSearchResults(false)
-                        }}
-                        className={`w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors ${
-                          index === 0 ? 'bg-blue-50' : ''
-                        }`}
-                      >
-                        <div className="flex justify-between items-start gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm sm:text-base text-gray-900 truncate">{product.nama_barang}</p>
-                            <div className="flex items-center gap-2 mt-1 flex-wrap">
-                              <Badge variant="secondary" className="text-xs">
-                                {product.kode_barang}
-                              </Badge>
-                              <span className="text-xs sm:text-sm text-gray-500">
-                                Rp {product.harga.toLocaleString()} / {product.satuan}
-                              </span>
-                            </div>
-                          </div>
-                          <Badge
-                            variant={product.stok > 10 ? "default" : "destructive"}
-                            className="ml-2 text-xs"
-                          >
-                            {product.stok}
-                          </Badge>
-                        </div>
-                      </button>
-                    ))}
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Cart Section */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
-              Keranjang Belanja
-              {cart.length > 0 && (
-                <Badge variant="secondary" className="ml-2 text-xs">
-                  {cart.length} item
-                </Badge>
-              )}
-            </CardTitle>
-          </CardHeader>
-          
-          <CardContent>
-            {cart.length === 0 ? (
-              <div className="text-center py-8 sm:py-12">
-                <ShoppingCart className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
-                <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Keranjang masih kosong</h3>
-                <p className="text-sm sm:text-base text-gray-500">Scan barcode atau cari produk untuk menambah item</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {cart.map((item) => (
-                  <Card key={item.kode_barang} className="border border-gray-200">
-                    <CardContent className="p-3">
-                      <div className="space-y-3">
-                        {/* Product Info */}
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-sm sm:text-base text-gray-900 truncate">{item.nama_barang}</h3>
-                            <div className="flex items-center gap-2 mt-1 flex-wrap">
-                              <Badge variant="outline" className="text-xs">
-                                {item.kode_barang}
-                              </Badge>
-                              <span className="text-xs sm:text-sm text-gray-600">
-                                Rp {getCurrentPrice(item).toLocaleString()} / {item.satuan_terpilih || item.satuan}
-                              </span>
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeItem(item.kode_barang)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0 flex-shrink-0"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-
-                        {/* Controls */}
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex flex-col gap-1">
-                            <Label className="text-xs text-gray-500">Satuan</Label>
-                            <Select
-                              value={item.satuan_terpilih || "satuan"}
-                              onValueChange={(value) => handleChangeSatuan(item.kode_barang, value)}
-                            >
-                              <SelectTrigger className="w-20 sm:w-24 h-8 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="satuan">Satuan</SelectItem>
-                                {item.harga_renteng && (
-                                  <SelectItem value="renteng">Renteng</SelectItem>
-                                )}
-                                {item.harga_renteng && (
-                                  <SelectItem value="Dus">Dus</SelectItem>
-                                )}
-                                {item.harga_renteng && (
-                                  <SelectItem value="pack">Pack</SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateQty(item.kode_barang, item.jumlah - 1)}
-                              className="h-8 w-8 sm:h-9 sm:w-9 p-0"
-                            >
-                              <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
-                            </Button>
-                            <Input
-                              type="number"
-                              value={item.jumlah}
-                              onChange={(e) => updateQty(item.kode_barang, Math.max(1, Number(e.target.value)))}
-                              className="w-14 sm:w-16 text-center h-8 sm:h-9 px-2 text-sm"
-                              min="1"
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateQty(item.kode_barang, item.jumlah + 1)}
-                              className="h-8 w-8 sm:h-9 sm:w-9 p-0"
-                            >
-                              <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-                            </Button>
-                          </div>
-
-                          <div className="text-right min-w-0">
-                            <div className="font-bold text-sm sm:text-base text-gray-900">
-                              Rp {subtotal(item).toLocaleString()}
-                            </div>
-                            {item.satuan_terpilih && item.satuan_terpilih !== "satuan" && (
-                              <div className="text-xs text-blue-600 truncate">
-                                {getSatuanInfo(item)}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-      
-      {/* Right Section - Summary & Payment */}
-      <div className="lg:col-span-2 space-y-4">
-        {/* Order Summary */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base sm:text-lg">Ringkasan Pesanan</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2.5">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Subtotal ({cart.length} item)</span>
-                <span className="font-medium">
-                  Rp {cartSubtotal.toLocaleString()}
-                </span>
-              </div>
-              {formData.diskon && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Diskon</span>
-                  <span className="font-medium text-green-600">
-                    -{formatRupiah(parseRupiah(formData.diskon))}
-                  </span>
-                </div>
-              )}
-              <Separator />
-              <div className="flex justify-between items-center">
-                <span className="text-base sm:text-lg font-semibold text-gray-900">Total</span>
-                <span className="text-xl sm:text-2xl font-bold text-blue-600">
-                  Rp {total.toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-3">        
-              <div>
-                <Label htmlFor="diskon" className="text-sm sm:text-base font-medium">Potongan Harga (Otomatis)</Label>
-                <Input 
-                  id="diskon"
-                  type="text" 
-                  name="diskon" 
-                  value={formData.diskon} 
-                  onChange={handleDiskonChange}
-                  onBlur={() => {
-                    setTimeout(() => {
-                      if (searchInputRef.current) {
-                        searchInputRef.current.focus()
-                      }
-                    }, 100)
-                  }}
-                  placeholder="Diskon otomatis dari promo"
-                  className="mt-1.5 h-10 sm:h-12 text-sm sm:text-base" 
-                  autoComplete="off"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="total_uang" className="text-sm sm:text-base font-medium">Total Uang (Opsional)</Label>
-                <Input 
-                  id="total_uang"
-                  type="text" 
-                  name="total_uang" 
-                  value={formData.total_uang} 
-                  onChange={handleTotalUangChange}
-                  onBlur={() => {
-                    setTimeout(() => {
-                      if (searchInputRef.current) {
-                        searchInputRef.current.focus()
-                      }
-                    }, 100)
-                  }}
-                  placeholder="Masukkan total uang yang dibayar"
-                  className="mt-1.5 h-10 sm:h-12 text-sm sm:text-base"
-                  autoComplete="off"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="kembalian" className="text-sm sm:text-base font-medium text-gray-700">Kembalian</Label>
-                <div className={`mt-1.5 h-14 sm:h-16 rounded-lg border-2 flex items-center justify-between px-4 transition-all ${
-                  formData.kembalian > 0 
-                    ? 'bg-green-50 border-green-300' 
-                    : 'bg-gray-50 border-gray-200'
-                }`}>
-                  <span className="text-xs sm:text-sm font-medium text-gray-600">Rp</span>
-                  <span className={`text-2xl sm:text-3xl font-bold ${
-                    formData.kembalian > 0 ? 'text-green-600' : 'text-gray-400'
-                  }`}>
-                    {formData.kembalian.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              {formData.total_uang && (
-                <div className={`text-sm sm:text-base p-3 sm:p-4 rounded-lg font-medium ${
-                  paymentStatus.status === 'insufficient' ? 'bg-red-100 text-red-700 border-2 border-red-300' :
-                  paymentStatus.status === 'overpaid' ? 'bg-green-100 text-green-700 border-2 border-green-300' :
-                  'bg-blue-100 text-blue-700 border-2 border-blue-300'
-                }`}>
-                  {paymentStatus.message}
-                </div>
-              )}
-            </div>
-
-            <Button 
-              onClick={handleSubmit}
-              disabled={cart.length === 0 || isProcessing}
-              className="w-full h-12 sm:h-14 text-base sm:text-lg font-semibold"
-              size="lg"
-            >
-              <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
-              {isProcessing ? 'Memproses...' : 'Proses Transaksi'}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader className="pb-2.5">
-            <CardTitle className="text-sm sm:text-base">Aksi Cepat</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Button 
-              variant="outline"
-              onClick={() => {
-                if (cart.length === 0) return
-                
-                if (confirm('Semua item dalam keranjang akan dihapus. Apakah Anda yakin?')) {
-                  setCart([])
-                  setFormData({
-                    produk_id: '',
-                    jumlah_terjual_per_hari: '',
-                    diskon: '',
-                    total_uang: '',
-                    kembalian: 0
-                  })
-                  Swal.fire({
-                    title: "Berhasil",
-                    text: "Keranjang berhasil dikosongkan",
-                    icon: "success",
-                    toast: true,
-                    position: "top-end",
-                    showConfirmButton: false,
-                    timer: 3000
-                  })
-                  setTimeout(() => {
-                    if (searchInputRef.current) {
-                      searchInputRef.current.focus()
-                    }
-                  }, 100)
-                }
-              }}
-              disabled={cart.length === 0}
-              className="w-full h-9 sm:h-10 text-sm"
-            >
-              Kosongkan Keranjang
-            </Button>
-            
-            <Button 
-              variant="outline"
-              onClick={() => {
-                setScan('')
-                setSearchQuery('')
-                setShowSearchResults(false)
-                if (searchInputRef.current) {
-                  searchInputRef.current.focus()
-                }
-              }}
-              className="w-full h-9 sm:h-10 text-sm"
-            >
-              Reset Scanner & Pencarian
-            </Button>
-
-            <Button 
-              variant="outline"
-              onClick={() => {
-                if (searchInputRef.current) {
-                  searchInputRef.current.focus()
-                }
-              }}
-              className="w-full h-9 sm:h-10 text-sm"
-            >
-              Focus ke Scanner
-            </Button>
-          </CardContent>
-        </Card>
       </div>
     </div>
-  </div>
-</div>
   )
 }
