@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import NotaPembelian from '../Kasir/NotaPembelian'
 import { useKasir } from '@/hooks/useKasir'
-import { parseRupiah } from '@/utils/kasirUtils' // IMPORT parseRupiah
+import { parseRupiah } from '@/utils/kasirUtils' 
 
 /**
  * Komponen utama untuk halaman Kasir
@@ -422,34 +422,63 @@ export default function ListKasir() {
                       autoComplete="off"
                     />
                   </div>
-
-                  <div>
-                    <Label htmlFor="kembalian" className="text-base font-semibold text-gray-800 mb-2 block">
-                      Kembalian
-                    </Label>
-                    <div className={`h-16 rounded-xl border-2 flex items-center justify-between px-5 transition-all ${
-                      formData.kembalian > 0 
-                        ? 'bg-gray-900 text-white border-gray-900' 
-                        : 'bg-gray-100 border-gray-300 text-gray-600'
-                    }`}>
-                      <span className="text-base font-semibold">Rp</span>
-                      <span className={`text-2xl font-black ${
-                        formData.kembalian > 0 ? 'text-white' : 'text-gray-500'
-                      }`}>
-                        {formData.kembalian.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-
                   {formData.total_uang && (
-                    <div className={`text-base p-4 rounded-xl font-semibold border-2 ${
-                      paymentStatus.status === 'insufficient' ? 'bg-red-50 text-red-800 border-red-300' :
-                      paymentStatus.status === 'overpaid' ? 'bg-green-50 text-green-800 border-green-300' :
-                      'bg-gray-900 text-white border-gray-900'
-                    }`}>
-                      {paymentStatus.message}
-                    </div>
-                  )}
+  <div className={`rounded-xl p-4 shadow-sm transition-all duration-300 ${
+    paymentStatus.status === 'insufficient' 
+      ? 'bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-red-500' 
+      : paymentStatus.status === 'overpaid' 
+      ? 'bg-gradient-to-r from-emerald-50 to-green-100 border-l-4 border-emerald-500'
+      : paymentStatus.status === 'exact'
+      ? 'bg-gradient-to-r from-blue-50 to-indigo-100 border-l-4 border-blue-500'
+      : 'bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-500'
+  }`}>
+    <div className="flex items-center gap-3">
+      <div className={`p-2 rounded-lg ${
+        paymentStatus.status === 'insufficient' ? 'bg-red-100' :
+        paymentStatus.status === 'overpaid' ? 'bg-emerald-100' :
+        paymentStatus.status === 'exact' ? 'bg-blue-100' :
+        'bg-gray-100'
+      }`}>
+        {paymentStatus.status === 'insufficient' && (
+          <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )}
+        {paymentStatus.status === 'overpaid' && (
+          <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )}
+        {paymentStatus.status === 'exact' && (
+          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        )}
+        {paymentStatus.status === 'empty' && (
+          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )}
+      </div>
+      <div>
+        <p className={`font-semibold text-sm mb-1 ${
+          paymentStatus.status === 'insufficient' ? 'text-red-700' :
+          paymentStatus.status === 'overpaid' ? 'text-emerald-700' :
+          paymentStatus.status === 'exact' ? 'text-blue-700' :
+          'text-gray-700'
+        }`}>
+          {paymentStatus.status === 'insufficient' ? 'Uang Kurang' :
+           paymentStatus.status === 'overpaid' ? 'Uang Kembalian' :
+           paymentStatus.status === 'exact' ? 'Uang Pas' :
+           'Status Pembayaran'}
+        </p>
+        <p className="text-lg font-bold text-gray-900">
+          {paymentStatus.message}
+        </p>
+      </div>
+    </div>
+  </div>
+)}
                 </div>
 
                 <Button 

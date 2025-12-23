@@ -12,7 +12,7 @@ import {
   PAYMENT_STATUS,
   BARCODE_CONFIG,
   EXCLUDED_INPUT_IDS,
-  SEARCH_CLEAR_DELAY, // TAMBAHKAN INI
+  SEARCH_CLEAR_DELAY,
   TOAST_CONFIG
 } from '@/utils/kasirUtils'
 import { searchProducts } from '@/utils/searchUtils'
@@ -46,6 +46,11 @@ export const useKasir = () => {
   const barcodeBufferRef = useRef('')
   const lastKeyTimeRef = useRef(0)
   const transaksiRef = useRef([])
+  
+  // TAMBAHAN: Refs untuk debounce barcode scanner
+  const lastScannedBarcodeRef = useRef('')
+  const lastScannedTimeRef = useRef(0)
+  const BARCODE_DEBOUNCE_TIME = 500 // 500ms untuk mencegah scan ganda
 
   // ===== UTILITY FUNCTIONS =====
 
@@ -350,9 +355,25 @@ export const useKasir = () => {
 
   /**
    * Handler ketika barcode ditemukan
+   * DIPERBAIKI: Menambahkan debounce untuk mencegah scan ganda
    * @param {string} barcode - Barcode yang discan
    */
   const handleBarcodeFound = useCallback((barcode) => {
+    const currentTime = Date.now()
+    
+    // Cek apakah barcode yang sama di-scan dalam waktu dekat (debounce)
+    if (
+      lastScannedBarcodeRef.current === barcode &&
+      currentTime - lastScannedTimeRef.current < BARCODE_DEBOUNCE_TIME
+    ) {
+      console.log('Duplicate barcode scan ignored:', barcode)
+      return // Abaikan scan duplikat
+    }
+    
+    // Update tracking untuk barcode terakhir yang di-scan
+    lastScannedBarcodeRef.current = barcode
+    lastScannedTimeRef.current = currentTime
+    
     const product = transaksiRef.current.find(p =>
       p.kode_barang.trim().toLowerCase() === barcode.toLowerCase()
     )
