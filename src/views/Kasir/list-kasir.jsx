@@ -366,10 +366,13 @@ export default function ListKasir() {
                                           <SelectItem value="renteng">Renteng</SelectItem>
                                         )}
                                         {item.harga_renteng && (
-                                          <SelectItem value="Dus">Dus</SelectItem>
+                                          <SelectItem value="dus">Dus</SelectItem>
                                         )}
                                         {item.harga_renteng && (
                                           <SelectItem value="pack">Pack</SelectItem>
+                                        )}
+                                          {item.harga_renteng && (
+                                          <SelectItem value="penjual_gas">Penjual Gas</SelectItem>
                                         )}
                                       </SelectContent>
                                     </Select>
@@ -545,58 +548,61 @@ export default function ListKasir() {
                 
                 {/* Payment Status */}
                 {formData.total_uang && (
-                  <div className={`rounded-lg p-4 transition-all duration-200 ${
-                    paymentStatus.status === 'insufficient' 
-                      ? 'bg-red-50 border border-red-200' 
-                      : paymentStatus.status === 'overpaid' 
-                      ? 'bg-emerald-50 border border-emerald-200'
-                      : paymentStatus.status === 'exact'
-                      ? 'bg-blue-50 border border-blue-200'
-                      : 'bg-gray-50 border border-gray-200'
-                  }`}>
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${
-                        paymentStatus.status === 'insufficient' ? 'bg-red-100' :
-                        paymentStatus.status === 'overpaid' ? 'bg-emerald-100' :
-                        paymentStatus.status === 'exact' ? 'bg-blue-100' :
-                        'bg-gray-100'
-                      }`}>
-                        {paymentStatus.status === 'insufficient' && (
-                          <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        )}
-                        {paymentStatus.status === 'overpaid' && (
-                          <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        )}
-                        {paymentStatus.status === 'exact' && (
-                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <p className={`font-semibold mb-1 ${
-                          paymentStatus.status === 'insufficient' ? 'text-red-700' :
-                          paymentStatus.status === 'overpaid' ? 'text-emerald-700' :
-                          paymentStatus.status === 'exact' ? 'text-blue-700' :
-                          'text-gray-700'
-                        } ${isTablet ? 'text-xs' : 'text-sm'}`}>
-                          {paymentStatus.status === 'insufficient' ? 'Uang Kurang' :
-                          paymentStatus.status === 'overpaid' ? 'Uang Kembalian' :
-                          paymentStatus.status === 'exact' ? 'Uang Pas' :
-                          'Status Pembayaran'}
-                        </p>
-                        <p className={`font-bold text-gray-900 ${
-                          isTablet ? 'text-lg' : 'text-xl'
-                        }`}>
-                          {paymentStatus.message}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                  <div className={`rounded-xl p-4 shadow-sm transition-all duration-300 ${
+    paymentStatus.status === 'insufficient' 
+      ? 'bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-red-500' 
+      : paymentStatus.status === 'overpaid' 
+      ? 'bg-gradient-to-r from-emerald-50 to-green-100 border-l-4 border-emerald-500'
+      : paymentStatus.status === 'exact'
+      ? 'bg-gradient-to-r from-blue-50 to-indigo-100 border-l-4 border-blue-500'
+      : 'bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-500'
+  }`}>
+    <div className="flex items-center gap-3">
+      <div className={`p-2 rounded-lg ${
+        paymentStatus.status === 'insufficient' ? 'bg-red-100' :
+        paymentStatus.status === 'overpaid' ? 'bg-emerald-100' :
+        paymentStatus.status === 'exact' ? 'bg-blue-100' :
+        'bg-gray-100'
+      }`}>
+        {paymentStatus.status === 'insufficient' && (
+          <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )}
+        {paymentStatus.status === 'overpaid' && (
+          <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )}
+        {paymentStatus.status === 'exact' && (
+          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        )}
+        {paymentStatus.status === 'empty' && (
+          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )}
+      </div>
+      <div>
+        <p className={`font-semibold text-sm mb-1 ${
+          paymentStatus.status === 'insufficient' ? 'text-red-700' :
+          paymentStatus.status === 'overpaid' ? 'text-emerald-700' :
+          paymentStatus.status === 'exact' ? 'text-blue-700' :
+          'text-gray-700'
+        }`}>
+          {paymentStatus.status === 'insufficient' ? 'Uang Kurang' :
+           paymentStatus.status === 'overpaid' ? 'Uang Kembalian' :
+           paymentStatus.status === 'exact' ? 'Uang Pas' :
+           'Status Pembayaran'}
+        </p>
+        <p className="text-lg font-bold text-gray-900">
+          {paymentStatus.message}
+        </p>
+      </div>
+    </div>
+  </div>
                 )}
                 
                 {/* Submit Button Section */}

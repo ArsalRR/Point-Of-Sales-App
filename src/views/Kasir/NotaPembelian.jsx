@@ -1,16 +1,21 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 
 const NotaPembelian = ({ transactionData, onClose }) => {
+  const hasPrinted = useRef(false)
   useEffect(() => {
+    if (hasPrinted.current) return
+    
     const timer = setTimeout(() => {
       window.print()
+      hasPrinted.current = true
+      
       setTimeout(() => {
         onClose()
       }, 300)
     }, 100)
 
     return () => clearTimeout(timer)
-  }, [onClose])
+  }, [])
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("id-ID").format(amount)
@@ -27,7 +32,6 @@ const NotaPembelian = ({ transactionData, onClose }) => {
   return (
     <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
       <div className="w-full max-w-sm mx-auto p-4">
-        {/* Print styles sesuai template */}
         <style jsx>{`
           * {
             font-size: 12px;
