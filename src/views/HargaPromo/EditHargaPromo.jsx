@@ -9,9 +9,11 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import Swal from "sweetalert2"
 import AsyncSelect from "react-select/async"
+import CreatableSelect from "react-select/creatable"
 import { getProduk } from "@/api/Produkapi"
-import { editHargaPromo, getHargaPromoById,  } from "@/api/HargaPromoapi"
-import { Tag, PackageOpen, Percent, ArrowLeft, Loader2 } from "lucide-react"
+import { editHargaPromo, getHargaPromoById, getHargaPromo } from "@/api/HargaPromoapi"
+import { Tag, PackageOpen, Percent, ArrowLeft, Loader2, FolderOpen } from "lucide-react"
+
 const formatCurrency = (value) => {
   const numericValue = String(value).replace(/[^0-9]/g, "")
   if (!numericValue) return ""
@@ -23,7 +25,6 @@ const parseCurrency = (value) => {
   return parseInt(String(value)?.replace(/[^0-9]/g, "") || "0", 10)
 }
 
-// Validasi Yup
 const schema = yup.object().shape({
   produk_id: yup.array().min(1, "Pilih minimal 1 produk"),
   min_qty: yup
@@ -33,6 +34,7 @@ const schema = yup.object().shape({
     .integer("Minimal qty harus bilangan bulat")
     .required("Minimal qty wajib diisi"),
   potongan_harga: yup.string().required("Potongan harga wajib diisi"),
+  kat_promo: yup.string().nullable(),
 })
 
 export default function EditHargaPromo() {
@@ -42,6 +44,7 @@ export default function EditHargaPromo() {
   const [formattedHarga, setFormattedHarga] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isFetchingData, setIsFetchingData] = useState(true)
+  const [katPromoOptions, setKatPromoOptions] = useState([])
   const produkCacheRef = useRef([])
   const isFetchingRef = useRef(false)
 
@@ -57,10 +60,10 @@ export default function EditHargaPromo() {
       produk_id: [],
       min_qty: "",
       potongan_harga: "",
+      kat_promo: null,
     },
   })
 
-  // Custom styles untuk react-select
   const customSelectStyles = {
     control: (base, state) => ({
       ...base,
@@ -115,6 +118,7 @@ export default function EditHargaPromo() {
       },
     }),
   }
+
   useEffect(() => {
     const fetchAllProduk = async () => {
       if (isFetchingRef.current || produkCacheRef.current.length > 0) return
@@ -130,6 +134,35 @@ export default function EditHargaPromo() {
           dataArray = res.data
         } else if (res?.data?.data && Array.isArray(res.data.data)) {
           dataArray = res.data.data
+        }
+
+        // Fetch existing promos to get kat_promo options
+        try {
+          const promoRes = await getHargaPromo()
+          let promoData = []
+          if (Array.isArray(promoRes)) {
+            promoData = promoRes
+          } else if (promoRes?.data && Array.isArray(promoRes.data)) {
+            promoData = promoRes.data
+          } else if (promoRes?.data?.data && Array.isArray(promoRes.data.data)) {
+            promoData = promoRes.data.data
+          }
+
+          // Extract unique kat_promo
+          const uniqueKatPromo = [...new Set(
+            promoData
+              .map(promo => promo.kat_promo)
+              .filter(kat => kat && kat.trim() !== "")
+          )]
+          
+          const katPromoOpts = uniqueKatPromo.map(kat => ({
+            value: kat,
+            label: kat
+          }))
+          
+          setKatPromoOptions(katPromoOpts)
+        } catch (error) {
+          console.error("Error fetching promo for kategori:", error)
         }
         
         if (dataArray.length > 0) {
@@ -158,6 +191,7 @@ export default function EditHargaPromo() {
     
     fetchAllProduk()
   }, [])
+
   useEffect(() => {
     const fetchHargaPromo = async () => {
       if (!id) {
@@ -179,9 +213,16 @@ export default function EditHargaPromo() {
 
         if (data) {
           setValue("min_qty", data.min_qty)
+          
           const formatted = formatCurrency(String(data.potongan_harga))
           setFormattedHarga(formatted)
           setValue("potongan_harga", formatted)
+
+          // Set kat_promo
+          if (data.kat_promo) {
+            setValue("kat_promo", data.kat_promo)
+          }
+
           const waitForCache = setInterval(() => {
             if (produkCacheRef.current.length > 0) {
               clearInterval(waitForCache)
@@ -214,6 +255,7 @@ export default function EditHargaPromo() {
 
     fetchHargaPromo()
   }, [id, setValue, navigate])
+
   const loadOptions = (inputValue, callback) => {
     if (produkCacheRef.current.length === 0) {
       setTimeout(() => callback([]), 100)
@@ -238,6 +280,7 @@ export default function EditHargaPromo() {
       produk_id: data.produk_id.map((p) => p.value),
       min_qty: Number(data.min_qty),
       potongan_harga: parseCurrency(data.potongan_harga),
+      kat_promo: data.kat_promo || null,
     }
 
     setIsLoading(true)
@@ -247,7 +290,10 @@ export default function EditHargaPromo() {
         icon: "success",
         title: "Berhasil!",
         text: "Harga promo berhasil diperbarui",
-        confirmButtonColor: "#000",
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: 3000,
       }).then(() => navigate("/hargapromo"))
     } catch (error) {
       console.error("Gagal update promo:", error)
@@ -261,6 +307,7 @@ export default function EditHargaPromo() {
       setIsLoading(false)
     }
   }
+
   if (isFetchingData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -275,7 +322,6 @@ export default function EditHargaPromo() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-3xl mx-auto">
-        {/* Back Button */}
         <button
           onClick={() => navigate("/hargapromo")}
           className="flex items-center gap-2 text-gray-600 hover:text-black mb-6 transition-colors md:hidden"
@@ -284,7 +330,6 @@ export default function EditHargaPromo() {
           <span className="font-medium">Kembali</span>
         </button>
 
-        {/* Header Section */}
         <div className="mb-8 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-black rounded-2xl mb-4">
             <Percent className="w-8 h-8 text-white" />
@@ -297,7 +342,6 @@ export default function EditHargaPromo() {
           </p>
         </div>
 
-        {/* Form Card */}
         <Card className="border-2 border-gray-200 shadow-lg">
           <CardContent className="p-6 md:p-8">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -341,6 +385,39 @@ export default function EditHargaPromo() {
                   {produkCacheRef.current.length > 0
                     ? `${produkCacheRef.current.length} produk tersedia. Ketik untuk mencari cepat.`
                     : "Memuat daftar produk..."}
+                </p>
+              </div>
+
+              {/* Kategori Promo */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  <FolderOpen className="w-4 h-4" />
+                  Kategori Promo
+                </Label>
+                <Controller
+                  name="kat_promo"
+                  control={control}
+                  render={({ field }) => (
+                    <CreatableSelect
+                      value={field.value ? { value: field.value, label: field.value } : null}
+                      onChange={(option) => field.onChange(option ? option.value : null)}
+                      isClearable
+                      options={katPromoOptions}
+                      placeholder="Pilih atau ketik kategori promo..."
+                      styles={customSelectStyles}
+                      formatCreateLabel={(inputValue) => `Buat kategori: "${inputValue}"`}
+                      noOptionsMessage={() => "Ketik untuk membuat kategori baru"}
+                    />
+                  )}
+                />
+                {errors.kat_promo && (
+                  <p className="text-sm text-red-600 font-medium flex items-center gap-1">
+                    <span className="text-lg">•</span>
+                    {errors.kat_promo.message}
+                  </p>
+                )}
+                <p className="text-xs text-gray-500">
+                  Opsional. Pilih dari daftar atau buat kategori baru untuk mengelompokkan promo
                 </p>
               </div>
 
@@ -409,18 +486,16 @@ export default function EditHargaPromo() {
                 </p>
               </div>
 
-              {/* Divider */}
               <div className="border-t-2 border-gray-200 my-6"></div>
 
-              {/* Action Buttons */}
               <div className="flex gap-3">
-               <Button
-  type="button"
-  onClick={() => navigate("/hargapromo")}
-  className="hidden sm:flex flex-1 bg-white hover:bg-gray-100 text-black border-2 border-gray-300 font-semibold h-12 text-base transition-all duration-200"
->
-  Batal
-</Button>
+                <Button
+                  type="button"
+                  onClick={() => navigate("/hargapromo")}
+                  className="hidden sm:flex flex-1 bg-white hover:bg-gray-100 text-black border-2 border-gray-300 font-semibold h-12 text-base transition-all duration-200"
+                >
+                  Batal
+                </Button>
 
                 <Button
                   type="submit"
@@ -440,6 +515,7 @@ export default function EditHargaPromo() {
             </form>
           </CardContent>
         </Card>
+
         <div className="mt-6 p-4 bg-white border-2 border-gray-200 rounded-lg">
           <p className="text-sm text-gray-600 text-center">
             💡 <strong>Info:</strong> Perubahan akan langsung diterapkan setelah disimpan.

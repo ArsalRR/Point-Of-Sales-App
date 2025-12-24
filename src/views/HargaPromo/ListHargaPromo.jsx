@@ -162,6 +162,7 @@ export default function ListHargaPromo() {
                       <TableHead className="font-semibold text-gray-700">Nama Produk</TableHead>
                       <TableHead className="font-semibold text-gray-700">Harga Jual</TableHead>
                       <TableHead className="font-semibold text-gray-700">Minimal Pembelian</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Kategori Promo</TableHead>
                       <TableHead className="font-semibold text-gray-700">Potongan Harga</TableHead>
                       <TableHead className="text-center font-semibold text-gray-700">Aksi</TableHead>
                     </TableRow>
@@ -187,6 +188,9 @@ export default function ListHargaPromo() {
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                             {item.min_qty}
                           </span>
+                        </TableCell>
+                      <TableCell className="font-medium text-gray-900">
+                          {item.kat_promo || "-"}
                         </TableCell>
                         <TableCell className="text-gray-900 font-medium">
                           Rp {item.potongan_harga.toLocaleString("id-ID")}
@@ -239,6 +243,12 @@ export default function ListHargaPromo() {
                             <p className="text-xs font-medium text-gray-500 mb-1.5">Minimal Pembelian</p>
                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
                               {item.min_qty}
+                            </span>
+                          </div>
+                           <div>
+                            <p className="text-xs font-medium text-gray-500 mb-1.5">Kategori Promo</p>
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-semibold bg-green-100 text-dark-800">
+                              {item.kat_promo}
                             </span>
                           </div>
                           <div>

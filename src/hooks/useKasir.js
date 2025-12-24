@@ -283,13 +283,25 @@ const addProductToCart = useCallback((product, quantity = 1) => {
   /**
    * Mengecek dan menerapkan promo ke diskon
    */
-  const checkAndApplyPromo = useCallback(() => {
-    const totalDiskonPromo = calculatePromoDiscount(cart, hargaPromo)
+ const checkAndApplyPromo = useCallback(() => {
+  // Early returns tanpa logging
+  if (!promoLoaded) return
+  
+  if (cart.length === 0 || hargaPromo.length === 0) {
     setFormData(prev => ({
       ...prev,
-      diskon: totalDiskonPromo > 0 ? formatRupiah(totalDiskonPromo) : ""
+      diskon: ""
     }))
-  }, [cart, hargaPromo])
+    return
+  }
+
+  const totalDiskonPromo = calculatePromoDiscount(cart, hargaPromo)
+  
+  setFormData(prev => ({
+    ...prev,
+    diskon: totalDiskonPromo > 0 ? formatRupiah(totalDiskonPromo) : ""
+  }))
+}, [cart, hargaPromo, promoLoaded, formatRupiah])
 
   // ===== FORM HANDLERS =====
 

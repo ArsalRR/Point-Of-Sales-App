@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import Swal from "sweetalert2"
 import AsyncSelect from "react-select/async"
+import CreatableSelect from "react-select/creatable"
 import { getProduk } from "@/api/Produkapi"
 import { postHargaPromo, getHargaPromo } from "@/api/HargaPromoapi"
-import { Tag, PackageOpen, Percent, Search, ArrowLeft } from "lucide-react"
+import { Tag, PackageOpen, Percent, Search, ArrowLeft, FolderOpen } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 
 const formatCurrency = (value) => {
@@ -34,12 +35,14 @@ const schema = yup.object().shape({
     .integer("Minimal qty harus bilangan bulat")
     .required("Minimal qty wajib diisi"),
   potongan_harga: yup.string().required("Potongan harga wajib diisi"),
+  kat_promo: yup.string().nullable(),
 })
 
 export default function CreateHargaPromo() {
   const [formattedHarga, setFormattedHarga] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [existingPromos, setExistingPromos] = useState([])
+  const [katPromoOptions, setKatPromoOptions] = useState([])
   const produkCacheRef = useRef([])
   const isFetchingRef = useRef(false)
   const navigate = useNavigate()
@@ -58,6 +61,7 @@ export default function CreateHargaPromo() {
       produk_id: [],
       min_qty: "",
       potongan_harga: "",
+      kat_promo: null,
     },
   })
 
@@ -155,6 +159,20 @@ export default function CreateHargaPromo() {
             promoData = promoRes.data.data
           }
           setExistingPromos(promoData)
+
+          // Extract unique kat_promo from existing promos
+          const uniqueKatPromo = [...new Set(
+            promoData
+              .map(promo => promo.kat_promo)
+              .filter(kat => kat && kat.trim() !== "")
+          )]
+          
+          const katPromoOpts = uniqueKatPromo.map(kat => ({
+            value: kat,
+            label: kat
+          }))
+          
+          setKatPromoOptions(katPromoOpts)
         } catch (error) {
           console.error("Error fetching promo:", error)
         }
@@ -198,6 +216,7 @@ export default function CreateHargaPromo() {
     )
     callback(filtered.slice(0, 100))
   }
+  
   const getExistingPromoInfo = (produkId) => {
     return existingPromos
       .filter((promo) => {
@@ -211,6 +230,7 @@ export default function CreateHargaPromo() {
         potongan_harga: promo.potongan_harga,
       }))
   }
+  
   const formatOptionLabel = ({ value, label }) => {
     const promoInfo = getExistingPromoInfo(value)
 
@@ -233,6 +253,7 @@ export default function CreateHargaPromo() {
       </div>
     )
   }
+  
   const validateDuplicatePromo = (selectedProducts, minQty, potonganHarga) => {
     if (!minQty || !potonganHarga || !selectedProducts || selectedProducts.length === 0) {
       return { isValid: true }
@@ -301,6 +322,7 @@ export default function CreateHargaPromo() {
       produk_id: data.produk_id.map((p) => p.value),
       min_qty: Number(data.min_qty),
       potongan_harga: parseCurrency(data.potongan_harga),
+      kat_promo: data.kat_promo || null,
     }
 
     setIsLoading(true)
@@ -351,6 +373,7 @@ export default function CreateHargaPromo() {
       setIsLoading(false)
     }
   }
+  
   const duplicateCheck = validateDuplicatePromo(selectedProducts, minQty, potonganHarga)
 
   return (
@@ -462,6 +485,40 @@ export default function CreateHargaPromo() {
                     : "Memuat daftar produk..."}
                 </p>
               </div>
+
+              {/* Kategori Promo */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  <FolderOpen className="w-4 h-4" />
+                  Kategori Promo
+                </Label>
+                <Controller
+                  name="kat_promo"
+                  control={control}
+                  render={({ field }) => (
+                    <CreatableSelect
+                      value={field.value ? { value: field.value, label: field.value } : null}
+                      onChange={(option) => field.onChange(option ? option.value : null)}
+                      isClearable
+                      options={katPromoOptions}
+                      placeholder="Pilih atau ketik kategori promo..."
+                      styles={customSelectStyles}
+                      formatCreateLabel={(inputValue) => `Buat kategori: "${inputValue}"`}
+                      noOptionsMessage={() => "Ketik untuk membuat kategori baru"}
+                    />
+                  )}
+                />
+                {errors.kat_promo && (
+                  <p className="text-sm text-red-600 font-medium flex items-center gap-1">
+                    <span className="text-lg">•</span>
+                    {errors.kat_promo.message}
+                  </p>
+                )}
+                <p className="text-xs text-gray-500">
+                  Opsional. Pilih dari daftar atau buat kategori baru untuk mengelompokkan promo
+                </p>
+              </div>
+
               <div className="space-y-2">
                 <Label
                   htmlFor="min_qty"
@@ -517,6 +574,7 @@ export default function CreateHargaPromo() {
                   Jumlah minimal pembelian untuk mendapat potongan harga
                 </p>
               </div>
+
               <div className="space-y-2">
                 <Label
                   htmlFor="potongan_harga"
@@ -552,7 +610,9 @@ export default function CreateHargaPromo() {
                   Nilai potongan harga yang akan diberikan per produk
                 </p>
               </div>
+
               <div className="border-t-2 border-gray-200 my-6"></div>
+
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   type="button"
