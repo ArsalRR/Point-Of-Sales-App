@@ -4,7 +4,8 @@ export const SATUAN_TYPES = {
   RENTENG: 'renteng',
   DUS: 'dus',
   PACK: 'pack',
-  PENJUAL_GAS: 'penjual_gas'
+  PENJUAL_GAS: 'penjual_gas',
+  DINGIN: 'dingin'
 }
 
 export const PAYMENT_STATUS = {
@@ -73,6 +74,7 @@ export const getCurrentPrice = (item) => {
     [SATUAN_TYPES.DUS]: item.harga_renteng,
     [SATUAN_TYPES.PACK]: item.harga_renteng,
     [SATUAN_TYPES.PENJUAL_GAS]: item.harga_renteng,
+    [SATUAN_TYPES.DINGIN]: item.harga_renteng,
   }
   return priceMap[satuan] || item.harga
 }
@@ -93,6 +95,7 @@ export const getSatuanInfo = (item) => {
     [SATUAN_TYPES.DUS]: item.jumlah_lainnya ? `1 dus = ${item.jumlah_lainnya} pcs` : "Harga dus",
     [SATUAN_TYPES.PACK]: item.jumlah_lainnya ? `1 pack = ${item.jumlah_lainnya} pcs` : "Harga pack",
     [SATUAN_TYPES.PENJUAL_GAS]: "Harga penjual gas",
+    [SATUAN_TYPES.DINGIN]: "Harga Minuman Dingin",
   }
   return infoMap[satuan] || ""
 }

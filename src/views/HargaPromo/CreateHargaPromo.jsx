@@ -254,12 +254,10 @@ export default function CreateHargaPromo() {
     )
   }
   
-  const validateDuplicatePromo = (selectedProducts, minQty, potonganHarga) => {
-    if (!minQty || !potonganHarga || !selectedProducts || selectedProducts.length === 0) {
+  const validateDuplicatePromo = (selectedProducts, minQty) => {
+    if (!minQty || !selectedProducts || selectedProducts.length === 0) {
       return { isValid: true }
     }
-
-    const potonganHargaValue = parseCurrency(potonganHarga)
 
     for (const product of selectedProducts) {
       const existingPromoForProduct = existingPromos.filter((promo) => {
@@ -271,9 +269,6 @@ export default function CreateHargaPromo() {
       const hasSameMinQty = existingPromoForProduct.find(
         (promo) => promo.min_qty === Number(minQty)
       )
-      const hasSamePotongan = existingPromoForProduct.find(
-        (promo) => promo.potongan_harga === potonganHargaValue
-      )
 
       if (hasSameMinQty) {
         return {
@@ -283,31 +278,16 @@ export default function CreateHargaPromo() {
           minQty: minQty,
         }
       }
-
-      if (hasSamePotongan) {
-        return {
-          isValid: false,
-          productName: product.nama_barang,
-          type: 'potongan_harga',
-          potonganHarga: potonganHargaValue,
-        }
-      }
     }
 
     return { isValid: true }
   }
 
   const onSubmit = async (data) => {
-    const validation = validateDuplicatePromo(
-      data.produk_id, 
-      data.min_qty, 
-      data.potongan_harga
-    )
+    const validation = validateDuplicatePromo(data.produk_id, data.min_qty)
 
     if (!validation.isValid) {
-      const message = validation.type === 'min_qty'
-        ? `Produk <strong>${validation.productName}</strong> sudah memiliki promo dengan minimal qty <strong>${validation.minQty}</strong>.<br><br>Silakan gunakan minimal qty yang berbeda.`
-        : `Produk <strong>${validation.productName}</strong> sudah memiliki promo dengan potongan harga <strong>Rp ${validation.potonganHarga.toLocaleString()}</strong>.<br><br>Silakan gunakan potongan harga yang berbeda.`
+      const message = `Produk <strong>${validation.productName}</strong> sudah memiliki promo dengan minimal qty <strong>${validation.minQty}</strong>.<br><br>Silakan gunakan minimal qty yang berbeda.`
 
       Swal.fire({
         icon: "warning",
@@ -374,7 +354,7 @@ export default function CreateHargaPromo() {
     }
   }
   
-  const duplicateCheck = validateDuplicatePromo(selectedProducts, minQty, potonganHarga)
+  const duplicateCheck = validateDuplicatePromo(selectedProducts, minQty)
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
@@ -552,20 +532,9 @@ export default function CreateHargaPromo() {
                       ⚠️ Perhatian
                     </Badge>
                     <p className="text-sm text-yellow-800">
-                      {duplicateCheck.type === 'min_qty' ? (
-                        <>
-                          Produk <strong>{duplicateCheck.productName}</strong> sudah
-                          memiliki promo dengan minimal qty{" "}
-                          <strong>{duplicateCheck.minQty}</strong>. Gunakan minimal qty yang berbeda.
-                        </>
-                      ) : (
-                        <>
-                          Produk <strong>{duplicateCheck.productName}</strong> sudah
-                          memiliki promo dengan potongan harga{" "}
-                          <strong>Rp {duplicateCheck.potonganHarga?.toLocaleString()}</strong>. 
-                          Gunakan potongan harga yang berbeda.
-                        </>
-                      )}
+                      Produk <strong>{duplicateCheck.productName}</strong> sudah
+                      memiliki promo dengan minimal qty{" "}
+                      <strong>{duplicateCheck.minQty}</strong>. Gunakan minimal qty yang berbeda.
                     </p>
                   </div>
                 )}
