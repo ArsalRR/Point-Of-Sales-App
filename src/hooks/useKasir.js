@@ -237,14 +237,21 @@ const addProductToCart = useCallback((product, quantity = 1) => {
    * @param {string} kode_barang - Kode barang yang akan diupdate
    * @param {number} newQty - Jumlah baru
    */
-  const updateQty = useCallback((kode_barang, newQty) => {
-    if (newQty < 1) return
-    setCart(prev =>
-      prev.map(item =>
-        item.kode_barang === kode_barang ? { ...item, jumlah: newQty } : item
-      )
+ const updateQty = useCallback((kode_barang, newQty, event) => {
+  if (newQty < 1) return
+  
+  // Mencegah event bubbling yang bisa menyebabkan scroll
+  if (event) {
+    event.stopPropagation()
+    event.preventDefault()
+  }
+  
+  setCart(prev =>
+    prev.map(item =>
+      item.kode_barang === kode_barang ? { ...item, jumlah: newQty } : item
     )
-  }, [])
+  )
+}, [])
 
   /**
    * Menghapus item dari cart

@@ -1,4 +1,4 @@
-import { ShoppingCart, Scan, Trash2, Plus, Minus, CreditCard, Search, X, ChevronDown,Box,Layers,Package,PackageOpen } from 'lucide-react'
+import { ShoppingCart, Scan, Trash2, Plus, Minus, CreditCard, Search, X, ChevronDown,Box,Layers,Package,PackageOpen, Snowflake } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -343,163 +343,59 @@ export default function ListKasir() {
                                 <div className={`grid grid-cols-3 gap-3 items-center ${
                                   isTablet ? 'grid-cols-1 sm:grid-cols-3' : ''
                                 }`}>
-  <div className="flex flex-col gap-1">
-  <Label className={`font-semibold text-gray-700 ${isTablet ? 'text-xs' : 'text-sm'}`}>
+ <div className="flex flex-col gap-1">
+  <Label className={`text-gray-600 ${isTablet ? 'text-xs' : 'text-sm'}`}>
     Satuan
   </Label>
-  
+
   <Select
     value={item.satuan_terpilih || "satuan"}
     onValueChange={(value) => handleChangeSatuan(item.kode_barang, value)}
   >
-    <SelectTrigger 
+    <SelectTrigger
       className={`
-        w-full border-2 border-gray-300 
-        hover:border-gray-400 focus:border-black 
-        focus:ring-2 focus:ring-black/20
-        transition-all duration-200
-        ${isTablet 
-          ? 'h-9 rounded-md text-xs' 
-          : 'h-10 rounded-lg text-sm'
-        }
-        font-medium
-        flex items-center justify-between
+        w-full bg-white border border-gray-300
+        focus:border-black focus:ring-1 focus:ring-black/20
+        ${isTablet ? 'h-9 text-xs rounded-md' : 'h-10 text-sm rounded-lg'}
+        px-3
       `}
     >
-      <SelectValue placeholder="Pilih satuan" />
-      <ChevronDown className="h-4 w-4 opacity-50 ml-2" />
+      <SelectValue />
     </SelectTrigger>
-    
-    <SelectContent 
-      className={`
-        border-2 border-gray-300 bg-white
-        ${isTablet ? 'rounded-md' : 'rounded-lg'}
-        shadow-lg
-        max-h-[280px] overflow-y-auto
-        animate-in fade-in-50 zoom-in-95 slide-in-from-top-2
-      `}
-      side="bottom" // Pastikan selalu muncul di bawah
-      align="start" // Sejajarkan dengan kiri trigger
-      sideOffset={5} // Jarak dari trigger
-      avoidCollisions={false} 
-    >
-      {/* Grup Satuan Dasar */}
-      <div className="px-2 py-1.5">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-          Satuan Dasar
-        </p>
-        <SelectItem 
-          value="satuan" 
-          className="text-sm focus:bg-gray-100 rounded cursor-pointer data-[state=checked]:bg-black data-[state=checked]:text-white"
-        >
-          <div className="flex items-center gap-2">
-            <Box className="h-3.5 w-3.5" />
-            <span>Satuan</span>
-          </div>
-        </SelectItem>
-      </div>
+
+    <SelectContent className="bg-white border border-gray-200 rounded-lg shadow-md">
+      <SelectItem value="satuan" className="py-2">
+        Satuan
+      </SelectItem>
+
       {item.harga_renteng && (
         <>
-          <div className="h-px bg-gray-200 mx-2 my-1" />
-          
-          <div className="px-2 py-1.5">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-              Satuan Khusus
-            </p>
-            
-            <SelectItem 
-              value="renteng" 
-              className="text-sm focus:bg-gray-100 rounded cursor-pointer data-[state=checked]:bg-black data-[state=checked]:text-white"
-            >
-              <div className="flex items-center gap-2">
-                <Layers className="h-3.5 w-3.5" />
-                <span>Renteng</span>
-              
-              </div>
-            </SelectItem>
-            
-            <SelectItem 
-              value="dus" 
-              className="text-sm focus:bg-gray-100 rounded cursor-pointer data-[state=checked]:bg-black data-[state=checked]:text-white"
-            >
-              <div className="flex items-center gap-2">
-                <Package className="h-3.5 w-3.5" />
-                <span>Dus</span>
-               
-              </div>
-            </SelectItem>
-            
-            <SelectItem 
-              value="pack" 
-              className="text-sm focus:bg-gray-100 rounded cursor-pointer data-[state=checked]:bg-black data-[state=checked]:text-white"
-            >
-              <div className="flex items-center gap-2">
-                <PackageOpen className="h-3.5 w-3.5" />
-                <span>Pack</span>
-               
-              </div>
-            </SelectItem>
-            
-            {item.kategori?.toLowerCase().includes('gas') && (
-              <SelectItem 
-                value="penjual_gas" 
-                className="text-sm focus:bg-gray-100 rounded cursor-pointer data-[state=checked]:bg-black data-[state=checked]:text-white"
-              >
-                <div className="flex items-center gap-2">
-                  <Flame className="h-3.5 w-3.5 text-orange-500" />
-                  <span>Penjual Gas</span>
-                 
-                </div>
-              </SelectItem>
-            )}
-            
-            {item.kategori?.toLowerCase().includes('minuman') && (
-              <SelectItem 
-                value="dingin" 
-                className="text-sm focus:bg-gray-100 rounded cursor-pointer data-[state=checked]:bg-black data-[state=checked]:text-white"
-              >
-                <div className="flex items-center gap-2">
-                  <Snowflake className="h-3.5 w-3.5 text-blue-500" />
-                  <span>Minuman Dingin</span>
-                 
-                </div>
-              </SelectItem>
-            )}
-          </div>
+          <SelectItem value="renteng" className="py-2 flex justify-between">
+            <span>Renteng</span>
+            <span className="text-xs text-gray-500">
+              Rp {Number(item.harga_renteng).toLocaleString()}
+            </span>
+          </SelectItem>
+
+          <SelectItem value="dus" className="py-2">
+            Dus
+          </SelectItem>
+
+          <SelectItem value="pack" className="py-2">
+            Pack
+          </SelectItem>
+
+          <SelectItem value="dingin" className="py-2">
+            Minuman dingin
+          </SelectItem>
+
+          <SelectItem value="penjual_gas" className="py-2">
+            Penjual gas
+          </SelectItem>
         </>
-      )}
-      
-      {/* Info tambahan jika tidak ada satuan khusus */}
-      {!item.harga_renteng && (
-        <div className="px-3 py-2 border-t border-gray-100 bg-gray-50">
-          <p className="text-xs text-gray-500 text-center">
-            Hanya tersedia dalam satuan
-          </p>
-        </div>
       )}
     </SelectContent>
   </Select>
-  
-  {/* Badge untuk menunjukkan satuan aktif */}
-  {item.satuan_terpilih && item.satuan_terpilih !== "satuan" && (
-    <div className="mt-1 flex items-center gap-1 text-xs">
-      <Badge 
-        variant="outline" 
-        className="bg-blue-50 text-blue-700 border-blue-200 px-2 py-0.5"
-      >
-        {item.satuan_terpilih === "renteng" && "Renteng"}
-        {item.satuan_terpilih === "dus" && "Dus"}
-        {item.satuan_terpilih === "pack" && "Pack"}
-        {item.satuan_terpilih === "penjual_gas" && "Penjual Gas"}
-        {item.satuan_terpilih === "dingin" && "Minuman Dingin"}
-      </Badge>
-      {item.harga_renteng && (
-        <span className="text-green-600 font-medium">
-          Rp {Number(item.harga_renteng).toLocaleString()}
-        </span>
-      )}
-    </div>
-  )}
 </div>
 
                                   <div className={`flex items-center justify-center gap-2 ${

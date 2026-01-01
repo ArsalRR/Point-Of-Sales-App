@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { yupResolver } from "@hookform/resolvers/yup"
 import * as yup from "yup"
@@ -25,11 +25,15 @@ import {
   TrendingUp,
   ArrowLeft,
   Shuffle,
-  Loader2
+  Loader2,
+  Settings,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react"
 import { postProduk, Getkode } from "@/api/Produkapi"
 import Swal from "sweetalert2"
 import { Link, useNavigate } from "react-router-dom"
+
 const schema = yup.object().shape({
   kode_barang: yup
     .string()
@@ -61,9 +65,9 @@ const schema = yup.object().shape({
     .required("Satuan barang harus dipilih"),
   limit_stok: yup
     .number()
-    .transform((value, originalValue) => originalValue === '' ? undefined : value)
-    .required("Limit stok harus diisi")
-    .min(0, "Limit stok tidak boleh negatif")
+    .default(30)
+    .min(1, "Limit stok minimal 1")
+    .max(999, "Limit stok maksimal 999")
     .typeError("Limit stok harus berupa angka"),
 })
 
@@ -73,6 +77,7 @@ export default function CreateProduk() {
   const [showRentengan, setShowRentengan] = useState(false)
   const [showManualStok, setShowManualStok] = useState(false)
   const [manualStok, setManualStok] = useState("")
+  const [showLimitStok, setShowLimitStok] = useState(false) // State untuk toggle limit stok
   const navigate = useNavigate()
 
   const {
@@ -92,13 +97,14 @@ export default function CreateProduk() {
       jumlah_lainnya: "",
       stok: "",
       satuan_barang: "",
-      limit_stok: "",
+      limit_stok: 30, // Default 30
     }
   })
 
   const harga = watch("harga")
   const hargaRenteng = watch("harga_renteng")
   const stok = watch("stok")
+  const limitStok = watch("limit_stok")
 
   const satuanOptions = [
     { value: "PCS", label: "PCS" },
@@ -162,7 +168,8 @@ export default function CreateProduk() {
     try {
       const finalData = {
         ...data,
-        stok: showManualStok ? manualStok : data.stok
+        stok: showManualStok ? manualStok : data.stok,
+        // limit_stok tetap dari form
       }
 
       // Validate manual stock if shown
@@ -177,6 +184,7 @@ export default function CreateProduk() {
       setShowRentengan(false)
       setShowManualStok(false)
       setManualStok("")
+      setShowLimitStok(false) // Reset toggle setelah submit
       
       navigate('/produk')
       
@@ -198,6 +206,9 @@ export default function CreateProduk() {
       setLoading(false)
     }
   }
+
+  // Quick limit options
+  const quickLimits = [20, 30, 50, 100]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6">
@@ -290,26 +301,122 @@ export default function CreateProduk() {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="limit_stok" className="text-sm font-medium">
-                  Limit Stok Produk 
-                </Label>
-                <Controller
-                  name="limit_stok"
-                  control={control}
-                  render={({ field }) => (
-                    <Input
-                      {...field}
-                      id="limit_stok"
-                      type="number"
-                      placeholder="Masukkan Limit Barang"
-                      className={`h-12 ${errors.limit_stok ? 'border-red-500' : ''}`}
-                      autoComplete="off"
-                    />
-                  )}
-                />
-                {errors.limit_stok && (
-                  <p className="text-sm text-red-500">{errors.limit_stok.message}</p>
+              {/* Toggle untuk Limit Stok */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-medium">
+                      Limit Stok Produk
+                    </Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="secondary" className="gap-1">
+                        Default: 30
+                      </Badge>
+                      <span className="text-xs text-gray-500">
+                        {limitStok === 30 ? "(Default)" : "(Custom)"}
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowLimitStok(!showLimitStok)}
+                    className="h-8 px-3 gap-2"
+                  >
+                    {showLimitStok ? (
+                      <>
+                        Sembunyikan
+                        <ChevronUp className="w-3 h-3" />
+                      </>
+                    ) : (
+                      <>
+                        <Settings className="w-3 h-3" />
+                        Ubah Limit
+                        <ChevronDown className="w-3 h-3" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Input Limit Stok (tersembunyi default) */}
+                {showLimitStok && (
+                  <div className="space-y-3 p-4 bg-gray-50/50 rounded-lg border border-gray-200 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="limit_stok" className="text-sm font-medium">
+                          Limit Stok Kustom
+                        </Label>
+                        <span className="text-xs text-gray-500">
+                          Saat stok ≤ limit, sistem akan memberi peringatan
+                        </span>
+                      </div>
+                      <Controller
+                        name="limit_stok"
+                        control={control}
+                        render={({ field }) => (
+                          <Input
+                            {...field}
+                            id="limit_stok"
+                            type="number"
+                            placeholder="Masukkan Limit Barang"
+                            className={`h-12 ${errors.limit_stok ? 'border-red-500' : ''}`}
+                            autoComplete="off"
+                            min="1"
+                            max="999"
+                          />
+                        )}
+                      />
+                      {errors.limit_stok && (
+                        <p className="text-sm text-red-500">{errors.limit_stok.message}</p>
+                      )}
+                    </div>
+
+                    {/* Quick selection buttons */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-600">
+                        Pilih Cepat:
+                      </Label>
+                      <div className="flex gap-2">
+                        {quickLimits.map((limit) => (
+                          <Button
+                            key={limit}
+                            type="button"
+                            variant={limitStok === limit ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setValue("limit_stok", limit)}
+                            className={`px-3 ${limitStok === limit ? 'bg-blue-600' : ''}`}
+                          >
+                            {limit}
+                          </Button>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setValue("limit_stok", 30)}
+                          className="px-3"
+                        >
+                          Reset ke 30
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Info box */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div className="text-sm text-blue-800">
+                          <p className="font-medium">Tips:</p>
+                          <ul className="list-disc list-inside space-y-1 mt-1">
+                            <li>Limit stok adalah jumlah minimum yang harus tersedia</li>
+                            <li>Saat stok mencapai limit, sistem akan memberi notifikasi</li>
+                            <li>Default: 30 (sesuaikan jika diperlukan)</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             </CardContent>

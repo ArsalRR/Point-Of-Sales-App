@@ -29,31 +29,33 @@ export default function ListProduk() {
     retry: 2,
   })
   const hapusMutation = useMutation({
-    mutationFn: deleteProduk,
-    onSuccess: (_, id) => {
-      queryClient.setQueryData(['produk'], (oldData = []) =>
-        oldData.filter((item) => item.id !== id)
-      )
-      Swal.fire({
-        title: 'Produk berhasil dihapus',
-        icon: 'success',
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 1500,
-      })
-    },
-    onError: () => {
-      Swal.fire({
-        title: 'Gagal menghapus produk',
-        icon: 'error',
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 1500,
-      })
-    },
-  })
+  mutationFn: deleteProduk,
+  onSuccess: (_, id) => {
+    queryClient.setQueryData(['produk'], (oldData = []) =>
+      oldData.filter((item) => item.id !== id)
+    )
+    
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: 'Produk berhasil dihapus',
+      showConfirmButton: false,
+      timer: 2000,
+      timerProgressBar: true,
+    })
+  },
+  onError: () => {
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'error',
+      title: 'Gagal menghapus produk',
+      showConfirmButton: false,
+      timer: 1500,
+    })
+  },
+})
 
  const hapusData = (id) => {
   Swal.fire({
