@@ -22,7 +22,6 @@ import {
   Hash,
   Box,
   AlertCircle,
-  TrendingUp,
   ArrowLeft,
   Shuffle,
   Loader2,
@@ -34,18 +33,19 @@ import { postProduk, Getkode } from "@/api/Produkapi"
 import Swal from "sweetalert2"
 import { Link, useNavigate } from "react-router-dom"
 
+// Schema dengan pesan error bahasa Indonesia
 const schema = yup.object().shape({
   kode_barang: yup
     .string()
-    .required("Kode barang harus diisi")
+    .required("Kode barang wajib diisi")
     .trim(),
   nama_barang: yup
     .string()
-    .required("Nama barang harus diisi")
+    .required("Nama barang wajib diisi")
     .trim(),
   harga: yup
     .string()
-    .required("Harga harus diisi")
+    .required("Harga wajib diisi")
     .test("is-positive", "Harga harus lebih dari 0", function(value) {
       const numericValue = parseInt(value?.replace(/[^0-9]/g, '') || '0', 10)
       return numericValue > 0
@@ -53,16 +53,23 @@ const schema = yup.object().shape({
   harga_renteng: yup.string(),
   jumlah_lainnya: yup.string(),
   stok: yup
-    .string()
-    .required("Stok tidak boleh negatif")
-    .test("is-non-negative", "Stok tidak boleh negatif", function(value) {
+    .mixed()
+    .required("Stok wajib diisi")
+    .test("is-valid-stock", "Stok tidak boleh negatif", function(value) {
       if (value === 'manual') return true
-      const numericValue = parseInt(value || '0', 10)
+      if (!value && value !== 0) return false
+      
+      let numericValue = 0
+      if (typeof value === 'string') {
+        numericValue = parseInt(value || '0', 10)
+      } else if (typeof value === 'number') {
+        numericValue = value
+      }
       return numericValue >= 0
     }),
   satuan_barang: yup
     .string()
-    .required("Satuan barang harus dipilih"),
+    .required("Satuan barang wajib dipilih"),
   limit_stok: yup
     .number()
     .default(30)
@@ -77,7 +84,7 @@ export default function CreateProduk() {
   const [showRentengan, setShowRentengan] = useState(false)
   const [showManualStok, setShowManualStok] = useState(false)
   const [manualStok, setManualStok] = useState("")
-  const [showLimitStok, setShowLimitStok] = useState(false) // State untuk toggle limit stok
+  const [showLimitStok, setShowLimitStok] = useState(false)
   const navigate = useNavigate()
 
   const {
@@ -97,7 +104,7 @@ export default function CreateProduk() {
       jumlah_lainnya: "",
       stok: "",
       satuan_barang: "",
-      limit_stok: 30, // Default 30
+      limit_stok: 30,
     }
   })
 
@@ -138,6 +145,7 @@ export default function CreateProduk() {
     }
   }
 
+  
   const formatCurrency = (value) => {
     const numericValue = value.replace(/[^0-9]/g, '')
     if (!numericValue) return ''
@@ -149,19 +157,7 @@ export default function CreateProduk() {
     return parseInt(value?.replace(/[^0-9]/g, '') || '0', 10)
   }
 
-  const calculateDiscount = () => {
-    if (harga && hargaRenteng) {
-      const hargaNormal = parseCurrency(harga)
-      const hargaRentengValue = parseCurrency(hargaRenteng)
-      if (hargaNormal > 0 && hargaRentengValue > 0) {
-        const discount = ((hargaNormal - hargaRentengValue) / hargaNormal * 100).toFixed(1)
-        return discount > 0 ? discount : 0
-      }
-    }
-    return 0
-  }
-
-  const onSubmit = async (data) => {
+    const onSubmit = async (data) => {
     setLoading(true)
     setSubmitError("")
     
@@ -184,7 +180,7 @@ export default function CreateProduk() {
       setShowRentengan(false)
       setShowManualStok(false)
       setManualStok("")
-      setShowLimitStok(false) // Reset toggle setelah submit
+      setShowLimitStok(false)
       
       navigate('/produk')
       
@@ -210,78 +206,114 @@ export default function CreateProduk() {
   // Quick limit options
   const quickLimits = [20, 30, 50, 100]
 
+  // Komponen Input Harga dengan format otomatis
+  const PriceInput = ({ field, error, placeholder, id }) => {
+    const handleChange = (e) => {
+      const inputValue = e.target.value
+      // Hapus semua karakter non-digit
+      const rawValue = inputValue.replace(/[^0-9]/g, '')
+      // Parse ke integer dan simpan
+      const numericValue = rawValue ? parseInt(rawValue, 10) : ""
+      
+      // Update form state dengan string
+      field.onChange(numericValue.toString())
+    }
+    
+    return (
+      <div className="relative">
+        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+        <Input
+          id={id}
+          value={formatCurrency(field.value)}
+          onChange={handleChange}
+          placeholder={placeholder}
+          className={`h-10 md:h-11 pl-10 ${error ? 'border-red-500' : 'border-gray-300'}`}
+          autoComplete="off"
+        />
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+      <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
+        {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <Link to="/produk" className="md:hidden">
-              <Button variant="ghost" size="sm" className="p-3 hover:bg-white/50">
-                <ArrowLeft className="w-7 h-7" />
+              <Button variant="ghost" size="icon" className="h-10 w-10 p-0 hover:bg-gray-100">
+                <ArrowLeft className="w-5 h-5 text-gray-700" />
               </Button>
             </Link>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Tambah Produk Baru</h1>
-              <p className="text-muted-foreground text-sm md:text-base">Lengkapi informasi produk di bawah ini</p>
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900">Tambah Produk Baru</h1>
+              <p className="text-gray-600 text-xs md:text-sm mt-1">Lengkapi informasi produk di bawah ini</p>
             </div>
           </div>
-          <Package className="w-10 h-10 md:w-12 md:h-12 text-blue-600" />
+          <Package className="w-8 h-8 md:w-10 md:h-10 text-gray-700" />
         </div>
 
+        {/* Error Alert */}
         {submitError && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{submitError}</AlertDescription>
+          <Alert variant="destructive" className="mb-4 bg-red-50 border-red-200">
+            <AlertCircle className="h-4 w-4 text-red-600" />
+            <AlertDescription className="text-sm text-red-800 whitespace-pre-line">
+              {submitError}
+            </AlertDescription>
           </Alert>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Hash className="w-5 h-5" />
+        {/* Form */}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
+          {/* Card 1: Informasi Dasar */}
+          <Card className="shadow-sm border border-gray-200 bg-white">
+            <CardHeader className="pb-3 md:pb-4 border-b border-gray-100">
+              <CardTitle className="flex items-center gap-2 text-base md:text-lg text-gray-800">
+                <Hash className="w-4 h-4 md:w-5 md:h-5" />
                 Informasi Dasar
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4 md:space-y-6 pt-4">
+              {/* Kode Barang */}
               <div className="space-y-2">
-                <Label htmlFor="kode_barang" className="text-sm font-medium">
-                  Kode Barang 
+                <Label htmlFor="kode_barang" className="text-sm font-medium text-gray-700">
+                  Kode Barang *
                 </Label>
-                <div className="flex gap-2">
-                  <Controller
-                    name="kode_barang"
-                    control={control}
-                    render={({ field }) => (
-                      <Input
-                        {...field}
-                        id="kode_barang"
-                        type="number"
-                        placeholder="Masukkan Kode Barang"
-                        className={`h-12 ${errors.kode_barang ? 'border-red-500' : ''}`}
-                        autoComplete="off"
-                      />
-                    )}
-                  />
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex-1">
+                    <Controller
+                      name="kode_barang"
+                      control={control}
+                      render={({ field }) => (
+                        <Input
+                          {...field}
+                          id="kode_barang"
+                          placeholder="Masukkan kode barang"
+                          className={`h-10 md:h-11 ${errors.kode_barang ? 'border-red-500' : 'border-gray-300'}`}
+                          autoComplete="off"
+                        />
+                      )}
+                    />
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
                     onClick={generateKode}
-                    className="h-12 px-4"
-                    title="Generate kode otomatis"
+                    className="h-10 md:h-11 px-3 border-gray-300 hover:bg-gray-50"
                   >
                     <Shuffle className="w-4 h-4 mr-2" />
-                    Generate
+                    <span className="text-sm">Generate</span>
                   </Button>
                 </div>
                 {errors.kode_barang && (
-                  <p className="text-sm text-red-500">{errors.kode_barang.message}</p>
+                  <p className="text-xs text-red-600">{errors.kode_barang.message}</p>
                 )}
               </div>
 
+              {/* Nama Barang */}
               <div className="space-y-2">
-                <Label htmlFor="nama_barang" className="text-sm font-medium">
-                  Nama Barang 
+                <Label htmlFor="nama_barang" className="text-sm font-medium text-gray-700">
+                  Nama Barang *
                 </Label>
                 <Controller
                   name="nama_barang"
@@ -290,31 +322,28 @@ export default function CreateProduk() {
                     <Input
                       {...field}
                       id="nama_barang"
-                      placeholder="Masukkan Nama Barang"
-                      className={`h-12 ${errors.nama_barang ? 'border-red-500' : ''}`}
+                      placeholder="Masukkan nama barang"
+                      className={`h-10 md:h-11 ${errors.nama_barang ? 'border-red-500' : 'border-gray-300'}`}
                       autoComplete="off"
                     />
                   )}
                 />
                 {errors.nama_barang && (
-                  <p className="text-sm text-red-500">{errors.nama_barang.message}</p>
+                  <p className="text-xs text-red-600">{errors.nama_barang.message}</p>
                 )}
               </div>
 
-              {/* Toggle untuk Limit Stok */}
+              {/* Limit Stok */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-sm font-medium">
-                      Limit Stok Produk
+                    <Label className="text-sm font-medium text-gray-700">
+                      Limit Stok Peringatan
                     </Label>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="secondary" className="gap-1">
-                        Default: 30
+                      <Badge variant="outline" className="text-xs bg-gray-100 text-gray-700">
+                        Default: {limitStok}
                       </Badge>
-                      <span className="text-xs text-gray-500">
-                        {limitStok === 30 ? "(Default)" : "(Custom)"}
-                      </span>
                     </div>
                   </div>
                   <Button
@@ -322,33 +351,32 @@ export default function CreateProduk() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowLimitStok(!showLimitStok)}
-                    className="h-8 px-3 gap-2"
+                    className="h-8 px-3 gap-2 text-xs text-gray-600 hover:text-gray-900"
                   >
                     {showLimitStok ? (
                       <>
-                        Sembunyikan
+                        <span>Sembunyikan</span>
                         <ChevronUp className="w-3 h-3" />
                       </>
                     ) : (
                       <>
                         <Settings className="w-3 h-3" />
-                        Ubah Limit
+                        <span>Ubah Limit</span>
                         <ChevronDown className="w-3 h-3" />
                       </>
                     )}
                   </Button>
                 </div>
 
-                {/* Input Limit Stok (tersembunyi default) */}
                 {showLimitStok && (
-                  <div className="space-y-3 p-4 bg-gray-50/50 rounded-lg border border-gray-200 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="space-y-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="limit_stok" className="text-sm font-medium">
+                        <Label htmlFor="limit_stok" className="text-sm font-medium text-gray-700">
                           Limit Stok Kustom
                         </Label>
                         <span className="text-xs text-gray-500">
-                          Saat stok ≤ limit, sistem akan memberi peringatan
+                          Sistem akan memberi peringatan saat stok mencapai limit
                         </span>
                       </div>
                       <Controller
@@ -359,8 +387,8 @@ export default function CreateProduk() {
                             {...field}
                             id="limit_stok"
                             type="number"
-                            placeholder="Masukkan Limit Barang"
-                            className={`h-12 ${errors.limit_stok ? 'border-red-500' : ''}`}
+                            placeholder="Masukkan limit stok"
+                            className={`h-10 md:h-11 ${errors.limit_stok ? 'border-red-500' : 'border-gray-300'}`}
                             autoComplete="off"
                             min="1"
                             max="999"
@@ -368,16 +396,16 @@ export default function CreateProduk() {
                         )}
                       />
                       {errors.limit_stok && (
-                        <p className="text-sm text-red-500">{errors.limit_stok.message}</p>
+                        <p className="text-xs text-red-600">{errors.limit_stok.message}</p>
                       )}
                     </div>
 
-                    {/* Quick selection buttons */}
+                    {/* Quick Limits */}
                     <div className="space-y-2">
                       <Label className="text-xs font-medium text-gray-600">
                         Pilih Cepat:
                       </Label>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         {quickLimits.map((limit) => (
                           <Button
                             key={limit}
@@ -385,7 +413,7 @@ export default function CreateProduk() {
                             variant={limitStok === limit ? "default" : "outline"}
                             size="sm"
                             onClick={() => setValue("limit_stok", limit)}
-                            className={`px-3 ${limitStok === limit ? 'bg-blue-600' : ''}`}
+                            className={`px-3 text-xs ${limitStok === limit ? 'bg-gray-800 text-white hover:bg-gray-900' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
                           >
                             {limit}
                           </Button>
@@ -395,25 +423,10 @@ export default function CreateProduk() {
                           variant="outline"
                           size="sm"
                           onClick={() => setValue("limit_stok", 30)}
-                          className="px-3"
+                          className="px-3 text-xs border-gray-300 text-gray-700 hover:bg-gray-100"
                         >
                           Reset ke 30
                         </Button>
-                      </div>
-                    </div>
-
-                    {/* Info box */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                        <div className="text-sm text-blue-800">
-                          <p className="font-medium">Tips:</p>
-                          <ul className="list-disc list-inside space-y-1 mt-1">
-                            <li>Limit stok adalah jumlah minimum yang harus tersedia</li>
-                            <li>Saat stok mencapai limit, sistem akan memberi notifikasi</li>
-                            <li>Default: 30 (sesuaikan jika diperlukan)</li>
-                          </ul>
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -422,15 +435,17 @@ export default function CreateProduk() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5" />
+          {/* Card 2: Informasi Harga */}
+          <Card className="shadow-sm border border-gray-200 bg-white">
+            <CardHeader className="pb-3 md:pb-4 border-b border-gray-100">
+              <CardTitle className="flex items-center gap-2 text-base md:text-lg text-gray-800">
+                <DollarSign className="w-4 h-4 md:w-5 md:h-5" />
                 Informasi Harga
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
+            <CardContent className="space-y-4 md:space-y-6 pt-4">
+              {/* Harga Jual */}
+             <div className="space-y-2">
                 <Label htmlFor="harga" className="text-sm font-medium">
                   Harga Jual *
                 </Label>
@@ -453,9 +468,48 @@ export default function CreateProduk() {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="harga_renteng" className="text-sm font-medium">
-                  Harga Rentengan / Lainnya
+
+              {/* Harga Rentengan (Optional) */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">
+                      Harga Rentengan (Opsional)
+                    </Label>
+                    <div className="mt-1">
+                      <Badge variant="outline" className="text-xs bg-gray-100 text-gray-700">
+                        {hargaRenteng && hargaRenteng !== "" ? formatCurrency(hargaRenteng) : "Kosong (default 0)"}
+                      </Badge>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowRentengan(!showRentengan)}
+                    className="h-8 px-3 gap-2 text-xs text-gray-600 hover:text-gray-900"
+                  >
+                    {showRentengan ? (
+                      <>
+                        <span>Sembunyikan</span>
+                        <ChevronUp className="w-3 h-3" />
+                      </>
+                    ) : (
+                      <>
+                        <Settings className="w-3 h-3" />
+                        <span>Atur Harga Renteng</span>
+                        <ChevronDown className="w-3 h-3" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {showRentengan && (
+                  <div className="space-y-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    {/* Harga Renteng */}
+                     <div className="space-y-2">
+                <Label htmlFor="harga" className="text-sm font-medium">
+                  Harga  Rentengan
                 </Label>
                 <Controller
                   name="harga_renteng"
@@ -464,62 +518,60 @@ export default function CreateProduk() {
                     <Input
                       {...field}
                       id="harga_renteng"
-                      onChange={(e) => {
-                        const formatted = formatCurrency(e.target.value)
-                        field.onChange(formatted)
-                        setShowRentengan(e.target.value.trim() !== '')
-                      }}
-                      placeholder="Masukkan Harga Rentengan"
+                      onChange={(e) => field.onChange(formatCurrency(e.target.value))}
+                      placeholder="Masukkan Harga"
                       className={`h-12 ${errors.harga_renteng ? 'border-red-500' : ''}`}
                       autoComplete="off"
                     />
                   )}
                 />
                 {errors.harga_renteng && (
-                  <p className="text-sm text-red-500">{errors.harga_renteng.message}</p>
-                )}
-                {calculateDiscount() > 0 && (
-                  <Badge variant="secondary" className="gap-1">
-                    <TrendingUp className="w-3 h-3" />
-                    Diskon {calculateDiscount()}%
-                  </Badge>
+                  <p className="text-sm text-red-500">{errors.harga_renteng.message}</p>  
                 )}
               </div>
 
-              {showRentengan && (
-                <div className="space-y-2">
-                  <Label htmlFor="jumlah_lainnya" className="text-sm font-medium">
-                    Isi Rentengan / Lainnya
-                  </Label>
-                  <Controller
-                    name="jumlah_lainnya"
-                    control={control}
-                    render={({ field }) => (
-                      <Input
-                        {...field}
-                        id="jumlah_lainnya"
-                        type="number"
-                        placeholder="Masukkan Isi Rentengan"
-                        className="h-12"
-                        autoComplete="off"
+
+                    {/* Jumlah Lainnya (Optional) */}
+                    <div className="space-y-2">
+                      <Label htmlFor="jumlah_lainnya" className="text-sm font-medium text-gray-700">
+                        Isi Rentengan / Lainnya (Opsional)
+                      </Label>
+                      <Controller
+                        name="jumlah_lainnya"
+                        control={control}
+                        render={({ field }) => (
+                          <Input
+                            {...field}
+                            id="jumlah_lainnya"
+                            placeholder="Contoh: 3 Pcs, 5 Bungkus"
+                            className="h-10 md:h-11 border-gray-300"
+                            autoComplete="off"
+                            value={field.value || ''}
+                          />
+                        )}
                       />
-                    )}
-                  />
-                </div>
-              )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        Informasi tambahan tentang rentengan (boleh kosong)
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Box className="w-5 h-5" />
+          {/* Card 3: Stok & Satuan */}
+          <Card className="shadow-sm border border-gray-200 bg-white">
+            <CardHeader className="pb-3 md:pb-4 border-b border-gray-100">
+              <CardTitle className="flex items-center gap-2 text-base md:text-lg text-gray-800">
+                <Box className="w-4 h-4 md:w-5 md:h-5" />
                 Stok & Satuan
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4 md:space-y-6 pt-4">
+              {/* Stok Barang */}
               <div className="space-y-2">
-                <Label htmlFor="stok" className="text-sm font-medium">
+                <Label htmlFor="stok" className="text-sm font-medium text-gray-700">
                   Stok Barang *
                 </Label>
                 <Controller
@@ -536,18 +588,18 @@ export default function CreateProduk() {
                       }}
                       value={field.value}
                     >
-                      <SelectTrigger className="h-12 w-full">
-                        <SelectValue placeholder="--Pilih Stok Barang--" />
+                      <SelectTrigger className="h-10 md:h-11 w-full border-gray-300">
+                        <SelectValue placeholder="-- Pilih Stok Barang --" />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="manual">Masukkan Manual...</SelectItem>
+                      <SelectContent className="border-gray-300">
+                        <SelectItem value="manual" className="text-sm">Masukkan Manual...</SelectItem>
                         {stokOptions.map((group, index) => (
                           <div key={index}>
-                            <div className="px-2 py-1 text-sm font-semibold text-gray-600 bg-gray-100">
+                            <div className="px-2 py-1 text-xs font-semibold text-gray-600 bg-gray-100">
                               {group.group}
                             </div>
                             {group.options.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
+                              <SelectItem key={option.value} value={option.value} className="text-sm">
                                 {option.label}
                               </SelectItem>
                             ))}
@@ -562,17 +614,19 @@ export default function CreateProduk() {
                     type="number"
                     value={manualStok}
                     onChange={(e) => setManualStok(e.target.value)}
-                    placeholder="Masukkan Stok Manual"
-                    className="h-12 mt-2 w-full"
+                    placeholder="Masukkan stok manual"
+                    className="h-10 md:h-11 mt-2 w-full border-gray-300"
+                    min="0"
                   />
                 )}
                 {errors.stok && (
-                  <p className="text-sm text-red-500">{errors.stok.message}</p>
+                  <p className="text-xs text-red-600">{errors.stok.message}</p>
                 )}
               </div>
 
+              {/* Satuan Barang */}
               <div className="space-y-2">
-                <Label htmlFor="satuan_barang" className="text-sm font-medium">
+                <Label htmlFor="satuan_barang" className="text-sm font-medium text-gray-700">
                   Satuan Barang *
                 </Label>
                 <Controller
@@ -583,12 +637,12 @@ export default function CreateProduk() {
                       onValueChange={field.onChange}
                       value={field.value}
                     >
-                      <SelectTrigger className="h-12 w-full">
-                        <SelectValue placeholder="Masukkan Satuan Barang" />
+                      <SelectTrigger className="h-10 md:h-11 w-full border-gray-300">
+                        <SelectValue placeholder="Pilih satuan barang" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="border-gray-300">
                         {satuanOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
+                          <SelectItem key={option.value} value={option.value} className="text-sm">
                             {option.label}
                           </SelectItem>
                         ))}
@@ -597,32 +651,38 @@ export default function CreateProduk() {
                   )}
                 />
                 {errors.satuan_barang && (
-                  <p className="text-sm text-red-500">{errors.satuan_barang.message}</p>
+                  <p className="text-xs text-red-600">{errors.satuan_barang.message}</p>
                 )}
               </div>
             </CardContent>
           </Card>
 
-          <div className="flex flex-col md:flex-row gap-4 pt-6">
-            <Link to="/produk" className="hidden md:block">
-              <Button variant="outline" className="w-full md:w-auto h-12 px-8" type="button">
+          {/* Action Buttons */}
+          <div className="flex flex-col-reverse sm:flex-row gap-3 md:gap-4 pt-4 md:pt-6">
+            <Link to="/produk" className="w-full sm:w-auto">
+              <Button 
+                variant="outline" 
+                className="w-full h-11 border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                type="button"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
                 Kembali
               </Button>
             </Link>
             <Button 
               type="submit"
-              className="w-full md:flex-1 h-12 gap-2" 
+              className="w-full sm:flex-1 h-11 bg-gray-900 text-white hover:bg-gray-800"
               disabled={loading}
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
                   Menyimpan...
                 </>
               ) : (
                 <>
-                  <Save className="w-4 h-4" />
-                  SIMPAN
+                  <Save className="w-4 h-4 mr-2" />
+                  SIMPAN PRODUK
                 </>
               )}
             </Button>

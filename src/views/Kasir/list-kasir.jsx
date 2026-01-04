@@ -398,39 +398,62 @@ export default function ListKasir() {
   </Select>
 </div>
 
-                                  <div className={`flex items-center justify-center gap-2 ${
-                                    isTablet ? 'mt-2 sm:mt-0' : ''
-                                  }`}>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => updateQty(item.kode_barang, item.jumlah - 1)}
-                                      className={`p-0 border-2 border-gray-300 hover:bg-gray-50 ${
-                                        isTablet ? 'h-9 w-9 rounded-md' : 'h-10 w-10 rounded-lg'
-                                      }`}
-                                    >
-                                      <Minus className={`${isTablet ? 'w-3 h-3' : 'w-4 h-4'}`} />
-                                    </Button>
-                                    <Input
-                                      type="number"
-                                      value={item.jumlah}
-                                      onChange={(e) => updateQty(item.kode_barang, Math.max(1, Number(e.target.value)))}
-                                      className={`text-center border-2 border-gray-300 font-bold ${
-                                        isTablet ? 'w-14 h-9 text-sm rounded-md' : 'w-16 h-10 text-base rounded-lg'
-                                      }`}
-                                      min="1"
-                                    />
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => updateQty(item.kode_barang, item.jumlah + 1)}
-                                      className={`p-0 border-2 border-gray-300 hover:bg-gray-50 ${
-                                        isTablet ? 'h-9 w-9 rounded-md' : 'h-10 w-10 rounded-lg'
-                                      }`}
-                                    >
-                                      <Plus className={`${isTablet ? 'w-3 h-3' : 'w-4 h-4'}`} />
-                                    </Button>
-                                  </div>
+                                 <div className={`flex items-center justify-center gap-2 ${
+  isTablet ? 'mt-2 sm:mt-0' : ''
+}`}>
+  <Button
+    variant="outline"
+    size="sm"
+    onClick={(e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      updateQty(item.kode_barang, item.jumlah - 1, e)
+    }}
+    className={`p-0 border-2 border-gray-300 hover:bg-gray-50 ${
+      isTablet ? 'h-9 w-9 rounded-md' : 'h-10 w-10 rounded-lg'
+    }`}
+  >
+    <Minus className={`${isTablet ? 'w-3 h-3' : 'w-4 h-4'}`} />
+  </Button>
+  
+  <Input
+    type="number"
+    value={item.jumlah}
+    onChange={(e) => {
+      const newQty = Math.max(1, Number(e.target.value) || 1)
+      updateQty(item.kode_barang, newQty, e)
+    }}
+    onFocus={(e) => {
+      // Mencegah scroll saat input difokuskan
+      e.target.scrollIntoView({ behavior: 'instant', block: 'nearest' })
+    }}
+    onBlur={(e) => {
+      // Optional: Validasi saat keluar dari input
+      if (!e.target.value || parseInt(e.target.value) < 1) {
+        updateQty(item.kode_barang, 1, e)
+      }
+    }}
+    className={`text-center border-2 border-gray-300 font-bold ${
+      isTablet ? 'w-14 h-9 text-sm rounded-md' : 'w-16 h-10 text-base rounded-lg'
+    }`}
+    min="1"
+  />
+  
+  <Button
+    variant="outline"
+    size="sm"
+    onClick={(e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      updateQty(item.kode_barang, item.jumlah + 1, e)
+    }}
+    className={`p-0 border-2 border-gray-300 hover:bg-gray-50 ${
+      isTablet ? 'h-9 w-9 rounded-md' : 'h-10 w-10 rounded-lg'
+    }`}
+  >
+    <Plus className={`${isTablet ? 'w-3 h-3' : 'w-4 h-4'}`} />
+  </Button>
+</div>
 
                                   <div className={`text-right ${
                                     isTablet ? 'mt-2 sm:mt-0' : ''
