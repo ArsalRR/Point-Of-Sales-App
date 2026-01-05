@@ -474,7 +474,7 @@ export default function CreateProduk() {
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-sm font-medium text-gray-700">
-                      Harga Rentengan (Opsional)
+                      Harga Rentengan/Box DLL (Opsional)
                     </Label>
                     <div className="mt-1">
                       <Badge variant="outline" className="text-xs bg-gray-100 text-gray-700">
@@ -497,7 +497,7 @@ export default function CreateProduk() {
                     ) : (
                       <>
                         <Settings className="w-3 h-3" />
-                        <span>Atur Harga Renteng</span>
+                        <span>Atur Harga Rentengan/Box DLL</span>
                         <ChevronDown className="w-3 h-3" />
                       </>
                     )}
@@ -508,8 +508,8 @@ export default function CreateProduk() {
                   <div className="space-y-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
                     {/* Harga Renteng */}
                      <div className="space-y-2">
-                <Label htmlFor="harga" className="text-sm font-medium">
-                  Harga  Rentengan
+                <Label htmlFor="harga_renteng" className="text-sm font-medium">
+                  Harga  Rentengan/Box DLL
                 </Label>
                 <Controller
                   name="harga_renteng"
@@ -519,7 +519,7 @@ export default function CreateProduk() {
                       {...field}
                       id="harga_renteng"
                       onChange={(e) => field.onChange(formatCurrency(e.target.value))}
-                      placeholder="Masukkan Harga"
+                      placeholder="Masukkan Harga Rentengan/Box DLL"
                       className={`h-12 ${errors.harga_renteng ? 'border-red-500' : ''}`}
                       autoComplete="off"
                     />

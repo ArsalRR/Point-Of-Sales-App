@@ -16,11 +16,10 @@ export const PAYMENT_STATUS = {
 }
 
 export const BARCODE_CONFIG = {
-  MIN_LENGTH: 3,           // Minimal panjang barcode
-  SCAN_TIMEOUT: 50,        // Timeout antar karakter (ms)
-  CHAR_TIMEOUT: 100,       // Maksimal jeda antar karakter (ms)
-  FOCUS_DELAY: 100,        // Delay sebelum fokus (ms)
-  MAX_BUFFER_SIZE: 50      // Maksimal ukuran buffer
+  MIN_LENGTH: 8,           // Minimal panjang barcode
+  SCAN_TIMEOUT: 100,       // Timeout untuk detect akhir barcode
+  MAX_KEY_INTERVAL: 50,    // Maksimal interval antar karakter untuk dianggap barcode scanner
+  FOCUS_DELAY: 100         // Delay fokus setelah scan
 }
 export const TOAST_CONFIG = {
   toast: true,
@@ -29,7 +28,7 @@ export const TOAST_CONFIG = {
   timerProgressBar: true
 }
 
-export const EXCLUDED_INPUT_IDS = ['total_uang', 'kembalian']
+export const EXCLUDED_INPUT_IDS = ['total_uang', 'diskon']
 export const SEARCH_MAX_RESULTS = 8
 export const SEARCH_CLEAR_DELAY = 150
 
