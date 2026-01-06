@@ -204,6 +204,7 @@ export const useKasir = () => {
     setCart(prevCart => {
       const exist = prevCart.find(c => c.kode_barang === product.kode_barang)
       if (exist) {
+        // TAMBAH quantity jika sudah ada
         return prevCart.map(c =>
           c.kode_barang === product.kode_barang
             ? { ...c, jumlah: c.jumlah + quantity }
@@ -358,13 +359,8 @@ export const useKasir = () => {
    * Handler ketika barcode ditemukan
    */
   const handleBarcodeFound = useCallback((barcode) => {
-    // Cegah double scan dalam waktu singkat
+    // HAPUS anti-duplicate logic - scan harus selalu nambah 1
     const now = Date.now()
-    if (barcode === lastScannedBarcodeRef.current && 
-        now - lastKeyTimeRef.current < 1000) {
-      return
-    }
-    
     lastScannedBarcodeRef.current = barcode
     lastKeyTimeRef.current = now
 
@@ -373,7 +369,7 @@ export const useKasir = () => {
     )
 
     if (product) {
-      // SELALU tambah 1 item setiap scan
+      // SELALU tambah 1 item setiap scan (termasuk barcode sama)
       addProductToCart(product, 1)
       
       setSearchQuery('')
@@ -540,19 +536,33 @@ export const useKasir = () => {
       const isTextArea = active?.tagName === 'TEXTAREA'
       const isContentEditable = active?.contentEditable === 'true'
       const isSearchInput = active === searchInputRef.current
+      const activeElementId = active?.id || ''
       
-      // 1. Jika di textarea/contenteditable → IGNORE
-      if (isTextArea || isContentEditable) return
+      // 1. Check if element is in excluded inputs list
+      const isExcludedInput = EXCLUDED_INPUT_IDS.includes(activeElementId)
+      
+      // 2. Jika di textarea/contenteditable atau excluded input → IGNORE (biarkan normal typing)
+      if (isTextArea || isContentEditable || isExcludedInput) {
+        return // Biarkan user mengetik normal
+      }
       
       const currentTime = Date.now()
       const timeSinceLastKey = currentTime - lastKeyTimeRef.current
       
-      // 2. Tangkap karakter untuk barcode scanner
+      // 3. Tangkap karakter untuk barcode scanner HANYA jika:
+      //    - Bukan di input yang excluded
+      //    - Bukan di search input UNTUK manual typing yang lambat
       if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        // PREVENT DEFAULT untuk semua karakter (kecuali di search input untuk manual typing)
-        if (!isSearchInput) {
-          e.preventDefault()
+        
+        // LOGIC: Jika di search input DAN typing lambat (> 100ms) → biarkan manual typing
+        if (isSearchInput && timeSinceLastKey > 100) {
+          // Ini manual typing oleh user, reset buffer
+          barcodeBufferRef.current = ''
+          return // Biarkan browser handle typing normal
         }
+        
+        // Untuk kasus lain (barcode scanner atau typing cepat di search input):
+        e.preventDefault() // Prevent default untuk semua karakter scanner
         
         // Update waktu terakhir
         lastKeyTimeRef.current = currentTime
@@ -560,9 +570,10 @@ export const useKasir = () => {
         // Tambah ke buffer
         barcodeBufferRef.current += e.key
         
-        // Update search input untuk visual feedback (hanya jika bukan manual typing)
-        if (searchInputRef.current && (!isSearchInput || timeSinceLastKey < BARCODE_CONFIG.MAX_KEY_INTERVAL)) {
+        // Update search input untuk visual feedback
+        if (searchInputRef.current) {
           if (!isSearchInput) {
+            // Jika bukan di search input, fokuskan ke sana
             searchInputRef.current.focus()
           }
           searchInputRef.current.value = barcodeBufferRef.current
@@ -580,11 +591,17 @@ export const useKasir = () => {
           } else {
             // Jika bukan barcode, clear buffer
             barcodeBufferRef.current = ''
+            // Juga clear search input jika buffer kosong
+            if (searchInputRef.current && searchInputRef.current.value === barcodeBufferRef.current) {
+              searchInputRef.current.value = ''
+              setSearchQuery('')
+              setShowSearchResults(false)
+            }
           }
         }, BARCODE_CONFIG.SCAN_TIMEOUT)
       }
       
-      // 3. Enter key sebagai alternatif
+      // 4. Enter key sebagai alternatif
       else if (e.key === 'Enter' && barcodeBufferRef.current.length >= BARCODE_CONFIG.MIN_LENGTH) {
         e.preventDefault()
         if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current)
@@ -593,7 +610,7 @@ export const useKasir = () => {
         processBarcode(scannedBarcode)
       }
       
-      // 4. Escape key untuk clear buffer
+      // 5. Escape key untuk clear buffer
       else if (e.key === 'Escape') {
         barcodeBufferRef.current = ''
         if (searchInputRef.current) {
