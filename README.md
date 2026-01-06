@@ -1,159 +1,152 @@
-Sistem Kasir POS (Point of Sale) 🛒💻
-https://public/photo_app/dasboard_ui.jpeg
+# Sistem Kasir POS (Point of Sale) 🛒💻
 
-📋 Tentang Proyek
+![Dashboard Kasir](public/photo_app/dasboard_ui.jpeg)
+
+## 📋 Tentang Proyek
+
 Sistem Kasir Point of Sale (POS) modern yang dirancang untuk toko retail dengan fitur lengkap untuk manajemen transaksi, inventori, dan laporan keuangan. Dibangun dengan React dan teknologi web terbaru untuk performa optimal dan pengalaman pengguna yang intuitif.
 
-✨ Fitur Utama
-🛒 Transaksi Kasir
-Scan barcode otomatis dengan dukungan berbagai jenis scanner
+## ✨ Fitur Utama
 
-Input manual produk dengan pencarian real-time
+### 🛒 Transaksi Kasir
+- Scan barcode otomatis dengan dukungan berbagai jenis scanner.
+- Input manual produk dengan pencarian real-time.
+- Multi-satuan (pcs, pack, dozen, dll) dengan konversi harga otomatis.
+- Sistem diskon fleksibel (persentase, nominal, promo khusus).
+- Perhitungan kembalian real-time.
 
-Multi-satuan (pcs, pack, dozen, dll) dengan konversi harga otomatis
+### 📊 Manajemen Produk
+- Database produk dengan kode barcode unik.
+- Stok otomatis berkurang saat transaksi.
+- Kategori dan sub-kategori produk.
+- Harga jual berbeda berdasarkan satuan.
+- Promo dan diskon spesial.
 
-Sistem diskon fleksibel (persentase, nominal, promo khusus)
+### 📈 Laporan & Analisis
+- Laporan penjualan harian.
+- Riwayat transaksi per user.
 
-Perhitungan kembalian real-time
+### 🔐 Keamanan
+- Login dengan autentikasi secure.
+- Batasan akses berdasarkan role.
 
-📊 Manajemen Produk
-Database produk dengan kode barcode unik
+## 🖼️ Screenshots Aplikasi
 
-Stok otomatis berkurang saat transaksi
+| Dashboard Kasir Utama | Manajemen Produk |
+|:---------------------:|:----------------:|
+| ![Dashboard](public/photo_app/dasboard_ui.jpeg) | ![Produk](public/photo_app/produk.jpeg) |
+| *Tampilan utama kasir dengan keranjang belanja* | *Interface pengelolaan katalog produk* |
 
-Kategori dan sub-kategori produk
+| Login UI | Mobile Responsive |
+|:--------:|:-----------------:|
+| ![Login](public/photo_app/login_ui.jpeg) | ![Mobile](public/photo_app/mobile_ui.jpeg) |
+| *Halaman Login Autentikasi* | *Tampilan optimal untuk mobile* |
 
-Harga jual berbeda berdasarkan satuan
+## 🛠️ Teknologi yang Digunakan
 
-Promo dan diskon spesial
+| Teknologi | Kegunaan |
+|-----------|----------|
+| **React 18** | UI Framework utama |
+| **Vite** | Build tool ultra cepat |
+| **Tailwind CSS** | Styling utility-first |
+| **React Router** | Navigasi SPA |
+| **Axios** | HTTP client untuk API |
+| **SweetAlert2** | Notifikasi modern |
+| **React Hook Form** | Form validation |
+| **Zustand/Context API** | State management |
+| **ESLint + Prettier** | Code quality |
 
-📈 Laporan & Analisis
-Laporan penjualan harian,
+## 🚀 Instalasi & Menjalankan
 
+### Prasyarat
+- Node.js 18+ dan npm/yarn
+- Database MySQL/PostgreSQL
+- Barcode scanner (opsional)
 
-Login dengan autentikasi secure
+### Langkah Instalasi
 
-Riwayat transaksi per user
+1. **Clone repository**
+   ```bash
+   git clone [repository-url]
+   cd kasir-pos
+   ```
 
-Batasan akses berdasarkan role
+2. **Install dependencies**
+   ```bash
+   npm install
+   # atau
+   yarn install
+   ```
 
-🖼️ Screenshots Aplikasi
-1. Dashboard Kasir Utama
-https://public/photo_app/dasboard_ui.jpeg
-Tampilan utama kasir dengan keranjang belanja, pencarian produk, dan form pembayaran
+3. **Setup environment**
+   ```bash
+   cp .env.example .env.local
+   # Edit file .env.local dengan konfigurasi database Anda
+   ```
 
-2. Manajemen Produk
-https://public/photo_app/produk.jpeg
-Interface untuk menambah, mengedit, dan mengelola katalog produk
+4. **Jalankan development server**
+   ```bash
+   npm run dev
+   # atau
+   yarn dev
+   ```
 
-3. Laporan Penjualan
-https://public/photo_app/login_ui.jpeg
-Login Ui Untuk Autentikasi
-
-4. Mobile Responsive
-https://public/photo_app/mobile_ui.jpeg
-Tampilan optimal untuk tablet dan perangkat mobile
-
-🛠️ Teknologi yang Digunakan
-Teknologi	Kegunaan
-React 18	UI Framework utama
-Vite	Build tool ultra cepat
-Tailwind CSS	Styling utility-first
-React Router	Navigasi SPA
-Axios	HTTP client untuk API
-SweetAlert2	Notifikasi modern
-React Hook Form	Form validation
-Zustand/Context API	State management
-ESLint + Prettier	Code quality
-🚀 Instalasi & Menjalankan
-Prasyarat
-Node.js 18+ dan npm/yarn
-
-Database MySQL/PostgreSQL
-
-Barcode scanner (opsional, untuk fitur scan)
-
-Instalasi
-bash
-# Clone repository
-git clone [repository-url]
-cd kasir-pos
-
-# Install dependencies
-npm install
-# atau
-yarn install
-
-# Setup environment
-cp .env.example .env.local
-# Edit file .env.local dengan konfigurasi database Anda
-
-# Jalankan development server
-npm run dev
-# atau
-yarn dev
-Build untuk Production
-bash
+### Build untuk Production
+```bash
 npm run build
 npm run preview
-📁 Struktur Proyek
-text
+```
+
+## 📁 Struktur Proyek
+
+```text
 src/
 ├── components/     # Komponen React reusable
-│   ├── kasir/     # Komponen khusus kasir
-│   ├── layout/    # Layout komponen
-│   └── ui/        # Komponen UI dasar
-├── pages/         # Halaman aplikasi
-├── hooks/         # Custom hooks
-├── api/           # Konfigurasi API
-├── utils/         # Utility functions
-├── styles/        # Global styles
-└── assets/        Gambar, font, dll
-🔧 Konfigurasi Barcode Scanner
+│   ├── kasir/      # Komponen khusus kasir
+│   ├── layout/     # Layout komponen
+│   └── ui/         # Komponen UI dasar
+├── pages/          # Halaman aplikasi
+├── hooks/          # Custom hooks
+├── api/            # Konfigurasi API
+├── utils/          # Utility functions
+├── styles/         # Global styles
+└── assets/         # Gambar, font, dll
+```
+
+## 🔧 Konfigurasi Barcode Scanner
+
 Sistem mendukung berbagai jenis barcode scanner:
+- **USB HID Keyboard Emulation** (Plug & Play)
+- **Serial/RS-232 Scanner** (dengan konfigurasi port)
+- **Wireless Bluetooth Scanner**
 
-USB HID Keyboard Emulation (Plug & Play)
+*Setup otomatis - Scanner langsung berfungsi setelah terkoneksi ke USB.*
 
-Serial/RS-232 Scanner (dengan konfigurasi port)
+## 🎯 Target Pengguna
 
-Wireless Bluetooth Scanner
+- ✅ Toko Retail (Fashion, Elektronik, Peralatan)
+- ✅ Minimarket & Supermarket
+- ✅ Toko Kebutuhan Sehari-hari
+- ✅ Coffee Shop & Restoran
+- ✅ Bisnis UMKM
 
-Setup otomatis - Scanner langsung berfungsi setelah terkoneksi ke USB.
+## 📦 Fitur dalam Pengembangan
 
-🎯 Target Pengguna
-✅ Toko Retail (Fashion, Elektronik, Peralatan)
+- [ ] Integrasi payment gateway (QRIS, E-money)
+- [ ] Aplikasi mobile companion
+- [ ] Backup data ke cloud
+- [ ] Multi-gudang/stok
+- [ ] Loyalty program
+- [ ] Notifikasi stok menipis
 
-✅ Minimarket & Supermarket
+## 👥 Kontribusi
 
-✅ Toko Kebutuhan Sehari-hari
+1. Fork repository
+2. Buat branch fitur (`git checkout -b fitur-baru`)
+3. Commit perubahan (`git commit -m 'Menambah fitur X'`)
+4. Push ke branch (`git push origin fitur-baru`)
+5. Buat Pull Request
 
-✅ Coffee Shop & Restoran
+## 📄 Lisensi
 
-✅ Bisnis UMKM
-
-📦 Fitur dalam Pengembangan
-Integrasi payment gateway (QRIS, E-money)
-
-Aplikasi mobile companion
-
-Backup data ke cloud
-
-Multi-gudang/stok
-
-Loyalty program
-
-Notifikasi stok menipis
-
-👥 Kontribusi
-Fork repository
-
-Buat branch fitur (git checkout -b fitur-baru)
-
-Commit perubahan (git commit -m 'Menambah fitur X')
-
-Push ke branch (git push origin fitur-baru)
-
-Buat Pull Request
-
-📄 Lisensi
-Proyek ini menggunakan lisensi MIT. Lihat file LICENSE untuk detail.
+Proyek ini menggunakan lisensi MIT. Lihat file [LICENSE](LICENSE) untuk detail.
