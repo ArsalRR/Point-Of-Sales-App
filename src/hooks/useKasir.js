@@ -48,6 +48,7 @@ export const useKasir = () => {
   const lastScannedBarcodeRef = useRef('')
   const transaksiRef = useRef([])
   const scanTimeoutRef = useRef(null)
+  const isProcessingBarcodeRef = useRef(false) // TAMBAHKAN REF INI
 
   // ===== UTILITY FUNCTIONS =====
 
@@ -386,13 +387,27 @@ export const useKasir = () => {
    * Helper untuk memproses barcode
    */
   const processBarcode = useCallback((barcode) => {
+    // CEGAH DOUBLE PROCESSING: Cek jika sedang memproses
+    if (isProcessingBarcodeRef.current) {
+      console.log('Barcode sedang diproses, skip double processing')
+      return
+    }
+    
+    isProcessingBarcodeRef.current = true
+    
     handleBarcodeFound(barcode)
+    
     // Clear visual feedback
     setSearchQuery('')
     setShowSearchResults(false)
     if (searchInputRef.current) {
       searchInputRef.current.value = ''
     }
+    
+    // Reset flag setelah delay kecil
+    setTimeout(() => {
+      isProcessingBarcodeRef.current = false
+    }, 200)
   }, [handleBarcodeFound])
 
   // ===== TRANSACTION PROCESSING =====
