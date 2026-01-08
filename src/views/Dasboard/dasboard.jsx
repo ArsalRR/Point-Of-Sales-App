@@ -510,7 +510,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Informasi Tambahan */}
-        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-1">
           <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -544,60 +544,6 @@ export default function Dashboard() {
                     chartData.reduce((acc, curr) => acc + (curr.total_pendapatan || 0), 0)
                   )}
                 </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">
-                Status Update
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={`h-2 w-2 rounded-full ${
-                    isLoadingDaily ? 'bg-yellow-500' : 'bg-green-500'
-                  }`}></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Pendapatan Harian</span>
-                </div>
-                <Badge 
-                  variant="outline" 
-                  className="text-xs border-gray-300 dark:border-gray-700"
-                >
-                  {isLoadingDaily ? 'Memuat...' : 'Live'}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Data Dashboard</span>
-                </div>
-                <Badge 
-                  variant="outline" 
-                  className="text-xs border-gray-300 dark:border-gray-700"
-                >
-                  Updated
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={`h-2 w-2 rounded-full ${
-                    lowStockItem ? 'bg-amber-500' : 'bg-green-500'
-                  }`}></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Monitoring Stok</span>
-                </div>
-                <Badge 
-                  variant="outline" 
-                  className={`text-xs ${
-                    lowStockItem 
-                      ? 'border-amber-300 dark:border-amber-700 text-amber-600 dark:text-amber-400'
-                      : 'border-gray-300 dark:border-gray-700'
-                  }`}
-                >
-                  {lowStockItem ? 'Perhatian' : 'Normal'}
-                </Badge>
               </div>
             </CardContent>
           </Card>

@@ -16,9 +16,9 @@ export const PAYMENT_STATUS = {
 }
 
 export const BARCODE_CONFIG = {
-  MIN_LENGTH: 8,
-  SCAN_TIMEOUT: 100,  // Timeout untuk barcode
-  FOCUS_DELAY: 100
+  SCAN_TIMEOUT: 120,    // 120ms optimal untuk scanner cepat
+  FOCUS_DELAY: 50,
+  MIN_LENGTH: 3         // Minimal 3 karakter
 }
 export const TOAST_CONFIG = {
   toast: true,

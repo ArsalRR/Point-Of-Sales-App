@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo,useCallback } from 'react'
 import { postKasir, getTransaksi } from '@/api/Kasirapi'
 import { getProfile } from '@/api/Userapi'
 import { getHargaPromo } from '@/api/HargaPromoapi'
@@ -18,11 +18,7 @@ import {
 import { searchProducts } from '@/utils/searchUtils'
 import { calculatePromoDiscount } from '@/utils/promoUtils'
 
-/**
- * Custom hook untuk logika bisnis kasir
- */
 export const useKasir = () => {
-  // State management
   const [transaksi, setTransaksi] = useState([])
   const [formData, setFormData] = useState({
     produk_id: '',
@@ -41,34 +37,25 @@ export const useKasir = () => {
   const [hargaPromo, setHargaPromo] = useState([])
   const [promoLoaded, setPromoLoaded] = useState(false)
 
-  // Refs untuk manage DOM dan barcode
+  // Refs
   const searchInputRef = useRef(null)
   const barcodeBufferRef = useRef('')
   const lastKeyTimeRef = useRef(0)
-  const lastScannedBarcodeRef = useRef('')
   const transaksiRef = useRef([])
   const scanTimeoutRef = useRef(null)
-  const isProcessingBarcodeRef = useRef(false) // TAMBAHKAN REF INI
+  const isProcessingBarcodeRef = useRef(false)
+  const lastBarcodeProcessedRef = useRef({ code: '', timestamp: 0 })
+  const addToCartLockRef = useRef(false)
 
-  // ===== UTILITY FUNCTIONS =====
-
-  /**
-   * Menampilkan toast notification
-   */
+  // Utility functions
   const showToast = useCallback((title, text, icon, timer = 3000) => {
     Swal.fire({ ...TOAST_CONFIG, title, text, icon, timer })
   }, [])
 
-  /**
-   * Fokus ke search input dengan delay
-   */
   const focusSearchInput = useCallback((delay = BARCODE_CONFIG.FOCUS_DELAY) => {
     setTimeout(() => searchInputRef.current?.focus(), delay)
   }, [])
 
-  /**
-   * Alert ketika barcode tidak ditemukan
-   */
   const showBarcodeNotFoundAlert = useCallback((searchTerm) => {
     Swal.fire({
       icon: "error",
@@ -80,41 +67,26 @@ export const useKasir = () => {
         toast.addEventListener('mouseenter', Swal.stopTimer)
         toast.addEventListener('mouseleave', Swal.resumeTimer)
       },
-      didClose: () => {
-        focusSearchInput()
-      }
+      didClose: () => focusSearchInput()
     })
   }, [focusSearchInput])
 
-  // ===== COMPUTED VALUES =====
-
-  /**
-   * Hasil pencarian produk berdasarkan query
-   */
+  // Computed values
   const searchResults = useMemo(() => 
     searchProducts(transaksi, searchQuery), 
     [transaksi, searchQuery]
   )
 
-  /**
-   * Total subtotal cart tanpa diskon
-   */
   const cartSubtotal = useMemo(() => 
     cart.reduce((sum, item) => sum + (getCurrentPrice(item) * item.jumlah), 0),
     [cart]
   )
 
-  /**
-   * Total yang harus dibayar setelah diskon
-   */
   const getTotalToBePaid = useCallback(() => {
     const diskon = parseRupiah(formData.diskon)
     return Math.max(0, cartSubtotal - diskon)
   }, [cartSubtotal, formData.diskon])
 
-  /**
-   * Status pembayaran (kurang, lebih, pas)
-   */
   const getPaymentStatus = useCallback(() => {
     const totalUang = parseRupiah(formData.total_uang)
     const totalToBePaid = getTotalToBePaid()
@@ -153,11 +125,7 @@ export const useKasir = () => {
   const total = useMemo(() => getTotalToBePaid(), [getTotalToBePaid])
   const paymentStatus = useMemo(() => getPaymentStatus(), [getPaymentStatus])
 
-  // ===== API FUNCTIONS =====
-
-  /**
-   * Fetch data user yang login
-   */
+  // API functions
   const fetchUser = useCallback(async () => {
     try {
       const res = await getProfile()
@@ -167,9 +135,6 @@ export const useKasir = () => {
     }
   }, [])
 
-  /**
-   * Fetch data harga promo dari API
-   */
   const fetchHargaPromo = useCallback(async () => {
     try {
       const res = await getHargaPromo()
@@ -182,9 +147,6 @@ export const useKasir = () => {
     }
   }, [])
 
-  /**
-   * Fetch data transaksi/daftar produk dari API
-   */
   const fetchTransaksi = useCallback(async () => {
     try {
       const res = await getTransaksi()
@@ -194,18 +156,19 @@ export const useKasir = () => {
     }
   }, [])
 
-  // ===== CART OPERATIONS =====
-
-  /**
-   * Menambahkan produk ke cart
-   */
+  // Cart operations
   const addProductToCart = useCallback((product, quantity = 1) => {
     if (!product) return
+
+    if (addToCartLockRef.current) {
+      return
+    }
+
+    addToCartLockRef.current = true
 
     setCart(prevCart => {
       const exist = prevCart.find(c => c.kode_barang === product.kode_barang)
       if (exist) {
-        // TAMBAH quantity jika sudah ada
         return prevCart.map(c =>
           c.kode_barang === product.kode_barang
             ? { ...c, jumlah: c.jumlah + quantity }
@@ -220,11 +183,12 @@ export const useKasir = () => {
     })
 
     showToast("Berhasil", `${product.nama_barang} ditambahkan (+${quantity})`, "success", 1500)
+
+    setTimeout(() => {
+      addToCartLockRef.current = false
+    }, 500)
   }, [showToast])
 
-  /**
-   * Mengupdate quantity item di cart
-   */
   const updateQty = useCallback((kode_barang, newQty, event) => {
     if (newQty < 1) return
     
@@ -240,23 +204,14 @@ export const useKasir = () => {
     )
   }, [])
 
-  /**
-   * Menghapus item dari cart
-   */
   const removeItem = useCallback((kode) => {
     setCart(prev => prev.filter(c => c.kode_barang !== kode))
   }, [])
 
-  /**
-   * Menghitung subtotal untuk satu item
-   */
   const subtotal = useCallback((item) => {
     return getCurrentPrice(item) * item.jumlah
   }, [])
 
-  /**
-   * Mengubah satuan untuk item tertentu
-   */
   const handleChangeSatuan = useCallback((kode_barang, satuan) => {
     setCart(prevCart =>
       prevCart.map(item =>
@@ -267,35 +222,23 @@ export const useKasir = () => {
     )
   }, [])
 
-  // ===== PROMO HANDLING =====
-
-  /**
-   * Mengecek dan menerapkan promo ke diskon
-   */
+  // Promo handling
   const checkAndApplyPromo = useCallback(() => {
     if (!promoLoaded) return
     
     if (cart.length === 0 || hargaPromo.length === 0) {
-      setFormData(prev => ({
-        ...prev,
-        diskon: ""
-      }))
+      setFormData(prev => ({ ...prev, diskon: "" }))
       return
     }
 
     const totalDiskonPromo = calculatePromoDiscount(cart, hargaPromo)
-    
     setFormData(prev => ({
       ...prev,
       diskon: totalDiskonPromo > 0 ? formatRupiah(totalDiskonPromo) : ""
     }))
   }, [cart, hargaPromo, promoLoaded, formatRupiah])
 
-  // ===== FORM HANDLERS =====
-
-  /**
-   * Handler untuk perubahan input diskon
-   */
+  // Form handlers
   const handleDiskonChange = useCallback((e) => {
     const rawValue = e.target.value
     if (rawValue === "") {
@@ -305,13 +248,9 @@ export const useKasir = () => {
 
     const numericValue = parseRupiah(rawValue)
     const finalDiskon = Math.min(numericValue, cartSubtotal)
-
     setFormData(prev => ({ ...prev, diskon: formatRupiah(finalDiskon) }))
   }, [cartSubtotal])
 
-  /**
-   * Handler untuk perubahan input total uang
-   */
   const handleTotalUangChange = useCallback((e) => {
     const rawValue = e.target.value
     if (rawValue === "") {
@@ -335,11 +274,7 @@ export const useKasir = () => {
     }
   }, [cartSubtotal, formData.diskon])
 
-  // ===== SEARCH HANDLERS =====
-
-  /**
-   * Handler untuk memilih hasil pencarian
-   */
+  // Search handlers
   const handleSearchSelect = useCallback((product) => {
     const exactProduct = transaksi.find(p => 
       p.kode_barang.trim() === searchQuery.trim()
@@ -354,67 +289,70 @@ export const useKasir = () => {
     }
   }, [transaksi, searchQuery, addProductToCart])
 
-  // ===== BARCODE SCANNER =====
-
-  /**
-   * Handler ketika barcode ditemukan
-   */
+  // Barcode scanner
   const handleBarcodeFound = useCallback((barcode) => {
-    // HAPUS anti-duplicate logic - scan harus selalu nambah 1
     const now = Date.now()
-    lastScannedBarcodeRef.current = barcode
-    lastKeyTimeRef.current = now
+    
+    const timeSinceLastProcess = now - lastBarcodeProcessedRef.current.timestamp
+    if (lastBarcodeProcessedRef.current.code === barcode && timeSinceLastProcess < 2000) {
+      return
+    }
+    
+    if (addToCartLockRef.current) {
+      return
+    }
+    
+    lastBarcodeProcessedRef.current = { code: barcode, timestamp: now }
 
     const product = transaksiRef.current.find(p =>
       p.kode_barang.trim().toLowerCase() === barcode.toLowerCase()
     )
 
     if (product) {
-      // SELALU tambah 1 item setiap scan (termasuk barcode sama)
       addProductToCart(product, 1)
       
+      if (searchInputRef.current) {
+        searchInputRef.current.value = ''
+      }
       setSearchQuery('')
       setShowSearchResults(false)
-      focusSearchInput()
+      focusSearchInput(50)
     } else {
       showBarcodeNotFoundAlert(barcode)
       setSearchQuery('')
-      focusSearchInput()
+      if (searchInputRef.current) {
+        searchInputRef.current.value = ''
+      }
+      focusSearchInput(100)
     }
   }, [addProductToCart, focusSearchInput, showBarcodeNotFoundAlert])
 
-  /**
-   * Helper untuk memproses barcode
-   */
   const processBarcode = useCallback((barcode) => {
-    // CEGAH DOUBLE PROCESSING: Cek jika sedang memproses
     if (isProcessingBarcodeRef.current) {
-      console.log('Barcode sedang diproses, skip double processing')
+      return
+    }
+    
+    if (!barcode || barcode.length < BARCODE_CONFIG.MIN_LENGTH) {
       return
     }
     
     isProcessingBarcodeRef.current = true
     
-    handleBarcodeFound(barcode)
+    barcodeBufferRef.current = ''
     
-    // Clear visual feedback
-    setSearchQuery('')
-    setShowSearchResults(false)
     if (searchInputRef.current) {
       searchInputRef.current.value = ''
     }
     
-    // Reset flag setelah delay kecil
+    handleBarcodeFound(barcode)
+    
     setTimeout(() => {
       isProcessingBarcodeRef.current = false
-    }, 200)
+    }, 1000)
+    
   }, [handleBarcodeFound])
 
-  // ===== TRANSACTION PROCESSING =====
-
-  /**
-   * Mengirim transaksi ke API
-   */
+  // Transaction processing
   const postTransaksi = useCallback(async (data) => {
     try {
       setIsProcessing(true)
@@ -458,9 +396,6 @@ export const useKasir = () => {
     }
   }, [cart, cartSubtotal, formData.diskon, formData.total_uang, showToast, focusSearchInput])
 
-  /**
-   * Handler untuk submit transaksi
-   */
   const handleSubmit = useCallback((e) => {
     e.preventDefault()
 
@@ -485,24 +420,19 @@ export const useKasir = () => {
     postTransaksi(payload)
   }, [user, cart, formData.diskon, postTransaksi, showToast])
 
-  // ===== EFFECTS =====
-
-  // Load promo data
+  // Effects
   useEffect(() => {
     fetchHargaPromo()
   }, [fetchHargaPromo])
 
-  // Sync transaksi ke ref
   useEffect(() => {
     transaksiRef.current = transaksi
   }, [transaksi])
 
-  // Apply promo ketika cart berubah
   useEffect(() => {
     checkAndApplyPromo()
   }, [checkAndApplyPromo])
 
-  // Cleanup search query ketika tidak ada hasil
   useEffect(() => {
     let clearTimer = null
     let isCleanedUp = false
@@ -534,80 +464,77 @@ export const useKasir = () => {
     }
   }, [showSearchResults, searchQuery, searchResults, showBarcodeNotFoundAlert])
 
-  // BARCODE SCANNER EFFECT - Semua logika barcode scanner disini
   useEffect(() => {
-    // Fetch initial data
     fetchTransaksi()
     fetchUser()
     
-    // Focus on search input
-    focusSearchInput(0)
+    setTimeout(() => {
+      focusSearchInput(0)
+    }, 300)
 
-    /**
-     * Handler untuk global key press (barcode scanner)
-     */
     const handleGlobalKeyDown = (e) => {
       const active = document.activeElement
       const isTextArea = active?.tagName === 'TEXTAREA'
       const isContentEditable = active?.contentEditable === 'true'
       const isSearchInput = active === searchInputRef.current
       const activeElementId = active?.id || ''
+      const isNumberInput = active?.tagName === 'INPUT' && active?.type === 'number'
       
-      // 1. Check if element is in excluded inputs list
       const isExcludedInput = EXCLUDED_INPUT_IDS.includes(activeElementId)
       
-      // 2. Jika di textarea/contenteditable atau excluded input → IGNORE (biarkan normal typing)
-      if (isTextArea || isContentEditable || isExcludedInput) {
-        return // Biarkan user mengetik normal
+      if (isTextArea || isContentEditable || isExcludedInput || (isNumberInput && !isSearchInput)) {
+        return
       }
       
       const currentTime = Date.now()
       const timeSinceLastKey = currentTime - lastKeyTimeRef.current
       
-      // 3. Tangkap karakter untuk barcode scanner HANYA jika:
-      //    - Bukan di input yang excluded
-      //    - Bukan di search input UNTUK manual typing yang lambat
       if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
         
-        // LOGIC: Jika di search input DAN typing lambat (> 100ms) → biarkan manual typing
-        if (isSearchInput && timeSinceLastKey > 100) {
-          // Ini manual typing oleh user, reset buffer
+        if (isSearchInput && timeSinceLastKey > 150) {
           barcodeBufferRef.current = ''
-          return // Biarkan browser handle typing normal
+          return
         }
         
-        // Untuk kasus lain (barcode scanner atau typing cepat di search input):
-        e.preventDefault() // Prevent default untuk semua karakter scanner
+        e.preventDefault()
+        e.stopPropagation()
         
-        // Update waktu terakhir
+        if (scanTimeoutRef.current) {
+          clearTimeout(scanTimeoutRef.current)
+        }
+        
+        barcodeBufferRef.current += e.key
         lastKeyTimeRef.current = currentTime
         
-        // Tambah ke buffer
-        barcodeBufferRef.current += e.key
-        
-        // Update search input untuk visual feedback
         if (searchInputRef.current) {
           if (!isSearchInput) {
-            // Jika bukan di search input, fokuskan ke sana
             searchInputRef.current.focus()
           }
           searchInputRef.current.value = barcodeBufferRef.current
           setSearchQuery(barcodeBufferRef.current)
-          setShowSearchResults(barcodeBufferRef.current.length > 0)
+          setShowSearchResults(barcodeBufferRef.current.length > 2)
         }
         
-        // Timer untuk detect barcode selesai
-        if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current)
         scanTimeoutRef.current = setTimeout(() => {
           if (barcodeBufferRef.current.length >= BARCODE_CONFIG.MIN_LENGTH) {
             const scannedBarcode = barcodeBufferRef.current.trim()
-            barcodeBufferRef.current = ''
-            processBarcode(scannedBarcode)
+            
+            const allSame = scannedBarcode.split('').every(char => char === scannedBarcode[0])
+            const isValid = !allSame || scannedBarcode.length <= 3
+            
+            if (isValid) {
+              processBarcode(scannedBarcode)
+            } else {
+              barcodeBufferRef.current = ''
+              if (searchInputRef.current) {
+                searchInputRef.current.value = ''
+                setSearchQuery('')
+                setShowSearchResults(false)
+              }
+            }
           } else {
-            // Jika bukan barcode, clear buffer
             barcodeBufferRef.current = ''
-            // Juga clear search input jika buffer kosong
-            if (searchInputRef.current && searchInputRef.current.value === barcodeBufferRef.current) {
+            if (searchInputRef.current) {
               searchInputRef.current.value = ''
               setSearchQuery('')
               setShowSearchResults(false)
@@ -616,17 +543,36 @@ export const useKasir = () => {
         }, BARCODE_CONFIG.SCAN_TIMEOUT)
       }
       
-      // 4. Enter key sebagai alternatif
-      else if (e.key === 'Enter' && barcodeBufferRef.current.length >= BARCODE_CONFIG.MIN_LENGTH) {
-        e.preventDefault()
-        if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current)
-        const scannedBarcode = barcodeBufferRef.current.trim()
-        barcodeBufferRef.current = ''
-        processBarcode(scannedBarcode)
+      else if (e.key === 'Enter') {
+        if (barcodeBufferRef.current.length >= BARCODE_CONFIG.MIN_LENGTH) {
+          e.preventDefault()
+          e.stopPropagation()
+          
+          if (scanTimeoutRef.current) {
+            clearTimeout(scanTimeoutRef.current)
+            scanTimeoutRef.current = null
+          }
+          
+          const scannedBarcode = barcodeBufferRef.current.trim()
+          barcodeBufferRef.current = ''
+          
+          const allSame = scannedBarcode.split('').every(char => char === scannedBarcode[0])
+          const isValid = !allSame || scannedBarcode.length <= 3
+          
+          if (isValid) {
+            processBarcode(scannedBarcode)
+          }
+        }
+        else if (isSearchInput && searchResults.length > 0) {
+          return
+        }
       }
       
-      // 5. Escape key untuk clear buffer
       else if (e.key === 'Escape') {
+        if (scanTimeoutRef.current) {
+          clearTimeout(scanTimeoutRef.current)
+          scanTimeoutRef.current = null
+        }
         barcodeBufferRef.current = ''
         if (searchInputRef.current) {
           searchInputRef.current.value = ''
@@ -636,18 +582,18 @@ export const useKasir = () => {
       }
     }
 
-    document.addEventListener('keydown', handleGlobalKeyDown)
+    document.addEventListener('keydown', handleGlobalKeyDown, true)
 
     return () => {
-      document.removeEventListener('keydown', handleGlobalKeyDown)
-      if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current)
+      document.removeEventListener('keydown', handleGlobalKeyDown, true)
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current)
+      }
     }
-  }, [fetchTransaksi, fetchUser, focusSearchInput, processBarcode])
+  }, [fetchTransaksi, fetchUser, focusSearchInput, processBarcode, searchResults.length])
 
-  // ===== RETURN VALUES =====
-
+  // Return values
   return {
-    // State
     transaksi,
     formData,
     searchQuery,
@@ -663,41 +609,23 @@ export const useKasir = () => {
     user,
     hargaPromo,
     promoLoaded,
-    
-    // Refs
     searchInputRef,
-    
-    // Computed values
     searchResults,
     cartSubtotal,
     total,
     paymentStatus,
-    
-    // API functions
     fetchTransaksi,
     fetchUser,
-    
-    // Cart operations
     addProductToCart,
     updateQty,
     removeItem,
     subtotal,
     handleChangeSatuan,
-    
-    // Form handlers
     handleDiskonChange,
     handleTotalUangChange,
-    
-    // Search handlers
     handleSearchSelect,
-    
-    // Transaction handlers
     handleSubmit,
-    
-    // Barcode scanner handlers
     handleBarcodeFound,
-    
-    // Utility functions
     getCurrentPrice,
     getSatuanInfo,
     formatRupiah,
