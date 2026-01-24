@@ -32,8 +32,6 @@ import {
 import { postProduk, Getkode } from "@/api/Produkapi"
 import Swal from "sweetalert2"
 import { Link, useNavigate } from "react-router-dom"
-
-// Schema dengan pesan error bahasa Indonesia
 const schema = yup.object().shape({
   kode_barang: yup
     .string()
