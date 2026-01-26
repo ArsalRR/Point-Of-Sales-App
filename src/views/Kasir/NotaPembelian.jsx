@@ -101,7 +101,7 @@ const NotaPembelian = ({ transactionData, onClose }) => {
         <div className="ticket">
           <p className="centered">
             TOKO IFA<br />
-            Jl. Perumahan Limas No. 08<br />
+            Jl. Perumahan Limas No. 05<br />
             Telp: 085868287956<br />
             {currentDate}<br />
           </p>
@@ -159,6 +159,13 @@ const NotaPembelian = ({ transactionData, onClose }) => {
                 <td className="description">Kembalian</td>
                 <td className="price">
                   Rp {formatCurrency(transactionData.kembalian)}
+                </td>
+              </tr>
+                <tr>
+                <td></td>
+                <td className="description">Diskon</td>
+                <td className="price">
+                  Rp {formatCurrency(transactionData.diskon)}
                 </td>
               </tr>
             </tbody>

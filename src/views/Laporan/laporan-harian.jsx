@@ -4,7 +4,7 @@ import "dayjs/locale/id"
 import { getlaporanharian } from "@/api/Laporanapi"
 import {
   Loader2, RefreshCw, FileText, Eye, Printer,
-  Receipt, ShoppingBag, Search, X, Package
+  Receipt, ShoppingBag, Search, X, Package, ArrowUp
 } from "lucide-react"
 import {
   Card, CardContent, CardHeader, CardTitle
@@ -15,30 +15,21 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+  Dialog, DialogContent, DialogHeader, DialogTitle, 
+  DialogFooter, DialogDescription
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 const formatCurrency = (val) => `Rp ${Number(val).toLocaleString("id-ID")}`
 
-// Fungsi untuk menghitung total jumlah barang terjual dalam transaksi
 const calculateTotalItemsSold = (items) => {
   return items.reduce((total, item) => total + item.jumlah_terjual_per_hari, 0)
 }
-
-// Fungsi untuk menghitung total produk unik yang terjual
 const calculateUniqueProductsSold = (items) => {
   const uniqueProducts = new Set(items.map(item => item.produk?.id || item.produk?.nama_barang))
   return uniqueProducts.size
-}
-
-// Fungsi untuk mendapatkan semua nama barang dalam transaksi
-const getAllProductNames = (items) => {
-  const productNames = items.map(item => item.produk?.nama_barang).filter(Boolean)
-  if (productNames.length === 0) return "Tidak ada produk"
-  if (productNames.length === 1) return productNames[0]
-  return `${productNames[0]} +${productNames.length - 1} lainnya`
 }
 
 const NotaPembelian = ({ transaksi, onClose }) => {
@@ -53,12 +44,17 @@ const NotaPembelian = ({ transaksi, onClose }) => {
 
   if (!transaksi) return null
 
-  const total = transaksi.items.reduce(
-    (acc, item) =>
-      acc + item.jumlah_terjual_per_hari * item.harga_saat_transaksi - (item.diskon || 0),
+  // Hitung subtotal sebelum diskon
+  const subtotal = transaksi.items.reduce(
+    (acc, item) => acc + item.jumlah_terjual_per_hari * item.harga_saat_transaksi,
     0
   )
 
+  // Hitung total diskon (dari semua item atau dari transaksi)
+  const diskon = transaksi.diskon || 
+    transaksi.items.reduce((acc, item) => acc + (item.diskon || 0), 0)
+
+  const total = subtotal - diskon
   const totalItems = calculateTotalItemsSold(transaksi.items)
 
   const currentDate = new Date().toLocaleString("id-ID", {
@@ -137,7 +133,7 @@ const NotaPembelian = ({ transaksi, onClose }) => {
         <div className="ticket">
           <p className="centered">
             TOKO IFA<br />
-            Jl. Perumahan Limas No. 08<br />
+            Jl. Perumahan Limas No. 05<br />
             Telp: 085868287956<br />
             {currentDate}<br />
             No Trans: {transaksi.no_transaksi}
@@ -162,8 +158,25 @@ const NotaPembelian = ({ transaksi, onClose }) => {
                 </tr>
               ))}
               <tr>
-                <td colSpan={2} className="description"><strong>Total ({totalItems} item)</strong></td>
-                <td className="price"><strong>{Number(total).toLocaleString("id-ID")}</strong></td>
+                <td colSpan={2} className="description"><strong>Subtotal</strong></td>
+                <td className="price"><strong>{Number(subtotal).toLocaleString("id-ID")}</strong></td>
+              </tr>
+              {diskon > 0 && (
+                <tr>
+                  <td colSpan={2} className="description"><strong>Diskon</strong></td>
+                  <td className="price">
+                    <strong>{Number(diskon).toLocaleString("id-ID")}</strong>
+                  </td>
+                </tr>
+              )}
+              
+              <tr>
+                <td colSpan={2} className="description">
+                  <strong>Total ({totalItems} item)</strong>
+                </td>
+                <td className="price">
+                  <strong>{Number(total).toLocaleString("id-ID")}</strong>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -405,6 +418,21 @@ const ProductSearchResults = ({ searchTerm, laporan }) => {
   )
 }
 
+// Komponen tombol scroll to top
+const ScrollToTopButton = ({ visible, onClick }) => {
+  if (!visible) return null
+  
+  return (
+    <Button
+      onClick={onClick}
+      className="fixed bottom-24 right-6 z-50 rounded-full w-10 h-10 p-0 bg-gray-900 hover:bg-gray-800 shadow-lg"
+      size="icon"
+    >
+      <ArrowUp className="h-5 w-5 text-white" />
+    </Button>
+  )
+}
+
 export default function LaporanHarian() {
   const [laporan, setLaporan] = useState([])
   const [loading, setLoading] = useState(true)
@@ -413,6 +441,8 @@ export default function LaporanHarian() {
   const [printTransaksi, setPrintTransaksi] = useState(null)
   const [searchProduct, setSearchProduct] = useState("")
   const [showSearchResults, setShowSearchResults] = useState(false)
+  const [showScrollTop, setShowScrollTop] = useState(false)
+  const [detailScrollArea, setDetailScrollArea] = useState(null)
 
   const fetchLaporan = useCallback(async () => {
     try {
@@ -476,6 +506,34 @@ export default function LaporanHarian() {
     return uniqueProducts.size
   }
 
+  // Handle scroll untuk tombol scroll to top
+  const handleDetailScroll = (e) => {
+    if (e.target.scrollTop > 100) {
+      setShowScrollTop(true)
+    } else {
+      setShowScrollTop(false)
+    }
+  }
+
+  const scrollToTop = () => {
+    if (detailScrollArea) {
+      detailScrollArea.scrollTop = 0
+    }
+  }
+  const setDetailScrollRef = (ref) => {
+    if (ref) {
+      setDetailScrollArea(ref)
+      ref.addEventListener('scroll', handleDetailScroll)
+    }
+  }
+  useEffect(() => {
+    return () => {
+      if (detailScrollArea) {
+        detailScrollArea.removeEventListener('scroll', handleDetailScroll)
+      }
+    }
+  }, [detailScrollArea])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-80">
@@ -504,7 +562,6 @@ export default function LaporanHarian() {
 
   return (
     <div className="space-y-6">
-      {/* Search Bar */}
       <Card className="border border-gray-300">
         <CardContent className="p-6">
           <div className="relative">
@@ -545,8 +602,6 @@ export default function LaporanHarian() {
           laporan={laporan} 
         />
       )}
-
-      {/* Laporan Harian */}
       <Card className="border border-gray-300">
         <CardHeader className="border-b border-gray-300">
           <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
@@ -718,165 +773,178 @@ export default function LaporanHarian() {
         </CardContent>
       </Card>
 
-      {/* Detail Dialog */}
+      {/* Dialog untuk detail transaksi */}
       <Dialog open={!!selectedTransaksi} onOpenChange={() => setSelectedTransaksi(null)}>
-        <DialogContent className="w-full h-full sm:h-auto sm:max-w-2xl sm:rounded-lg p-0 gap-0 border border-gray-300">
-          <DialogHeader className="sticky top-0 bg-white z-10 p-4 border-b border-gray-300">
+        <DialogContent className="w-full h-full sm:h-auto sm:max-w-4xl sm:rounded-lg p-0 gap-0 border border-gray-300 flex flex-col">
+          <DialogHeader className="sticky top-0 bg-white z-10 p-4 border-b border-gray-300 shrink-0">
             <DialogTitle className="text-sm sm:text-lg font-bold pr-8 text-gray-900">
               Detail Transaksi
             </DialogTitle>
+            {/* Tambahkan DialogDescription untuk aksesibilitas */}
+            <DialogDescription className="sr-only">
+              Detail lengkap transaksi {selectedTransaksi?.no_transaksi} termasuk daftar barang, 
+              harga, diskon, dan total pembayaran.
+            </DialogDescription>
             <p className="text-xs text-gray-600 font-normal mt-1">
               No. Transaksi: {selectedTransaksi?.no_transaksi}
             </p>
           </DialogHeader>
 
           {selectedTransaksi && (
-            <div className="flex-1 overflow-y-auto p-4 pb-24 sm:pb-4">
-              {/* Info Cards */}
-              <div className="grid grid-cols-2 gap-2 mb-4">
-                <div className="bg-gray-50 p-3 rounded-lg border border-gray-300">
-                  <p className="text-xs text-gray-600 mb-1">No. Transaksi</p>
-                  <p className="text-sm font-semibold truncate text-gray-900 font-mono">
-                    {selectedTransaksi.no_transaksi}
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg border border-gray-300">
-                  <p className="text-xs text-gray-600 mb-1">Tanggal</p>
-                  <p className="text-sm font-semibold text-gray-900">
-                    {dayjs(selectedTransaksi.waktu_pembelian)
-                      .locale("id")
-                      .format("DD MMM YYYY")}
-                  </p>
-                  <p className="text-xs text-gray-600">
-                    {dayjs(selectedTransaksi.waktu_pembelian)
-                      .locale("id")
-                      .format("HH:mm")}
-                  </p>
-                </div>
-              </div>
-
-              {/* Items List */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-gray-900">Daftar Barang</h3>
-                  <div className="text-sm">
-                    <span className="text-gray-600">Total: </span>
-                    <span className="font-semibold text-gray-900">
-                      {calculateTotalItemsSold(selectedTransaksi.items)} barang
-                    </span>
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <div className="shrink-0 p-4 border-b border-gray-300">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-300">
+                    <p className="text-xs text-gray-600 mb-1">No. Transaksi</p>
+                    <p className="text-sm font-semibold truncate text-gray-900 font-mono">
+                      {selectedTransaksi.no_transaksi}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-300">
+                    <p className="text-xs text-gray-600 mb-1">Tanggal</p>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {dayjs(selectedTransaksi.waktu_pembelian)
+                        .locale("id")
+                        .format("DD MMM YYYY")}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {dayjs(selectedTransaksi.waktu_pembelian)
+                        .locale("id")
+                        .format("HH:mm")}
+                    </p>
                   </div>
                 </div>
-                
-                {/* Mobile View - Cards */}
-                <div className="block sm:hidden space-y-2">
-                  {selectedTransaksi.items.map((i, idx) => (
-                    <div key={idx} className="bg-gray-50 p-3 rounded-lg space-y-2 border border-gray-300">
-                      <div className="flex justify-between items-start gap-2">
-                        <p className="text-sm font-medium flex-1 leading-tight text-gray-900">
-                          {i.produk?.nama_barang || "Produk tidak ditemukan"}
-                        </p>
-                        <span className="text-xs bg-white px-2 py-1 rounded-md whitespace-nowrap border border-gray-300 text-gray-900">
-                          x{i.jumlah_terjual_per_hari}
-                        </span>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div>
-                          <span className="text-gray-600">Harga:</span>
-                          <p className="font-medium text-gray-900">
-                            {formatCurrency(i.harga_saat_transaksi)}
+              </div>
+              <div 
+                ref={setDetailScrollRef}
+                className="flex-1 overflow-y-auto p-4"
+                style={{ maxHeight: 'calc(80vh - 200px)' }}
+              >
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-gray-900">Daftar Barang</h3>
+                    <div className="text-sm">
+                      <span className="text-gray-600">Total: </span>
+                      <span className="font-semibold text-gray-900">
+                        {calculateTotalItemsSold(selectedTransaksi.items)} barang
+                      </span>
+                    </div>
+                  </div>
+                  <div className="hidden sm:block">
+                    <div className="overflow-x-auto">
+                      <Table className="text-sm">
+                        <TableHeader>
+                          <TableRow className="border-gray-300 sticky top-0 bg-white">
+                            <TableHead className="text-gray-900 whitespace-nowrap">Nama Barang</TableHead>
+                            <TableHead className="text-gray-900 text-center whitespace-nowrap">Jumlah</TableHead>
+                            <TableHead className="text-gray-900 text-right whitespace-nowrap">Harga</TableHead>
+                            <TableHead className="text-gray-900 text-right whitespace-nowrap">Diskon</TableHead>
+                            <TableHead className="text-gray-900 text-right whitespace-nowrap">Subtotal</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedTransaksi.items.map((i, idx) => (
+                            <TableRow key={idx} className="border-gray-300 hover:bg-gray-50">
+                              <TableCell className="whitespace-pre-wrap break-words text-gray-900 max-w-xs">
+                                {i.produk?.nama_barang || "Produk tidak ditemukan"}
+                              </TableCell>
+                              <TableCell className="text-center text-gray-900">
+                                <Badge variant="outline" className="border-gray-300">
+                                  {i.jumlah_terjual_per_hari}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right text-gray-900">
+                                {formatCurrency(i.harga_saat_transaksi)}
+                              </TableCell>
+                              <TableCell className="text-right text-red-600">
+                                {i.diskon ? `- ${formatCurrency(i.diskon)}` : "-"}
+                              </TableCell>
+                              <TableCell className="text-right font-semibold text-gray-900">
+                                {formatCurrency(
+                                  i.jumlah_terjual_per_hari * i.harga_saat_transaksi -
+                                    (i.diskon || 0)
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+
+                  {/* Mobile View - Cards */}
+                  <div className="sm:hidden space-y-2">
+                    {selectedTransaksi.items.map((i, idx) => (
+                      <div key={idx} className="bg-gray-50 p-3 rounded-lg space-y-2 border border-gray-300">
+                        <div className="flex justify-between items-start gap-2">
+                          <p className="text-sm font-medium flex-1 leading-tight text-gray-900">
+                            {i.produk?.nama_barang || "Produk tidak ditemukan"}
                           </p>
+                          <span className="text-xs bg-white px-2 py-1 rounded-md whitespace-nowrap border border-gray-300 text-gray-900">
+                            x{i.jumlah_terjual_per_hari}
+                          </span>
                         </div>
-                        {i.diskon && (
+                        
+                        <div className="grid grid-cols-2 gap-2 text-xs">
                           <div>
-                            <span className="text-gray-600">Diskon:</span>
-                            <p className="font-medium text-red-600">
-                              - {formatCurrency(i.diskon)}
+                            <span className="text-gray-600">Harga:</span>
+                            <p className="font-medium text-gray-900">
+                              {formatCurrency(i.harga_saat_transaksi)}
                             </p>
                           </div>
-                        )}
-                      </div>
-                      
-                      <div className="pt-2 border-t border-gray-300 flex justify-between items-center">
-                        <span className="text-xs text-gray-600">Subtotal</span>
-                        <span className="text-sm font-bold text-gray-900">
-                          {formatCurrency(
-                            i.jumlah_terjual_per_hari * i.harga_saat_transaksi -
-                              (i.diskon || 0)
+                          {i.diskon && (
+                            <div>
+                              <span className="text-gray-600">Diskon:</span>
+                              <p className="font-medium text-red-600">
+                                - {formatCurrency(i.diskon)}
+                              </p>
+                            </div>
                           )}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Desktop View - Table */}
-                <div className="hidden sm:block overflow-x-auto -mx-2">
-                  <Table className="text-sm">
-                    <TableHeader>
-                      <TableRow className="border-gray-300">
-                        <TableHead className="text-gray-900">Nama Barang</TableHead>
-                        <TableHead className="text-center text-gray-900">Jumlah</TableHead>
-                        <TableHead className="text-right text-gray-900">Harga</TableHead>
-                        <TableHead className="text-right text-gray-900">Diskon</TableHead>
-                        <TableHead className="text-right text-gray-900">Subtotal</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedTransaksi.items.map((i, idx) => (
-                        <TableRow key={idx} className="border-gray-300 hover:bg-gray-50">
-                          <TableCell className="whitespace-pre-wrap break-words text-gray-900">
-                            {i.produk?.nama_barang || "Produk tidak ditemukan"}
-                          </TableCell>
-                          <TableCell className="text-center text-gray-900">
-                            {i.jumlah_terjual_per_hari}
-                          </TableCell>
-                          <TableCell className="text-right text-gray-900">
-                            {formatCurrency(i.harga_saat_transaksi)}
-                          </TableCell>
-                          <TableCell className="text-right text-red-600">
-                            {i.diskon ? `- ${formatCurrency(i.diskon)}` : "-"}
-                          </TableCell>
-                          <TableCell className="text-right font-semibold text-gray-900">
+                        </div>
+                        
+                        <div className="pt-2 border-t border-gray-300 flex justify-between items-center">
+                          <span className="text-xs text-gray-600">Subtotal</span>
+                          <span className="text-sm font-bold text-gray-900">
                             {formatCurrency(
                               i.jumlah_terjual_per_hari * i.harga_saat_transaksi -
                                 (i.diskon || 0)
                             )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* Total Section */}
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg border-2 border-gray-300">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="text-sm font-medium text-gray-900">Total Pembayaran</span>
-                    <p className="text-xs text-gray-600">
-                      {calculateTotalItemsSold(selectedTransaksi.items)} barang • {calculateUniqueProductsSold(selectedTransaksi.items)} jenis produk
-                    </p>
+              {/* Total Section - Fixed at bottom of scroll area */}
+              <div className="shrink-0 p-4 border-t border-gray-300 bg-white">
+                <div className="p-4 bg-gray-50 rounded-lg border-2 border-gray-300">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="text-sm font-medium text-gray-900">Total Pembayaran</span>
+                      <p className="text-xs text-gray-600">
+                        {calculateTotalItemsSold(selectedTransaksi.items)} barang • {calculateUniqueProductsSold(selectedTransaksi.items)} jenis produk
+                      </p>
+                    </div>
+                    <span className="text-lg font-bold text-gray-900">
+                      {formatCurrency(
+                        selectedTransaksi.items.reduce(
+                          (sum, i) =>
+                            sum +
+                            (i.jumlah_terjual_per_hari * i.harga_saat_transaksi -
+                              (i.diskon || 0)),
+                          0
+                        )
+                      )}
+                    </span>
                   </div>
-                  <span className="text-lg font-bold text-gray-900">
-                    {formatCurrency(
-                      selectedTransaksi.items.reduce(
-                        (sum, i) =>
-                          sum +
-                          (i.jumlah_terjual_per_hari * i.harga_saat_transaksi -
-                            (i.diskon || 0)),
-                        0
-                      )
-                    )}
-                  </span>
                 </div>
               </div>
             </div>
           )}
-
-          {/* Footer Fixed di Mobile */}
-          <DialogFooter className="fixed sm:relative bottom-0 left-0 right-0 bg-white border-t border-gray-300 p-4 flex-row gap-2 sm:justify-between">
+          <ScrollToTopButton visible={showScrollTop} onClick={scrollToTop} />
+          <DialogFooter className="shrink-0 bg-white border-t border-gray-300 p-4 flex-row gap-2">
             <Button
               variant="outline"
               className="flex-1 sm:flex-none border-gray-300 text-gray-800 hover:bg-gray-100"

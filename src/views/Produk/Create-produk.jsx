@@ -32,6 +32,7 @@ import {
 import { postProduk, Getkode } from "@/api/Produkapi"
 import Swal from "sweetalert2"
 import { Link, useNavigate } from "react-router-dom"
+
 const schema = yup.object().shape({
   kode_barang: yup
     .string()
@@ -64,6 +65,19 @@ const schema = yup.object().shape({
         numericValue = value
       }
       return numericValue >= 0
+    })
+    .test("is-greater-than-limit", "Stok harus lebih banyak dari limit stok", function(value) {
+      const { limit_stok } = this.parent
+      if (!value || value === 'manual') return true
+      
+      let numericValue = 0
+      if (typeof value === 'string') {
+        numericValue = parseInt(value || '0', 10)
+      } else if (typeof value === 'number') {
+        numericValue = value
+      }
+      
+      return numericValue > limit_stok
     }),
   satuan_barang: yup
     .string()
@@ -78,7 +92,6 @@ const schema = yup.object().shape({
 
 export default function CreateProduk() {
   const [loading, setLoading] = useState(false)
-  const [submitError, setSubmitError] = useState("")
   const [showRentengan, setShowRentengan] = useState(false)
   const [showManualStok, setShowManualStok] = useState(false)
   const [manualStok, setManualStok] = useState("")
@@ -143,37 +156,148 @@ export default function CreateProduk() {
     }
   }
 
-  
   const formatCurrency = (value) => {
-    const numericValue = value.replace(/[^0-9]/g, '')
+    if (!value) return ''
+    // Remove all non-digit characters
+    const numericValue = value.toString().replace(/[^0-9]/g, '')
     if (!numericValue) return ''
     const formatted = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-    return `Rp ${formatted}`
+    return formatted
   }
 
-  const parseCurrency = (value) => {
-    return parseInt(value?.replace(/[^0-9]/g, '') || '0', 10)
+  const formatCurrencyForDisplay = (value) => {
+    const formatted = formatCurrency(value)
+    return formatted ? `Rp ${formatted}` : ''
   }
 
-    const onSubmit = async (data) => {
+  const showErrorAlert = (errors) => {
+    let errorMessages = []
+    
+    if (typeof errors === 'string') {
+      errorMessages.push(errors)
+    } else if (errors && typeof errors === 'object') {
+      // Jika errors adalah array
+      if (Array.isArray(errors)) {
+        errorMessages = errors
+      } 
+      // Jika errors adalah object dengan field
+      else if (errors.errors) {
+        Object.values(errors.errors).forEach(errorArray => {
+          if (Array.isArray(errorArray)) {
+            errorMessages = [...errorMessages, ...errorArray]
+          } else {
+            errorMessages.push(errorArray)
+          }
+        })
+      }
+      // Jika errors langsung object
+      else {
+        Object.values(errors).forEach(error => {
+          if (Array.isArray(error)) {
+            errorMessages = [...errorMessages, ...error]
+          } else {
+            errorMessages.push(error)
+          }
+        })
+      }
+    }
+  
+    errorMessages = [...new Set(errorMessages)]  
+  Swal.fire({
+  title: '<div class="animate-pulse">⚠️ Perhatian!</div>',
+  html: `
+    <div class="text-left animate-fade-in">
+      <div class="flex items-center justify-center mb-4">
+        <div class="relative">
+          <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+            <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.998-.833-2.732 0L4.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+            </svg>
+          </div>
+          <div class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center animate-bounce">
+            ${errorMessages.length}
+          </div>
+        </div>
+      </div>
+      
+      <h3 class="text-center text-lg font-semibold text-gray-800 mb-2">
+        Data Tidak Valid
+      </h3>
+      
+      <p class="text-center text-gray-600 mb-4">
+        Kami menemukan beberapa kesalahan:
+      </p>
+      
+      <div class="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-4 border border-red-100">
+        <ul class="space-y-2">
+          ${errorMessages.map((msg, index) => `
+            <li class="flex items-start gap-3 p-2 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+              <span class="flex-shrink-0 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">${index + 1}</span>
+              <span class="text-gray-700">${msg}</span>
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+      
+      <div class="mt-4 text-center">
+        <p class="text-xs text-gray-500">
+          Silakan perbaiki data di atas sebelum melanjutkan
+        </p>
+      </div>
+    </div>
+  `,
+  showConfirmButton: true,
+  confirmButtonText: `
+    <div class="flex items-center justify-center gap-2">
+      <svg class="w-5 h-5 animate-spin-slow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+      Perbaiki Sekarang
+    </div>
+  `,
+  confirmButtonColor: "#dc2626",
+  showCloseButton: true,
+  width: "500px",
+  padding: "2rem",
+  customClass: {
+    popup: 'animate__animated animate__fadeInDown',
+    confirmButton: 'rounded-full px-8 py-3 font-medium',
+    closeButton: 'hover:bg-red-50 rounded-full'
+  },
+  backdrop: `
+    rgba(0, 0, 0, 0.5)
+    url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23ef4444' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E")
+  `
+})
+  }
+
+  const onSubmit = async (data) => {
     setLoading(true)
-    setSubmitError("")
     
     try {
       const finalData = {
         ...data,
         stok: showManualStok ? manualStok : data.stok,
-        // limit_stok tetap dari form
+        harga: data.harga.toString().replace(/[^0-9]/g, ''),
+        harga_renteng: data.harga_renteng ? data.harga_renteng.toString().replace(/[^0-9]/g, '') : '',
       }
 
       // Validate manual stock if shown
       if (showManualStok && (!manualStok || parseInt(manualStok) < 0)) {
-        setSubmitError("Stok tidak boleh negatif")
+        showErrorAlert("Stok tidak boleh negatif")
         setLoading(false)
         return
       }
 
-      await postProduk(finalData)
+      const response = await postProduk(finalData)
+      
+      // Check if response contains error (from backend validation)
+      if (response && (response.status === 422 || response.errors)) {
+        showErrorAlert(response.errors || response.message)
+        setLoading(false)
+        return
+      }
+      
       reset()
       setShowRentengan(false)
       setShowManualStok(false)
@@ -195,47 +319,24 @@ export default function CreateProduk() {
         })
       }, 100)
     } catch (error) {
-      setSubmitError('Gagal menambahkan produk. Silakan coba lagi.')
+      if (error.response?.data) {
+        const errorData = error.response.data
+        showErrorAlert(errorData.errors || errorData.message || 'Terjadi kesalahan')
+      } 
+      else if (error.errors || error.message) {
+        showErrorAlert(error.errors || error.message)
+      }
+      else {
+        showErrorAlert('Gagal menambahkan produk. Silakan coba lagi.')
+      }
     } finally {
       setLoading(false)
     }
   }
-
-  // Quick limit options
   const quickLimits = [20, 30, 50, 100]
-
-  // Komponen Input Harga dengan format otomatis
-  const PriceInput = ({ field, error, placeholder, id }) => {
-    const handleChange = (e) => {
-      const inputValue = e.target.value
-      // Hapus semua karakter non-digit
-      const rawValue = inputValue.replace(/[^0-9]/g, '')
-      // Parse ke integer dan simpan
-      const numericValue = rawValue ? parseInt(rawValue, 10) : ""
-      
-      // Update form state dengan string
-      field.onChange(numericValue.toString())
-    }
-    
-    return (
-      <div className="relative">
-        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-        <Input
-          id={id}
-          value={formatCurrency(field.value)}
-          onChange={handleChange}
-          placeholder={placeholder}
-          className={`h-10 md:h-11 pl-10 ${error ? 'border-red-500' : 'border-gray-300'}`}
-          autoComplete="off"
-        />
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link to="/produk" className="md:hidden">
@@ -250,16 +351,6 @@ export default function CreateProduk() {
           </div>
           <Package className="w-8 h-8 md:w-10 md:h-10 text-gray-700" />
         </div>
-
-        {/* Error Alert */}
-        {submitError && (
-          <Alert variant="destructive" className="mb-4 bg-red-50 border-red-200">
-            <AlertCircle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-sm text-red-800 whitespace-pre-line">
-              {submitError}
-            </AlertDescription>
-          </Alert>
-        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
@@ -432,8 +523,6 @@ export default function CreateProduk() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Card 2: Informasi Harga */}
           <Card className="shadow-sm border border-gray-200 bg-white">
             <CardHeader className="pb-3 md:pb-4 border-b border-gray-100">
               <CardTitle className="flex items-center gap-2 text-base md:text-lg text-gray-800">
@@ -443,93 +532,117 @@ export default function CreateProduk() {
             </CardHeader>
             <CardContent className="space-y-4 md:space-y-6 pt-4">
               {/* Harga Jual */}
-             <div className="space-y-2">
+              <div className="space-y-2">
                 <Label htmlFor="harga" className="text-sm font-medium">
                   Harga Jual *
                 </Label>
-                <Controller
-                  name="harga"
-                  control={control}
-                  render={({ field }) => (
-                    <Input
-                      {...field}
-                      id="harga"
-                      onChange={(e) => field.onChange(formatCurrency(e.target.value))}
-                      placeholder="Masukkan Harga"
-                      className={`h-12 ${errors.harga ? 'border-red-500' : ''}`}
-                      autoComplete="off"
-                    />
-                  )}
-                />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">Rp</span>
+                  <Controller
+                    name="harga"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        id="harga"
+                        onChange={(e) => {
+                          const formattedValue = formatCurrency(e.target.value)
+                          field.onChange(formattedValue)
+                        }}
+                        value={field.value ? `Rp ${field.value}` : ''}
+                        placeholder="Masukkan Harga"
+                        className={`h-12 pl-10 ${errors.harga ? 'border-red-500' : ''}`}
+                        autoComplete="off"
+                      />
+                    )}
+                  />
+                </div>
                 {errors.harga && (
                   <p className="text-sm text-red-500">{errors.harga.message}</p>
                 )}
               </div>
-
-
-              {/* Harga Rentengan (Optional) */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">
-                      Harga Rentengan/Box DLL (Opsional)
-                    </Label>
-                    <div className="mt-1">
-                      <Badge variant="outline" className="text-xs bg-gray-100 text-gray-700">
-                        {hargaRenteng && hargaRenteng !== "" ? formatCurrency(hargaRenteng) : "Kosong (default 0)"}
-                      </Badge>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowRentengan(!showRentengan)}
-                    className="h-8 px-3 gap-2 text-xs text-gray-600 hover:text-gray-900"
-                  >
-                    {showRentengan ? (
-                      <>
-                        <span>Sembunyikan</span>
-                        <ChevronUp className="w-3 h-3" />
-                      </>
-                    ) : (
-                      <>
-                        <Settings className="w-3 h-3" />
-                        <span>Atur Harga Rentengan/Box DLL</span>
-                        <ChevronDown className="w-3 h-3" />
-                      </>
-                    )}
-                  </Button>
-                </div>
+             <div className="space-y-3">
+  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="space-y-1">
+      <Label className="text-sm font-medium text-gray-700 block">
+        Harga Rentengan/Box DLL (Opsional)
+      </Label>
+      <div className="mt-0">
+        <Badge 
+          variant="outline" 
+          className="text-xs bg-gray-100 text-gray-700 w-fit max-w-full truncate"
+          title={hargaRenteng && hargaRenteng !== "" ? formatCurrencyForDisplay(hargaRenteng) : "Kosong (default 0)"}
+        >
+          <span className="truncate block">
+            {hargaRenteng && hargaRenteng !== "" 
+              ? formatCurrencyForDisplay(hargaRenteng) 
+              : "Kosong (default 0)"
+            }
+          </span>
+        </Badge>
+      </div>
+    </div>
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      onClick={() => setShowRentengan(!showRentengan)}
+      className="h-9 px-3 gap-2 text-xs text-gray-600 hover:text-gray-900 self-start sm:self-center w-full sm:w-auto"
+    >
+      {showRentengan ? (
+        <>
+          <span className="hidden xs:inline">Sembunyikan</span>
+          <span className="xs:hidden">Tutup</span>
+          <ChevronUp className="w-3 h-3 ml-1" />
+        </>
+      ) : (
+        <>
+          <Settings className="w-3 h-3 hidden xs:inline" />
+          <span className="text-xs">
+            <span className="hidden sm:inline">Atur Harga Rentengan/Box DLL</span>
+            <span className="sm:hidden">Atur Rentengan</span>
+          </span>
+          <ChevronDown className="w-3 h-3 ml-1" />
+        </>
+      )}
+    </Button>
+  </div>
+</div>
 
                 {showRentengan && (
                   <div className="space-y-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    {/* Harga Renteng */}
-                     <div className="space-y-2">
-                <Label htmlFor="harga_renteng" className="text-sm font-medium">
-                  Harga  Rentengan/Box DLL
-                </Label>
-                <Controller
-                  name="harga_renteng"
-                  control={control}
-                  render={({ field }) => (
-                    <Input
-                      {...field}
-                      id="harga_renteng"
-                      onChange={(e) => field.onChange(formatCurrency(e.target.value))}
-                      placeholder="Masukkan Harga Rentengan/Box DLL"
-                      className={`h-12 ${errors.harga_renteng ? 'border-red-500' : ''}`}
-                      autoComplete="off"
-                    />
-                  )}
-                />
-                {errors.harga_renteng && (
-                  <p className="text-sm text-red-500">{errors.harga_renteng.message}</p>  
-                )}
-              </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="harga_renteng" className="text-sm font-medium">
+                        Harga Rentengan/Box DLL
+                      </Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">Rp</span>
+                        <Controller
+                          name="harga_renteng"
+                          control={control}
+                          render={({ field }) => (
+                            <Input
+                              {...field}
+                              id="harga_renteng"
+                              onChange={(e) => {
+                                const formattedValue = formatCurrency(e.target.value)
+                                field.onChange(formattedValue)
+                              }}
+                              value={field.value ? `Rp ${field.value}` : ''}
+                              placeholder="Masukkan Harga Rentengan/Box DLL"
+                              className={`h-12 pl-10 ${errors.harga_renteng ? 'border-red-500' : ''}`}
+                              autoComplete="off"
+                            />
+                          )}
+                        />
+                      </div>
+                      {errors.harga_renteng && (
+                        <p className="text-sm text-red-500">{errors.harga_renteng.message}</p>  
+                      )}
+                    </div>
 
-
-                    {/* Jumlah Lainnya (Optional) */}
+      
                     <div className="space-y-2">
                       <Label htmlFor="jumlah_lainnya" className="text-sm font-medium text-gray-700">
                         Isi Rentengan / Lainnya (Opsional)
@@ -557,8 +670,6 @@ export default function CreateProduk() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Card 3: Stok & Satuan */}
           <Card className="shadow-sm border border-gray-200 bg-white">
             <CardHeader className="pb-3 md:pb-4 border-b border-gray-100">
               <CardTitle className="flex items-center gap-2 text-base md:text-lg text-gray-800">
@@ -654,10 +765,8 @@ export default function CreateProduk() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Action Buttons */}
           <div className="flex flex-col-reverse sm:flex-row gap-3 md:gap-4 pt-4 md:pt-6">
-            <Link to="/produk" className="w-full sm:w-auto">
+            <Link to="/produk" className="flex-1 hidden md:block">
               <Button 
                 variant="outline" 
                 className="w-full h-11 border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
