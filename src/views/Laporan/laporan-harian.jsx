@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import NotaPembelian from "../Kasir/NotaPembelian"
 
 const formatCurrency = (val) => `Rp ${Number(val).toLocaleString("id-ID")}`
 
@@ -31,164 +32,11 @@ const calculateUniqueProductsSold = (items) => {
   const uniqueProducts = new Set(items.map(item => item.produk?.id || item.produk?.nama_barang))
   return uniqueProducts.size
 }
+ const date = new Date().toLocaleString("id-ID")
+   const rupiah = (v) =>
+    new Intl.NumberFormat("id-ID").format(v)
 
-const NotaPembelian = ({ transaksi, onClose }) => {
-  useEffect(() => {
-    if (!transaksi) return
-    const timer = setTimeout(() => {
-      window.print()
-      setTimeout(onClose, 800)
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [transaksi, onClose])
 
-  if (!transaksi) return null
-
-  // Hitung subtotal sebelum diskon
-  const subtotal = transaksi.items.reduce(
-    (acc, item) => acc + item.jumlah_terjual_per_hari * item.harga_saat_transaksi,
-    0
-  )
-
-  // Hitung total diskon (dari semua item atau dari transaksi)
-  const diskon = transaksi.diskon || 
-    transaksi.items.reduce((acc, item) => acc + (item.diskon || 0), 0)
-
-  const total = subtotal - diskon
-  const totalItems = calculateTotalItemsSold(transaksi.items)
-
-  const currentDate = new Date().toLocaleString("id-ID", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit"
-  })
-
-  return (
-    <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
-      <div className="w-full max-w-sm mx-auto p-4">
-        <style jsx>{`
-          * {
-            font-size: 12px;
-            font-family: 'Times New Roman';
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-
-          td, th, tr, table {
-            border-top: 1px solid black;
-            border-collapse: collapse;
-          }
-
-          td.description, th.description {
-            width: 70px;
-            max-width: 70px;
-          }
-
-          td.quantity, th.quantity {
-            width: 30px;
-            max-width: 30px;
-            word-break: break-word;
-          }
-
-          td.price, th.price {
-            width: 50px;
-            max-width: 50px;
-            word-break: break-word;
-            text-align: right;
-          }
-
-          .centered {
-            text-align: center;
-            align-content: center;
-          }
-
-          .ticket {
-            width: 160px;
-            max-width: 160px;
-            margin: auto;
-            margin-bottom: 20px;
-          }
-
-          @media print {
-            body * {
-              visibility: hidden;
-            }
-            .ticket, .ticket * {
-              visibility: visible;
-            }
-            .ticket {
-              position: absolute;
-              left: 0;
-              top: 0;
-              width: 100%;
-            }
-          }
-
-          @page {
-            size: 58mm auto;
-            margin: 0;
-            padding: 0;
-          }
-        `}</style>
-
-        <div className="ticket">
-          <p className="centered">
-            TOKO IFA<br />
-            Jl. Perumahan Limas No. 05<br />
-            Telp: 085868287956<br />
-            {currentDate}<br />
-            No Trans: {transaksi.no_transaksi}
-          </p>
-
-          <table>
-            <thead>
-              <tr>
-                <th className="quantity">Jml</th>
-                <th className="description">Produk</th>
-                <th className="price">Rp</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transaksi.items.map((item, idx) => (
-                <tr key={idx}>
-                  <td className="quantity">{item.jumlah_terjual_per_hari}</td>
-                  <td className="description">{item.produk?.nama_barang}</td>
-                  <td className="price">
-                    {Number(item.jumlah_terjual_per_hari * item.harga_saat_transaksi).toLocaleString("id-ID")}
-                  </td>
-                </tr>
-              ))}
-              <tr>
-                <td colSpan={2} className="description"><strong>Subtotal</strong></td>
-                <td className="price"><strong>{Number(subtotal).toLocaleString("id-ID")}</strong></td>
-              </tr>
-              {diskon > 0 && (
-                <tr>
-                  <td colSpan={2} className="description"><strong>Diskon</strong></td>
-                  <td className="price">
-                    <strong>{Number(diskon).toLocaleString("id-ID")}</strong>
-                  </td>
-                </tr>
-              )}
-              
-              <tr>
-                <td colSpan={2} className="description">
-                  <strong>Total ({totalItems} item)</strong>
-                </td>
-                <td className="price">
-                  <strong>{Number(total).toLocaleString("id-ID")}</strong>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          <p className="centered">
-            Terima Kasih<br />Atas Kunjungan Anda
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 const MobileTransactionCard = ({ trx, idx, onViewDetail }) => {
   const total = trx.items.reduce(
@@ -338,7 +186,6 @@ const ProductSearchResults = ({ searchTerm, laporan }) => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {/* Ringkasan */}
           <div className="bg-gray-50 p-4 rounded-lg border border-gray-300">
             <div className="flex justify-between items-center">
               <div>
@@ -417,8 +264,6 @@ const ProductSearchResults = ({ searchTerm, laporan }) => {
     </Card>
   )
 }
-
-// Komponen tombol scroll to top
 const ScrollToTopButton = ({ visible, onClick }) => {
   if (!visible) return null
   
@@ -594,8 +439,6 @@ export default function LaporanHarian() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Tampilkan hasil pencarian jika ada */}
       {showSearchResults && (
         <ProductSearchResults 
           searchTerm={searchProduct} 
@@ -916,8 +759,6 @@ export default function LaporanHarian() {
                   </div>
                 </div>
               </div>
-
-              {/* Total Section - Fixed at bottom of scroll area */}
               <div className="shrink-0 p-4 border-t border-gray-300 bg-white">
                 <div className="p-4 bg-gray-50 rounded-lg border-2 border-gray-300">
                   <div className="flex justify-between items-center">
@@ -966,9 +807,34 @@ export default function LaporanHarian() {
         </DialogContent>
       </Dialog>
 
-      {printTransaksi && (
-        <NotaPembelian transaksi={printTransaksi} onClose={() => setPrintTransaksi(null)} />
-      )}
+ {printTransaksi && (() => {
+  const items = printTransaksi.items.map(item => ({
+    nama_barang: item.produk?.nama_barang || "Produk",
+    jumlah: item.jumlah_terjual_per_hari,
+    harga: item.harga_saat_transaksi,
+    diskon: item.diskon || 0
+  }))
+  
+  const total = items.reduce(
+    (sum, item) => sum + (item.jumlah * item.harga) - item.diskon,
+    0
+  )
+  
+  const totalDiskon = items.reduce((sum, item) => sum + item.diskon, 0)
+  
+  return (
+    <NotaPembelian 
+      transactionData={{
+        items,
+        total,
+        total_uang: total,
+        kembalian: 0,
+        diskon: totalDiskon
+      }} 
+      onClose={() => setPrintTransaksi(null)} 
+    />
+  )
+})()}
     </div>
   )
 }

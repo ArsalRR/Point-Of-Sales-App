@@ -2,178 +2,242 @@ import { useEffect, useRef } from "react"
 
 const NotaPembelian = ({ transactionData, onClose }) => {
   const hasPrinted = useRef(false)
+
   useEffect(() => {
     if (hasPrinted.current) return
-    
+
     const timer = setTimeout(() => {
       window.print()
       hasPrinted.current = true
-      
-      setTimeout(() => {
-        onClose()
-      }, 300)
-    }, 100)
+      setTimeout(onClose, 300)
+    }, 200)
 
     return () => clearTimeout(timer)
   }, [])
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("id-ID").format(amount)
-  }
+  const rupiah = (v) =>
+    new Intl.NumberFormat("id-ID").format(v)
 
-  const currentDate = new Date().toLocaleString("id-ID", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
+  const date = new Date().toLocaleString("id-ID")
 
   return (
-    <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
-      <div className="w-full max-w-sm mx-auto p-4">
-        <style jsx>{`
-          * {
-            font-size: 12px;
-            font-family: 'Times New Roman';
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-
-          td, th, tr, table {
-            border-top: 1px solid black;
-            border-collapse: collapse;
-          }
-
-          td.description, th.description {
-            width: 70px;
-            max-width: 70px;
-          }
-
-          td.quantity, th.quantity {
-            width: 30px;
-            max-width: 30px;
-            word-break: break-word;
-          }
-
-          td.price, th.price {
-            width: 50px;
-            max-width: 50px;
-            word-break: break-word;
-            text-align: right;
-          }
-
-          .centered {
-            text-align: center;
-            align-content: center;
-          }
-
-          .ticket {
-            width: 160px;
-            max-width: 160px;
-            margin: auto;
-            margin-bottom: 20px;
-          }
-
-          /* pastikan hanya struk yang dicetak */
-          @media print {
-            body * {
-              visibility: hidden;
-            }
-            .ticket, .ticket * {
-              visibility: visible;
-            }
-            .ticket {
-              position: absolute;
-              left: 0;
-              top: 0;
-              width: 100%;
-            }
-          }
-
+    <div className="ticket-wrapper">
+      <style>{`
+        @media print {
           @page {
-            size: 58mm auto;
+            size: 57.5mm auto;
             margin: 0;
-            padding: 0;
           }
-        `}</style>
 
-        <div className="ticket">
-          <p className="centered">
-            TOKO IFA<br />
-            Jl. Perumahan Limas No. 05<br />
-            Telp: 085868287956<br />
-            {currentDate}<br />
-          </p>
+          body, html {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 57.5mm !important;
+          }
 
-          <table>
-            <thead>
-              <tr>
-                <th className="quantity">Jml</th>
-                <th className="description">Produk</th>
-                <th className="price">Rp</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactionData.items.map((item, index) => (
-                <tr key={index}>
-                  <td className="quantity">{item.jumlah}</td>
-                  <td className="description">{item.nama_barang}</td>
-                  <td className="price">
-                    {formatCurrency(item.jumlah * item.harga)}
-                  </td>
-                </tr>
-              ))}
-              <tr>
-                <td></td>
-                <td className="description">Subtotal</td>
-                <td className="price">
-                  Rp {formatCurrency(transactionData.subtotal)}
-                </td>
-              </tr>
-              {transactionData.diskon > 0 && (
-                <tr>
-                  <td></td>
-                  <td className="description">Diskon</td>
-                  <td className="price">
-                    -Rp {formatCurrency(transactionData.diskon)}
-                  </td>
-                </tr>
-              )}
-              <tr>
-                <td></td>
-                <td className="description"><strong>Total</strong></td>
-                <td className="price">
-                  <strong>Rp {formatCurrency(transactionData.total)}</strong>
-                </td>
-              </tr>
-              <tr>
-                <td></td>
-                <td className="description">Jumlah Uang</td>
-                <td className="price">
-                  Rp {formatCurrency(transactionData.total_uang)}
-                </td>
-              </tr>
-              <tr>
-                <td></td>
-                <td className="description">Kembalian</td>
-                <td className="price">
-                  Rp {formatCurrency(transactionData.kembalian)}
-                </td>
-              </tr>
-                <tr>
-                <td></td>
-                <td className="description">Diskon</td>
-                <td className="price">
-                  Rp {formatCurrency(transactionData.diskon)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          body * {
+            visibility: hidden;
+          }
 
-          <p className="centered">
-            Terima Kasih<br />Atas Kunjungan Anda
-          </p>
+          .ticket-wrapper,
+          .ticket-wrapper * {
+            visibility: visible !important;
+          }
+
+          .ticket-wrapper {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 57.5mm !important;
+            background: white !important;
+          }
+        }
+
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+        }
+
+        body {
+          background: white;
+        }
+
+        /* FONT TETAP, DIPERTEBAL */
+        .ticket-wrapper {
+          width: 57.5mm;
+          background: white;
+          font-family: Courier New, monospace;
+          font-size: 10px;
+          font-weight: 900;
+          color: #000;
+          -webkit-font-smoothing: none;
+          -moz-osx-font-smoothing: grayscale;
+          text-rendering: optimizeSpeed;
+        }
+
+        /* AREA CETAK */
+        .ticket {
+          width: 48mm;
+          margin: 0 auto;
+          padding: 2mm 0;
+        }
+
+        .center {
+          text-align: center;
+          margin-bottom: 4px;
+        }
+
+        .line {
+          border-top: 1px solid #000;
+          margin: 3px 0;
+        }
+
+        .item-header,
+        .item-row {
+          display: flex;
+          width: 100%;
+        }
+
+        .item-header {
+          font-size: 9px;
+          margin-bottom: 2px;
+          font-weight: 900;
+          text-shadow: 0.3px 0 #000;
+        }
+
+        .item-row {
+          font-size: 9px;
+          margin-bottom: 2px;
+          font-weight: 900;
+          text-shadow: 0.3px 0 #000;
+        }
+
+        /* PEMBAGIAN KOLOM 48mm */
+        .col-name {
+          width: 25mm;
+          text-align: left;
+          word-break: break-word;
+          text-shadow: 0.3px 0 #000;
+        }
+
+        .col-qty {
+          width: 8mm;
+          text-align: center;
+          text-shadow: 0.3px 0 #000;
+        }
+
+        .col-price {
+          width: 15mm;
+          text-align: right;
+          text-shadow: 0.3px 0 #000;
+        }
+
+        .row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 2px;
+          font-size: 9px;
+          font-weight: 900;
+          text-shadow: 0.3px 0 #000;
+        }
+
+        .total-big {
+          font-size: 12px;
+          font-weight: 900;
+          text-shadow: 0.4px 0 #000;
+        }
+
+        .footer {
+          text-align: center;
+          margin-top: 6px;
+        }
+
+        .small {
+          font-size: 8px;
+          font-weight: 900;
+          text-shadow: 0.3px 0 #000;
+        }
+
+        .normal {
+          font-size: 9px;
+          font-weight: 900;
+          text-shadow: 0.3px 0 #000;
+        }
+
+        .trim-text {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          line-height: 1.1;
+          max-height: 18px;
+        }
+      `}</style>
+
+      <div className="ticket">
+        <div className="center">
+          <div className="normal">TOKO IFA</div>
+          <div className="small">Perumahan Limas Jln Limas Raya No 05</div>
+          <div className="small">085868287956</div>
+          <div className="small">{date}</div>
+        </div>
+
+        <div className="line"></div>
+
+        <div className="item-header small">
+          <div className="col-name">Produk</div>
+          <div className="col-qty">Jml</div>
+          <div className="col-price">Total</div>
+        </div>
+
+        <div className="line"></div>
+
+        {transactionData.items.map((i, idx) => (
+          <div key={idx} className="item-row normal">
+            <div className="col-name trim-text">
+              {i.nama_barang}
+            </div>
+            <div className="col-qty">
+              {i.jumlah}
+            </div>
+            <div className="col-price">
+              {rupiah(i.jumlah * i.harga)}
+            </div>
+          </div>
+        ))}
+
+        <div className="line"></div>
+
+        {transactionData.diskon > 0 && (
+          <div className="row normal">
+            <span>Diskon</span>
+            <span>-{rupiah(transactionData.diskon)}</span>
+          </div>
+        )}
+
+        <div className="row normal">
+          <span>Sub Total</span>
+          <span className="total-big">
+            {rupiah(transactionData.total)}
+          </span>
+        </div>
+
+        <div className="row normal">
+          <span>Tunai</span>
+          <span>{rupiah(transactionData.total_uang)}</span>
+        </div>
+
+        <div className="row normal">
+          <span>Kembali</span>
+          <span>{rupiah(transactionData.kembalian)}</span>
+        </div>
+
+        <div className="line"></div>
+
+        <div className="footer">
+          <div className="normal">Terima Kasih</div>
+          <div className="small">Atas Kunjungan Anda</div>
         </div>
       </div>
     </div>
