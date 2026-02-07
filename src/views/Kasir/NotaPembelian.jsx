@@ -63,20 +63,14 @@ const NotaPembelian = ({ transactionData, onClose }) => {
           background: white;
         }
 
-        /* FONT TETAP, DIPERTEBAL */
         .ticket-wrapper {
           width: 57.5mm;
-          background: white;
           font-family: Courier New, monospace;
           font-size: 10px;
           font-weight: 900;
           color: #000;
-          -webkit-font-smoothing: none;
-          -moz-osx-font-smoothing: grayscale;
-          text-rendering: optimizeSpeed;
         }
 
-        /* AREA CETAK */
         .ticket {
           width: 48mm;
           margin: 0 auto;
@@ -93,44 +87,35 @@ const NotaPembelian = ({ transactionData, onClose }) => {
           margin: 3px 0;
         }
 
-        .item-header,
-        .item-row {
-          display: flex;
-          width: 100%;
+        .item {
+          margin-bottom: 3px;
         }
 
-        .item-header {
+        .item-name {
           font-size: 9px;
-          margin-bottom: 2px;
-          font-weight: 900;
-          text-shadow: 0.3px 0 #000;
-        }
-
-        .item-row {
-          font-size: 9px;
-          margin-bottom: 2px;
-          font-weight: 900;
-          text-shadow: 0.3px 0 #000;
-        }
-
-        /* PEMBAGIAN KOLOM 48mm */
-        .col-name {
-          width: 25mm;
-          text-align: left;
+          line-height: 1.15;
           word-break: break-word;
-          text-shadow: 0.3px 0 #000;
         }
 
-        .col-qty {
-          width: 8mm;
+        .item-detail {
+          display: flex;
+          font-size: 8px;
+          line-height: 1.1;
+        }
+
+        .detail-price {
+          width: 40%;
+          text-align: left;
+        }
+
+        .detail-qty {
+          width: 20%;
           text-align: center;
-          text-shadow: 0.3px 0 #000;
         }
 
-        .col-price {
-          width: 15mm;
+        .detail-total {
+          width: 40%;
           text-align: right;
-          text-shadow: 0.3px 0 #000;
         }
 
         .row {
@@ -139,13 +124,11 @@ const NotaPembelian = ({ transactionData, onClose }) => {
           margin-bottom: 2px;
           font-size: 9px;
           font-weight: 900;
-          text-shadow: 0.3px 0 #000;
         }
 
         .total-big {
           font-size: 12px;
           font-weight: 900;
-          text-shadow: 0.4px 0 #000;
         }
 
         .footer {
@@ -156,22 +139,11 @@ const NotaPembelian = ({ transactionData, onClose }) => {
         .small {
           font-size: 8px;
           font-weight: 900;
-          text-shadow: 0.3px 0 #000;
         }
 
         .normal {
           font-size: 9px;
           font-weight: 900;
-          text-shadow: 0.3px 0 #000;
-        }
-
-        .trim-text {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-          line-height: 1.1;
-          max-height: 18px;
         }
       `}</style>
 
@@ -185,24 +157,21 @@ const NotaPembelian = ({ transactionData, onClose }) => {
 
         <div className="line"></div>
 
-        <div className="item-header small">
-          <div className="col-name">Produk</div>
-          <div className="col-qty">Jml</div>
-          <div className="col-price">Total</div>
-        </div>
-
-        <div className="line"></div>
-
         {transactionData.items.map((i, idx) => (
-          <div key={idx} className="item-row normal">
-            <div className="col-name trim-text">
+          <div key={idx} className="item">
+            <div className="item-name">
               {i.nama_barang}
             </div>
-            <div className="col-qty">
-              {i.jumlah}
-            </div>
-            <div className="col-price">
-              {rupiah(i.jumlah * i.harga)}
+            <div className="item-detail">
+              <div className="detail-price">
+                {rupiah(i.harga)}
+              </div>
+              <div className="detail-qty">
+                {i.jumlah}
+              </div>
+              <div className="detail-total">
+                {rupiah(i.harga * i.jumlah)}
+              </div>
             </div>
           </div>
         ))}
@@ -210,25 +179,23 @@ const NotaPembelian = ({ transactionData, onClose }) => {
         <div className="line"></div>
 
         {transactionData.diskon > 0 && (
-          <div className="row normal">
+          <div className="row">
             <span>Diskon</span>
             <span>-{rupiah(transactionData.diskon)}</span>
           </div>
         )}
 
-        <div className="row normal">
+        <div className="row">
           <span>Sub Total</span>
-          <span className="total-big">
-            {rupiah(transactionData.total)}
-          </span>
+          <span className="total-big">{rupiah(transactionData.total)}</span>
         </div>
 
-        <div className="row normal">
+        <div className="row">
           <span>Tunai</span>
           <span>{rupiah(transactionData.total_uang)}</span>
         </div>
 
-        <div className="row normal">
+        <div className="row">
           <span>Kembali</span>
           <span>{rupiah(transactionData.kembalian)}</span>
         </div>

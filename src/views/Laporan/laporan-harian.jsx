@@ -32,9 +32,7 @@ const calculateUniqueProductsSold = (items) => {
   const uniqueProducts = new Set(items.map(item => item.produk?.id || item.produk?.nama_barang))
   return uniqueProducts.size
 }
- const date = new Date().toLocaleString("id-ID")
-   const rupiah = (v) =>
-    new Intl.NumberFormat("id-ID").format(v)
+
 
 
 
@@ -122,12 +120,8 @@ const MobileTransactionCard = ({ trx, idx, onViewDetail }) => {
     </Card>
   )
 }
-
-// Komponen untuk menampilkan hasil pencarian produk
 const ProductSearchResults = ({ searchTerm, laporan }) => {
   if (!searchTerm || searchTerm.trim() === "") return null
-  
-  // Kumpulkan semua produk dari semua transaksi
   const allProducts = []
   laporan.forEach(trx => {
     trx.items.forEach(item => {
@@ -166,8 +160,6 @@ const ProductSearchResults = ({ searchTerm, laporan }) => {
       </Card>
     )
   }
-  
-  // Hitung total keseluruhan untuk produk yang ditemukan
   const totalSemuaBarang = filteredProducts.reduce((sum, product) => sum + product.totalTerjual, 0)
   const totalSemuaHarga = filteredProducts.reduce((sum, product) => sum + product.totalHarga, 0)
   
@@ -198,8 +190,6 @@ const ProductSearchResults = ({ searchTerm, laporan }) => {
               </div>
             </div>
           </div>
-          
-          {/* Daftar Produk */}
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -230,8 +220,6 @@ const ProductSearchResults = ({ searchTerm, laporan }) => {
               </TableBody>
             </Table>
           </div>
-          
-          {/* Mobile View untuk hasil pencarian */}
           <div className="md:hidden space-y-3">
             {filteredProducts.map((product, idx) => (
               <Card key={idx} className="border border-gray-300">
@@ -270,7 +258,7 @@ const ScrollToTopButton = ({ visible, onClick }) => {
   return (
     <Button
       onClick={onClick}
-      className="fixed bottom-24 right-6 z-50 rounded-full w-10 h-10 p-0 bg-gray-900 hover:bg-gray-800 shadow-lg"
+      className="hidden lg:inline-flex fixed bottom-24 right-6 z-50 w-10 h-10 rounded-full p-0 bg-gray-900 hover:bg-gray-800 shadow-lg"
       size="icon"
     >
       <ArrowUp className="h-5 w-5 text-white" />
@@ -350,8 +338,6 @@ export default function LaporanHarian() {
     const uniqueProducts = new Set(allProductIds.filter(id => id))
     return uniqueProducts.size
   }
-
-  // Handle scroll untuk tombol scroll to top
   const handleDetailScroll = (e) => {
     if (e.target.scrollTop > 100) {
       setShowScrollTop(true)
@@ -573,8 +559,6 @@ export default function LaporanHarian() {
                   </TableBody>
                 </Table>
               </div>
-              
-              {/* Mobile View */}
               <div className="md:hidden space-y-4">
                 {laporan.map((trx, idx) => (
                   <MobileTransactionCard
@@ -615,15 +599,12 @@ export default function LaporanHarian() {
           )}
         </CardContent>
       </Card>
-
-      {/* Dialog untuk detail transaksi */}
       <Dialog open={!!selectedTransaksi} onOpenChange={() => setSelectedTransaksi(null)}>
         <DialogContent className="w-full h-full sm:h-auto sm:max-w-4xl sm:rounded-lg p-0 gap-0 border border-gray-300 flex flex-col">
           <DialogHeader className="sticky top-0 bg-white z-10 p-4 border-b border-gray-300 shrink-0">
             <DialogTitle className="text-sm sm:text-lg font-bold pr-8 text-gray-900">
               Detail Transaksi
             </DialogTitle>
-            {/* Tambahkan DialogDescription untuk aksesibilitas */}
             <DialogDescription className="sr-only">
               Detail lengkap transaksi {selectedTransaksi?.no_transaksi} termasuk daftar barang, 
               harga, diskon, dan total pembayaran.
