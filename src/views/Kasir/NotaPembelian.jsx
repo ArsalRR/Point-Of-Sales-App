@@ -15,7 +15,7 @@ const NotaPembelian = ({ transactionData, onClose }) => {
     return () => clearTimeout(timer)
   }, [])
 
-  const rupiah = (v) =>
+  const rupiah = v =>
     new Intl.NumberFormat("id-ID").format(v)
 
   const date = new Date().toLocaleString("id-ID")
@@ -30,9 +30,9 @@ const NotaPembelian = ({ transactionData, onClose }) => {
           }
 
           body, html {
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 57.5mm !important;
+            margin: 0;
+            padding: 0;
+            width: 57.5mm;
           }
 
           body * {
@@ -41,15 +41,15 @@ const NotaPembelian = ({ transactionData, onClose }) => {
 
           .ticket-wrapper,
           .ticket-wrapper * {
-            visibility: visible !important;
+            visibility: visible;
           }
 
           .ticket-wrapper {
             position: absolute;
             left: 0;
             top: 0;
-            width: 57.5mm !important;
-            background: white !important;
+            width: 57.5mm;
+            background: white;
           }
         }
 
@@ -67,7 +67,7 @@ const NotaPembelian = ({ transactionData, onClose }) => {
           width: 57.5mm;
           font-family: Courier New, monospace;
           font-size: 10px;
-          font-weight: 900;
+          font-weight: 1000;
           color: #000;
         }
 
@@ -80,6 +80,7 @@ const NotaPembelian = ({ transactionData, onClose }) => {
         .center {
           text-align: center;
           margin-bottom: 4px;
+          font-weight: 1000;
         }
 
         .line {
@@ -88,34 +89,45 @@ const NotaPembelian = ({ transactionData, onClose }) => {
         }
 
         .item {
-          margin-bottom: 3px;
+          margin-bottom: 4px;
         }
 
         .item-name {
+          width: 100%;
           font-size: 9px;
           line-height: 1.15;
           word-break: break-word;
+          margin-bottom: 1px;
+          font-weight: 1000;
         }
 
-        .item-detail {
+        .item-info {
           display: flex;
+          width: 100%;
           font-size: 8px;
           line-height: 1.1;
+          font-weight: 1000;
         }
 
-        .detail-price {
+        .info-price {
           width: 40%;
           text-align: left;
+          white-space: nowrap;
+          font-weight: 1000;
         }
 
-        .detail-qty {
+        .info-qty {
           width: 20%;
           text-align: center;
+          white-space: nowrap;
+          font-weight: 1000;
         }
 
-        .detail-total {
+        .info-total {
           width: 40%;
           text-align: right;
+          white-space: nowrap;
+          font-weight: 1000;
         }
 
         .row {
@@ -123,27 +135,28 @@ const NotaPembelian = ({ transactionData, onClose }) => {
           justify-content: space-between;
           margin-bottom: 2px;
           font-size: 9px;
-          font-weight: 900;
+          font-weight: 1000;
         }
 
         .total-big {
           font-size: 12px;
-          font-weight: 900;
+          font-weight: 1000;
         }
 
         .footer {
           text-align: center;
           margin-top: 6px;
+          font-weight: 1000;
         }
 
         .small {
           font-size: 8px;
-          font-weight: 900;
+          font-weight: 1000;
         }
 
         .normal {
           font-size: 9px;
-          font-weight: 900;
+          font-weight: 1000;
         }
       `}</style>
 
@@ -162,14 +175,15 @@ const NotaPembelian = ({ transactionData, onClose }) => {
             <div className="item-name">
               {i.nama_barang}
             </div>
-            <div className="item-detail">
-              <div className="detail-price">
+
+            <div className="item-info">
+              <div className="info-price">
                 {rupiah(i.harga)}
               </div>
-              <div className="detail-qty">
-                {i.jumlah}
+              <div className="info-qty">
+                x{i.jumlah}
               </div>
-              <div className="detail-total">
+              <div className="info-total">
                 {rupiah(i.harga * i.jumlah)}
               </div>
             </div>
@@ -181,7 +195,7 @@ const NotaPembelian = ({ transactionData, onClose }) => {
         {transactionData.diskon > 0 && (
           <div className="row">
             <span>Diskon</span>
-            <span>-{rupiah(transactionData.diskon)}</span>
+            <span>Rp{rupiah(transactionData.diskon)}</span>
           </div>
         )}
 
