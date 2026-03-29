@@ -37,7 +37,6 @@ export const useKasir = () => {
   const [hargaPromo, setHargaPromo] = useState([])
   const [promoLoaded, setPromoLoaded] = useState(false)
 
-  // Refs
   const searchInputRef = useRef(null)
   const barcodeBufferRef = useRef('')
   const lastKeyTimeRef = useRef(0)
@@ -155,39 +154,42 @@ export const useKasir = () => {
       console.error("Gagal ambil transaksi:", error)
     }
   }, [])
-
-  // Cart operations
   const addProductToCart = useCallback((product, quantity = 1) => {
-    if (!product) return
+  if (!product) return
 
-    if (addToCartLockRef.current) {
-      return
+  if (addToCartLockRef.current) {
+    return
+  }
+
+  addToCartLockRef.current = true
+
+  setCart(prevCart => {
+    const exist = prevCart.find(c => c.kode_barang === product.kode_barang)
+
+    if (exist) {
+      return prevCart.map(c =>
+        c.kode_barang === product.kode_barang
+          ? { ...c, jumlah: c.jumlah + quantity }
+          : c
+      )
     }
+    return [
+      {
+        ...product,
+        jumlah: quantity,
+        satuan_terpilih: SATUAN_TYPES.SATUAN
+      },
+      ...prevCart
+    ]
+  })
 
-    addToCartLockRef.current = true
+  showToast("Berhasil", `${product.nama_barang} ditambahkan (+${quantity})`, "success", 1500)
 
-    setCart(prevCart => {
-      const exist = prevCart.find(c => c.kode_barang === product.kode_barang)
-      if (exist) {
-        return prevCart.map(c =>
-          c.kode_barang === product.kode_barang
-            ? { ...c, jumlah: c.jumlah + quantity }
-            : c
-        )
-      }
-      return [...prevCart, { 
-        ...product, 
-        jumlah: quantity, 
-        satuan_terpilih: SATUAN_TYPES.SATUAN 
-      }]
-    })
+  setTimeout(() => {
+    addToCartLockRef.current = false
+  }, 500)
+}, [showToast])
 
-    showToast("Berhasil", `${product.nama_barang} ditambahkan (+${quantity})`, "success", 1500)
-
-    setTimeout(() => {
-      addToCartLockRef.current = false
-    }, 500)
-  }, [showToast])
 
   const updateQty = useCallback((kode_barang, newQty, event) => {
     if (newQty < 1) return
@@ -273,8 +275,6 @@ export const useKasir = () => {
       setFormData(prev => ({ ...prev, total_uang: "", kembalian: 0 }))
     }
   }, [cartSubtotal, formData.diskon])
-
-  // Search handlers
   const handleSearchSelect = useCallback((product) => {
     const exactProduct = transaksi.find(p => 
       p.kode_barang.trim() === searchQuery.trim()
@@ -288,8 +288,6 @@ export const useKasir = () => {
       setShowSearchResults(false)
     }
   }, [transaksi, searchQuery, addProductToCart])
-
-  // Barcode scanner
   const handleBarcodeFound = useCallback((barcode) => {
     const now = Date.now()
     
@@ -352,7 +350,6 @@ export const useKasir = () => {
     
   }, [handleBarcodeFound])
 
-  // Transaction processing
   const postTransaksi = useCallback(async (data) => {
     try {
       setIsProcessing(true)
@@ -591,10 +588,16 @@ export const useKasir = () => {
       }
     }
   }, [fetchTransaksi, fetchUser, focusSearchInput, processBarcode, searchResults.length])
+ function handleQuickAmount(val) {
+    const syntheticEvent = {
+      target: { name: 'total_uang', value: val.toString() },
+    }
+    handleTotalUangChange(syntheticEvent)
+  }
 
-  // Return values
   return {
     transaksi,
+    handleQuickAmount,
     formData,
     searchQuery,
     setSearchQuery,

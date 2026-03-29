@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { ShoppingCart, Scan, Trash2, Plus, Minus, CreditCard, Search, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ShoppingCart, Scan, Trash2, Plus, Minus, CreditCard, Search, X, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,12 +12,176 @@ import { useKasir } from '@/hooks/useKasir'
 import { parseRupiah } from '@/utils/kasirUtils'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 
+// ─── Quick amount pills ───────────────────────────────────────────────────────
+function QuickAmounts({ total, onSelect }) {
+  if (!total) return null
+  const rounds = [
+    total,
+    Math.ceil(total / 1000) * 1000,
+    Math.ceil(total / 5000) * 5000,
+    Math.ceil(total / 10000) * 10000,
+    Math.ceil(total / 50000) * 50000,
+    Math.ceil(total / 100000) * 100000,
+  ]
+  const unique = [...new Set(rounds)].slice(0, 5)
+  return (
+    <div className="flex flex-wrap gap-2 mt-2">
+      {unique.map((v) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onSelect(v)}
+          className="h-9 px-3 rounded-lg border border-gray-300 bg-gray-50 hover:bg-gray-100 active:scale-95 text-sm font-medium text-gray-700 transition-all"
+        >
+          Rp {v.toLocaleString('id-ID')}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ─── Clock ───────────────────────────────────────────────────────────────────
+function LiveClock() {
+  const [time, setTime] = useState('')
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date()
+      setTime(now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [])
+  return <span className="font-mono text-sm text-gray-500 tabular-nums">{time}</span>
+}
+
+// ─── Payment Status Card ──────────────────────────────────────────────────────
+function PaymentStatus({ paymentStatus, formatRupiah }) {
+  if (!paymentStatus || paymentStatus.status === 'empty') return null
+  const cfg = {
+    insufficient: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', label: 'Uang Kurang' },
+    overpaid:     { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', label: 'Kembalian' },
+    exact:        { bg: 'bg-blue-50 border-blue-200', text: 'text-blue-700', label: 'Uang Pas' },
+  }
+  const c = cfg[paymentStatus.status] || {}
+  return (
+    <div className={`rounded-xl border px-4 py-3 flex items-center gap-3 ${c.bg}`}>
+      <div className="flex-1">
+        <p className={`text-xs font-semibold mb-0.5 ${c.text}`}>{c.label}</p>
+        <p className={`text-lg font-bold ${c.text}`}>{paymentStatus.message}</p>
+      </div>
+    </div>
+  )
+}
+
+// ─── Cart Item Card ───────────────────────────────────────────────────────────
+function CartItemCard({
+  item, isTablet,
+  updateQty, removeItem, handleChangeSatuan,
+  subtotal, getCurrentPrice, getSatuanInfo,
+}) {
+  const price = getCurrentPrice(item)
+  const sub = subtotal(item)
+  return (
+    <Card className="border border-gray-200 rounded-xl bg-white overflow-hidden">
+      <CardContent className="p-0">
+        {/* Top row: name + delete */}
+        <div className="flex items-start gap-2 px-4 pt-4 pb-2">
+          <div className="flex-1 min-w-0">
+            <p className={`font-semibold text-gray-900 truncate ${isTablet ? 'text-sm' : 'text-base'}`}>
+              {item.nama_barang}
+            </p>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <Badge variant="outline" className="border-gray-300 text-gray-600 text-xs font-mono">
+                {item.kode_barang}
+              </Badge>
+              <span className="text-xs text-gray-500">
+                Rp {price.toLocaleString()} / {item.satuan_terpilih || item.satuan}
+              </span>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => removeItem(item.kode_barang)}
+            className="h-9 w-9 p-0 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 flex-shrink-0"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Divider */}
+        <Separator className="bg-gray-100" />
+
+        {/* Bottom row: satuan + qty + subtotal */}
+        <div className="flex items-center gap-3 px-4 py-3">
+          {/* Satuan */}
+          <Select
+            value={item.satuan_terpilih || 'satuan'}
+            onValueChange={(v) => handleChangeSatuan(item.kode_barang, v)}
+          >
+            <SelectTrigger className="h-10 text-sm rounded-lg border border-gray-200 bg-gray-50 min-w-[100px] flex-1 focus:border-gray-400 focus:ring-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-white border border-gray-200 rounded-xl shadow-lg">
+              <SelectItem value="satuan">Satuan</SelectItem>
+              {item.harga_renteng && (
+                <>
+                  <SelectItem value="renteng">Renteng</SelectItem>
+                  <SelectItem value="dus">Dus</SelectItem>
+                  <SelectItem value="pack">Pack</SelectItem>
+                  <SelectItem value="dingin">Minuman dingin</SelectItem>
+                  <SelectItem value="penjual_gas">Penjual gas</SelectItem>
+                </>
+              )}
+            </SelectContent>
+          </Select>
+
+          {/* Qty Controls — large touch targets */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); updateQty(item.kode_barang, item.jumlah - 1, e) }}
+              className="h-10 w-10 p-0 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
+            >
+              <Minus className="w-4 h-4" />
+            </Button>
+            <Input
+              type="number"
+              value={item.jumlah}
+              onChange={(e) => updateQty(item.kode_barang, Math.max(1, Number(e.target.value) || 1), e)}
+              onFocus={(e) => e.target.scrollIntoView({ behavior: 'instant', block: 'nearest' })}
+              onBlur={(e) => { if (!e.target.value || parseInt(e.target.value) < 1) updateQty(item.kode_barang, 1, e) }}
+              className="w-14 h-10 text-center border border-gray-300 rounded-lg font-semibold text-sm focus:border-gray-500 focus:ring-0"
+              min="1"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); updateQty(item.kode_barang, item.jumlah + 1, e) }}
+              className="h-10 w-10 p-0 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+          </div>
+
+          {/* Subtotal */}
+          <div className="text-right flex-shrink-0 min-w-[80px]">
+            <p className="font-bold text-gray-900 text-sm">Rp {sub.toLocaleString()}</p>
+            {item.satuan_terpilih && item.satuan_terpilih !== 'satuan' && (
+              <p className="text-xs text-gray-500 truncate mt-0.5">{getSatuanInfo(item)}</p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 export default function ListKasir() {
   const kasir = useKasir()
   const isTablet = useMediaQuery('(min-width: 768px) and (max-width: 1023px)')
   const isDesktop = useMediaQuery('(min-width: 1024px)')
-
-  // 'right' = ringkasan di kanan (default), 'left' = ringkasan di kiri
   const [ringkasanPosition, setRingkasanPosition] = useState('right')
 
   const {
@@ -33,6 +197,7 @@ export default function ListKasir() {
     handleSearchSelect,
     handleSubmit,
     getCurrentPrice, getSatuanInfo, formatRupiah, focusSearchInput,
+    handleQuickAmount,
   } = kasir
 
   if (showPrint && printData) {
@@ -47,264 +212,141 @@ export default function ListKasir() {
       />
     )
   }
-  const cartColClass = isTablet
-    ? 'md:col-span-3'
-    : 'md:col-span-3'
-
-  const ringkasanColClass = isTablet
-    ? 'md:col-span-1'
-    : 'md:col-span-2'
-
-  // Kolom Search + Cart
-  const CartColumn = (
-    <div className={`space-y-3 ${cartColClass} md:space-y-4 lg:space-y-6`}>
-      {/* Search Section */}
-      <Card className="border border-gray-200 bg-white rounded-xl shadow-sm">
-        <CardHeader className="pb-4 pt-5">
-          <CardTitle className={`flex items-center gap-3 text-gray-900 font-bold ${isTablet ? 'text-lg' : 'text-xl'}`}>
-            <div className={`bg-gray-900 rounded-lg flex items-center justify-center ${isTablet ? 'w-8 h-8' : 'w-10 h-10'}`}>
-              <Scan className={`text-white ${isTablet ? 'w-4 h-4' : 'w-5 h-5'}`} />
-            </div>
-            Tambah Produk
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="relative">
-            <Label htmlFor="unified-search" className={`text-gray-800 mb-2 block font-semibold ${isTablet ? 'text-sm' : 'text-base'}`}>
-              Scan Barcode / Cari Produk
-            </Label>
-            <div className="relative">
-              <div className="relative flex items-center">
-                <Search className={`absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 ${isTablet ? 'w-5 h-5' : 'w-6 h-6'}`} />
-                <Input
-                  ref={searchInputRef}
-                  id="unified-search"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    setSearchQuery(value)
-                    const exactProduct = transaksi.find((p) => p.kode_barang.trim() === value.trim())
-                    if (exactProduct && value.length >= 3) {
-                      setTimeout(() => handleSearchSelect(exactProduct), 50)
-                      return
-                    }
-                    setShowSearchResults(value.length > 0)
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      const product = transaksi.find((p) => p.kode_barang.trim() === searchQuery.trim())
-                      if (product) {
-                        handleSearchSelect(product)
-                        setSearchQuery('')
-                        setShowSearchResults(false)
-                        return
-                      }
-                      if (searchResults.length > 0) handleSearchSelect(searchResults[0])
-                    }
-                    if (e.key === 'Escape') setShowSearchResults(false)
-                  }}
-                  onFocus={() => { if (searchQuery.length > 0) setShowSearchResults(true) }}
-                  onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
-                  placeholder="Scan barcode atau ketik nama produk..."
-                  className={`pl-10 pr-10 w-full border-2 border-gray-300 focus:border-black focus:ring-2 focus:ring-black/20 ${isTablet ? 'h-12 text-sm rounded-lg' : 'h-14 text-base rounded-xl'}`}
-                  autoComplete="off"
-                />
-                {searchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSearchQuery('')
-                      setShowSearchResults(false)
-                      searchInputRef.current?.focus()
-                    }}
-                    className={`absolute right-2 top-1/2 -translate-y-1/2 p-0 hover:bg-gray-100 ${isTablet ? 'h-8 w-8' : 'h-10 w-10'}`}
-                  >
-                    <X className={isTablet ? 'w-4 h-4' : 'w-5 h-5'} />
-                  </Button>
-                )}
+  const SearchDropdown = showSearchResults && searchResults.length > 0 && (
+    <Card className="absolute top-full left-0 right-0 z-50 mt-1.5 max-h-72 overflow-auto shadow-2xl border border-gray-200 rounded-xl">
+      <CardContent className="p-0">
+        {searchResults.map((product, index) => (
+          <button
+            key={product.kode_barang}
+            onClick={() => {
+              handleSearchSelect(product)
+              setSearchQuery('')
+              setShowSearchResults(false)
+            }}
+            className={`w-full text-left px-4 py-3 flex items-center gap-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors ${index === 0 ? 'bg-gray-50' : ''}`}
+          >
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-gray-900 text-sm truncate">{product.nama_barang}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="font-mono text-xs text-gray-500">{product.kode_barang}</span>
+                <span className="text-xs text-gray-500">· Rp {product.harga.toLocaleString()} / {product.satuan}</span>
               </div>
             </div>
-
-            {showSearchResults && searchResults.length > 0 && (
-              <Card className="absolute top-full left-0 right-0 z-50 mt-2 max-h-64 overflow-auto shadow-2xl border border-gray-300 rounded-xl">
-                <CardContent className="p-0">
-                  {searchResults.map((product, index) => (
-                    <button
-                      key={product.kode_barang}
-                      onClick={() => {
-                        handleSearchSelect(product)
-                        setSearchQuery('')
-                        setShowSearchResults(false)
-                      }}
-                      className={`w-full text-left hover:bg-gray-50 border-b border-gray-200 last:border-b-0 transition-colors ${index === 0 ? 'bg-black/5' : ''} ${isTablet ? 'p-3' : 'p-4'}`}
-                    >
-                      <div className="flex justify-between items-center gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className={`font-bold text-gray-900 truncate ${isTablet ? 'text-sm' : 'text-base'}`}>
-                            {product.nama_barang}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <Badge variant="secondary" className="bg-gray-900 text-white font-semibold whitespace-nowrap">
-                              <span className={isTablet ? 'text-xs' : ''}>{product.kode_barang}</span>
-                            </Badge>
-                            <span className={`text-gray-600 ${isTablet ? 'text-xs' : 'text-sm'}`}>
-                              Rp {product.harga.toLocaleString()} / {product.satuan}
-                            </span>
-                          </div>
-                        </div>
-                        <Badge className={`ml-1 font-bold bg-gray-900 text-white ${isTablet ? 'text-xs' : 'text-sm'}`}>
-                          {product.stok}
-                        </Badge>
-                      </div>
-                    </button>
-                  ))}
-                </CardContent>
-              </Card>
+            <Badge className="bg-gray-900 text-white text-xs font-semibold flex-shrink-0">
+              {product.stok}
+            </Badge>
+          </button>
+        ))}
+      </CardContent>
+    </Card>
+  )
+  const CartColumn = (
+    <div className={`flex flex-col gap-4 ${isTablet ? 'col-span-3' : 'col-span-3'}`}>
+      <Card className="border border-gray-200 bg-white rounded-xl shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 rounded-lg bg-gray-900 flex items-center justify-center flex-shrink-0">
+              <Scan className="w-4 h-4 text-white" />
+            </div>
+            <Label className="text-gray-900 font-semibold text-sm">Scan Barcode / Cari Produk</Label>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <Input
+              ref={searchInputRef}
+              value={searchQuery}
+              onChange={(e) => {
+                const value = e.target.value
+                setSearchQuery(value)
+                const exactProduct = transaksi.find((p) => p.kode_barang.trim() === value.trim())
+                if (exactProduct && value.length >= 3) {
+                  setTimeout(() => handleSearchSelect(exactProduct), 50)
+                  return
+                }
+                setShowSearchResults(value.length > 0)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  const product = transaksi.find((p) => p.kode_barang.trim() === searchQuery.trim())
+                  if (product) {
+                    handleSearchSelect(product)
+                    setSearchQuery('')
+                    setShowSearchResults(false)
+                    return
+                  }
+                  if (searchResults.length > 0) handleSearchSelect(searchResults[0])
+                }
+                if (e.key === 'Escape') setShowSearchResults(false)
+              }}
+              onFocus={() => { if (searchQuery.length > 0) setShowSearchResults(true) }}
+              onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
+              placeholder="Scan barcode atau ketik nama produk..."
+              className={`pl-9 pr-10 w-full border-2 border-gray-200 rounded-xl focus:border-gray-900 focus:ring-0 bg-gray-50 focus:bg-white transition-all ${isTablet ? 'h-12 text-sm' : 'h-12 text-sm'}`}
+              autoComplete="off"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery('')
+                  setShowSearchResults(false)
+                  searchInputRef.current?.focus()
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </Button>
             )}
+            {SearchDropdown}
           </div>
         </CardContent>
       </Card>
-
-      {/* Cart Section */}
-      <Card className="border border-gray-200 bg-white rounded-xl shadow-sm">
-        <CardHeader className="pb-4 pt-5">
-          <div className="flex items-center justify-between">
-            <CardTitle className={`flex items-center gap-3 text-gray-900 font-bold ${isTablet ? 'text-lg' : 'text-xl'}`}>
-              <div className={`bg-gray-900 rounded-lg flex items-center justify-center ${isTablet ? 'w-8 h-8' : 'w-10 h-10'}`}>
-                <ShoppingCart className={`text-white ${isTablet ? 'w-4 h-4' : 'w-5 h-5'}`} />
-              </div>
-              Keranjang Belanja
-            </CardTitle>
-            {cart.length > 0 && (
-              <Badge className={`bg-gray-900 text-white font-bold ${isTablet ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'}`}>
-                {cart.length} item
-              </Badge>
-            )}
+      <Card className="border border-gray-200 bg-white rounded-xl shadow-sm flex-1">
+        <CardHeader className="pb-3 pt-4 px-4 flex flex-row items-center justify-between border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-gray-900 flex items-center justify-center">
+              <ShoppingCart className="w-4 h-4 text-white" />
+            </div>
+            <CardTitle className="text-sm font-semibold text-gray-900">Keranjang Belanja</CardTitle>
           </div>
+          {cart.length > 0 && (
+            <Badge className="bg-gray-100 text-gray-700 border border-gray-200 font-semibold text-xs px-2">
+              {cart.length} item
+            </Badge>
+          )}
         </CardHeader>
 
-        <CardContent className="p-0">
+        <CardContent className="p-4">
           {cart.length === 0 ? (
-            <div className={`text-center ${isTablet ? 'py-8' : 'py-12'}`}>
-              <div className={`bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3 ${isTablet ? 'w-16 h-16' : 'w-20 h-20'}`}>
-                <ShoppingCart className={`text-gray-400 ${isTablet ? 'w-8 h-8' : 'w-10 h-10'}`} />
+            <div className="flex flex-col items-center justify-center py-14 text-center gap-3">
+              <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center">
+                <ShoppingCart className="w-8 h-8 text-gray-300" />
               </div>
-              <h3 className={`font-bold text-gray-900 mb-1 ${isTablet ? 'text-base' : 'text-lg'}`}>
-                Keranjang masih kosong
-              </h3>
-              <p className={`text-gray-600 ${isTablet ? 'text-sm' : ''}`}>
-                Scan barcode atau cari produk untuk menambah item
-              </p>
+              <div>
+                <p className="font-semibold text-gray-500 text-sm">Keranjang masih kosong</p>
+                <p className="text-xs text-gray-400 mt-1">Scan barcode atau cari produk</p>
+              </div>
             </div>
           ) : (
-            <div className={`space-y-3 overflow-y-auto ${isDesktop ? 'max-h-[calc(100vh-240px)] pr-4' : isTablet ? 'max-h-[400px] pr-2' : 'max-h-[500px]'}`}>
-              <div className="p-4 pt-0">
-                <div className={`space-y-3 ${isTablet ? 'pt-3' : 'pt-4'}`}>
-                  {cart.map((item) => (
-                    <Card key={item.kode_barang} className="border-2 border-gray-200 bg-white rounded-xl">
-                      <CardContent className={isTablet ? 'p-3' : 'p-4'}>
-                        <div className={isTablet ? 'space-y-3' : 'space-y-4'}>
-                          {/* Product Info */}
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <h3 className={`font-bold text-gray-900 truncate ${isTablet ? 'text-sm' : 'text-base'}`}>
-                                {item.nama_barang}
-                              </h3>
-                              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                <Badge variant="outline" className="border-gray-300 text-gray-700 font-semibold whitespace-nowrap">
-                                  <span className={isTablet ? 'text-xs' : ''}>{item.kode_barang}</span>
-                                </Badge>
-                                <span className={`text-gray-600 ${isTablet ? 'text-xs' : 'text-sm'}`}>
-                                  Rp {getCurrentPrice(item).toLocaleString()} / {item.satuan_terpilih || item.satuan}
-                                </span>
-                              </div>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeItem(item.kode_barang)}
-                              className={`text-gray-700 hover:text-black hover:bg-gray-100 p-0 rounded-lg flex-shrink-0 ${isTablet ? 'h-8 w-8' : 'h-10 w-10'}`}
-                            >
-                              <Trash2 className={isTablet ? 'w-4 h-4' : 'w-5 h-5'} />
-                            </Button>
-                          </div>
-
-                          {/* Controls */}
-                          <div className="grid grid-cols-3 gap-3 items-center">
-                            {/* Satuan */}
-                            <div className="flex flex-col gap-1">
-                              <Label className={`text-gray-600 ${isTablet ? 'text-xs' : 'text-sm'}`}>Satuan</Label>
-                              <Select
-                                value={item.satuan_terpilih || 'satuan'}
-                                onValueChange={(value) => handleChangeSatuan(item.kode_barang, value)}
-                              >
-                                <SelectTrigger className={`w-full bg-white border border-gray-300 focus:border-black focus:ring-1 focus:ring-black/20 px-3 ${isTablet ? 'h-9 text-xs rounded-md' : 'h-10 text-sm rounded-lg'}`}>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="bg-white border border-gray-200 rounded-lg shadow-md">
-                                  <SelectItem value="satuan" className="py-2">Satuan</SelectItem>
-                                  {item.harga_renteng && (
-                                    <>
-                                      <SelectItem value="renteng" className="py-2">Renteng</SelectItem>
-                                      <SelectItem value="dus" className="py-2">Dus</SelectItem>
-                                      <SelectItem value="pack" className="py-2">Pack</SelectItem>
-                                      <SelectItem value="dingin" className="py-2">Minuman dingin</SelectItem>
-                                      <SelectItem value="penjual_gas" className="py-2">Penjual gas</SelectItem>
-                                    </>
-                                  )}
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            {/* Qty */}
-                            <div className="flex items-center justify-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); updateQty(item.kode_barang, item.jumlah - 1, e) }}
-                                className={`p-0 border-2 border-gray-300 hover:bg-gray-50 ${isTablet ? 'h-9 w-9 rounded-md' : 'h-10 w-10 rounded-lg'}`}
-                              >
-                                <Minus className={isTablet ? 'w-3 h-3' : 'w-4 h-4'} />
-                              </Button>
-                              <Input
-                                type="number"
-                                value={item.jumlah}
-                                onChange={(e) => updateQty(item.kode_barang, Math.max(1, Number(e.target.value) || 1), e)}
-                                onFocus={(e) => e.target.scrollIntoView({ behavior: 'instant', block: 'nearest' })}
-                                onBlur={(e) => { if (!e.target.value || parseInt(e.target.value) < 1) updateQty(item.kode_barang, 1, e) }}
-                                className={`text-center border-2 border-gray-300 font-bold ${isTablet ? 'w-14 h-9 text-sm rounded-md' : 'w-16 h-10 text-base rounded-lg'}`}
-                                min="1"
-                              />
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); updateQty(item.kode_barang, item.jumlah + 1, e) }}
-                                className={`p-0 border-2 border-gray-300 hover:bg-gray-50 ${isTablet ? 'h-9 w-9 rounded-md' : 'h-10 w-10 rounded-lg'}`}
-                              >
-                                <Plus className={isTablet ? 'w-3 h-3' : 'w-4 h-4'} />
-                              </Button>
-                            </div>
-
-                            {/* Subtotal */}
-                            <div className="text-right">
-                              <div className={`font-black text-gray-900 ${isTablet ? 'text-sm' : 'text-base'}`}>
-                                Rp {subtotal(item).toLocaleString()}
-                              </div>
-                              {item.satuan_terpilih && item.satuan_terpilih !== 'satuan' && (
-                                <div className={`text-gray-600 truncate mt-1 ${isTablet ? 'text-xs' : ''}`}>
-                                  {getSatuanInfo(item)}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
+            <div
+              className={`space-y-3 overflow-y-auto pr-1`}
+              style={{ maxHeight: isDesktop ? 'calc(100vh - 280px)' : '420px' }}
+            >
+              {cart.map((item) => (
+                <CartItemCard
+                  key={item.kode_barang}
+                  item={item}
+                  isTablet={isTablet}
+                  updateQty={updateQty}
+                  removeItem={removeItem}
+                  handleChangeSatuan={handleChangeSatuan}
+                  subtotal={subtotal}
+                  getCurrentPrice={getCurrentPrice}
+                  getSatuanInfo={getSatuanInfo}
+                />
+              ))}
             </div>
           )}
         </CardContent>
@@ -312,78 +354,69 @@ export default function ListKasir() {
     </div>
   )
 
-  // Kolom Ringkasan Pesanan
+  // ─── Ringkasan Column ────────────────────────────────────────────────────
   const RingkasanColumn = (
-    <div className={`space-y-3 ${ringkasanColClass} md:space-y-4 lg:space-y-6`}>
-      <Card className={`border border-gray-200 bg-white rounded-xl shadow-sm ${isDesktop ? 'sticky top-6' : ''}`}>
-        <CardHeader className="pb-4 pt-5 flex flex-row items-center justify-between">
-          <CardTitle className={`font-bold text-gray-900 ${isTablet ? 'text-xl' : 'text-2xl'}`}>
-            Ringkasan Pesanan
-          </CardTitle>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setRingkasanPosition('left')}
-              disabled={ringkasanPosition === 'left'}
-              className="h-8 w-8 p-0"
-              title="Pindah ke kiri"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setRingkasanPosition('right')}
-              disabled={ringkasanPosition === 'right'}
-              className="h-8 w-8 p-0"
-              title="Pindah ke kanan"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+    <div className={`flex flex-col gap-0 ${isTablet ? 'col-span-1' : 'col-span-2'}`}>
+      <Card
+        className={`border border-gray-200 bg-white rounded-xl shadow-sm flex flex-col ${isDesktop ? 'sticky top-6' : ''}`}
+        style={{ maxHeight: isDesktop ? 'calc(100vh - 48px)' : undefined }}
+      >
+        {/* Header */}
+        <CardHeader className="pb-3 pt-4 px-4 border-b border-gray-100 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold text-gray-900">Ringkasan Pesanan</CardTitle>
+            <div className="flex items-center gap-1.5">
+              <LiveClock />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setRingkasanPosition('left')}
+                disabled={ringkasanPosition === 'left'}
+                className="h-7 w-7 p-0 rounded-lg"
+                title="Pindah ke kiri"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setRingkasanPosition('right')}
+                disabled={ringkasanPosition === 'right'}
+                className="h-7 w-7 p-0 rounded-lg"
+                title="Pindah ke kanan"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6">
-          {/* Total Section */}
-          <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className={`text-gray-700 font-medium ${isTablet ? 'text-sm' : 'text-base'}`}>
-                  Subtotal ({cart.length} item{cart.length !== 1 ? 's' : ''})
-                </span>
-                <span className={`font-bold text-gray-900 ${isTablet ? 'text-base' : 'text-lg'}`}>
-                  Rp {cartSubtotal.toLocaleString()}
-                </span>
-              </div>
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
 
-              {formData.diskon && (
-                <div className="flex justify-between items-center">
-                  <span className={`text-gray-700 font-medium ${isTablet ? 'text-sm' : 'text-base'}`}>Diskon</span>
-                  <span className={`font-bold text-red-600 ${isTablet ? 'text-base' : 'text-lg'}`}>
-                    -{formatRupiah(parseRupiah(formData.diskon))}
-                  </span>
-                </div>
-              )}
-
-              <Separator className="bg-gray-300 my-2" />
-
-              <div className="flex justify-between items-center pt-1">
-                <span className={`font-black text-gray-900 ${isTablet ? 'text-lg' : 'text-xl'}`}>TOTAL</span>
-                <span className={`font-black text-gray-900 ${isTablet ? 'text-2xl' : 'text-3xl'}`}>
-                  Rp {total.toLocaleString()}
+          {/* Totals Summary */}
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-500">Subtotal ({cart.length} item)</span>
+              <span className="font-semibold text-gray-900">Rp {cartSubtotal.toLocaleString()}</span>
+            </div>
+            {formData.diskon && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500">Potongan</span>
+                <span className="font-semibold text-red-600">
+                  -{formatRupiah(parseRupiah(formData.diskon))}
                 </span>
               </div>
+            )}
+            <Separator className="bg-gray-200" />
+            <div className="flex justify-between items-baseline">
+              <span className="font-bold text-gray-900 text-base">TOTAL</span>
+              <span className="font-black text-gray-900 text-2xl">Rp {total.toLocaleString()}</span>
             </div>
           </div>
-
-          {/* Payment Inputs */}
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="diskon" className={`text-gray-800 mb-2 block font-semibold ${isTablet ? 'text-sm' : 'text-base'}`}>
-                Potongan Harga
-              </Label>
-              <Input
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Potongan Harga</Label>
+             <Input
                 id="diskon"
                 type="text"
                 name="diskon"
@@ -393,12 +426,12 @@ export default function ListKasir() {
                 className={`border-2 border-gray-300 focus:border-black focus:ring-2 focus:ring-black/20 ${isTablet ? 'h-10 text-sm rounded-lg' : 'h-12 text-base rounded-lg'}`}
                 autoComplete="off"
               />
-            </div>
-            <div>
-              <Label htmlFor="total_uang" className={`text-gray-800 mb-2 block font-semibold ${isTablet ? 'text-sm' : 'text-base'}`}>
-                Uang yang Dibayar
-              </Label>
-              <Input
+          </div>
+
+          {/* Uang Input */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Uang Dibayar</Label>
+             <Input
                 id="total_uang"
                 type="text"
                 name="total_uang"
@@ -408,94 +441,58 @@ export default function ListKasir() {
                 className={`border-2 border-gray-300 focus:border-black focus:ring-2 focus:ring-black/20 ${isTablet ? 'h-10 text-sm rounded-lg' : 'h-12 text-base rounded-lg'}`}
                 autoComplete="off"
               />
-            </div>
+            <QuickAmounts total={total} onSelect={handleQuickAmount} />
           </div>
 
-          {/* Payment Status */}
-          {formData.total_uang && (
-            <div className={`rounded-xl p-4 shadow-sm transition-all duration-300 ${
-              paymentStatus.status === 'insufficient' ? 'bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-red-500' :
-              paymentStatus.status === 'overpaid' ? 'bg-gradient-to-r from-emerald-50 to-green-100 border-l-4 border-emerald-500' :
-              paymentStatus.status === 'exact' ? 'bg-gradient-to-r from-blue-50 to-indigo-100 border-l-4 border-blue-500' :
-              'bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-500'
-            }`}>
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${
-                  paymentStatus.status === 'insufficient' ? 'bg-red-100' :
-                  paymentStatus.status === 'overpaid' ? 'bg-emerald-100' :
-                  paymentStatus.status === 'exact' ? 'bg-blue-100' : 'bg-gray-100'
-                }`}>
-                  {paymentStatus.status === 'insufficient' && (
-                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  )}
-                  {paymentStatus.status === 'overpaid' && (
-                    <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  )}
-                  {paymentStatus.status === 'exact' && (
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                  {paymentStatus.status === 'empty' && (
-                    <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  )}
-                </div>
-                <div>
-                  <p className={`font-semibold text-sm mb-1 ${
-                    paymentStatus.status === 'insufficient' ? 'text-red-700' :
-                    paymentStatus.status === 'overpaid' ? 'text-emerald-700' :
-                    paymentStatus.status === 'exact' ? 'text-blue-700' : 'text-gray-700'
-                  }`}>
-                    {paymentStatus.status === 'insufficient' ? 'Uang Kurang' :
-                     paymentStatus.status === 'overpaid' ? 'Uang Kembalian' :
-                     paymentStatus.status === 'exact' ? 'Uang Pas' : 'Status Pembayaran'}
-                  </p>
-                  <p className="text-lg font-bold text-gray-900">{paymentStatus.message}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Submit */}
-          <div className="pt-2">
-            <Button
-              onClick={handleSubmit}
-              disabled={cart.length === 0 || isProcessing}
-              className={`w-full text-white rounded-lg border-2 border-gray-900 hover:border-black shadow-md transition-all duration-200 bg-gradient-to-r from-gray-900 to-black hover:from-black hover:to-gray-900 ${isTablet ? 'h-12 text-base font-bold' : 'h-14 text-lg font-bold'}`}
-              size="lg"
-            >
-              <CreditCard className={`mr-2 ${isTablet ? 'w-5 h-5' : 'w-6 h-6'}`} />
-              {isProcessing ? (
-                <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  MEMPROSES...
-                </span>
-              ) : 'SIMPAN TRANSAKSI'}
-            </Button>
-            {cart.length === 0 && (
-              <p className="mt-2 text-center text-gray-500 text-xs">
-                Tambahkan produk ke keranjang untuk melanjutkan transaksi
-              </p>
+          <PaymentStatus paymentStatus={paymentStatus} formatRupiah={formatRupiah} />
+        </div>
+        <div className="flex-shrink-0 px-4 pb-4 pt-2 border-t border-gray-100 bg-white rounded-b-xl">
+          <Button
+            onClick={handleSubmit}
+            disabled={cart.length === 0 || isProcessing}
+            className="w-full h-12 text-base font-bold text-white rounded-xl border-0 bg-gray-900 hover:bg-black transition-all disabled:opacity-40"
+            size="lg"
+          >
+            {isProcessing ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Memproses...
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5" />
+                Simpan Transaksi
+              </span>
             )}
-          </div>
-        </CardContent>
+          </Button>
+          {cart.length === 0 && (
+            <p className="mt-2 text-center text-gray-400 text-xs">
+              Tambahkan produk untuk melanjutkan
+            </p>
+          )}
+        </div>
       </Card>
     </div>
   )
-
   return (
-    <div className={`min-h-screen bg-gray-50 p-3 md:p-4 ${isTablet ? 'lg:p-4' : 'lg:p-6'}`}>
-      <div className={`max-w-6xl mx-auto space-y-3 md:space-y-4 lg:space-y-6`}>
-        <div className={`grid grid-cols-1 ${isTablet ? 'md:grid-cols-3 gap-3' : 'md:grid-cols-5 gap-4 md:gap-6'}`}>
+    <div className="min-h-screen bg-gray-50 p-3 md:p-4 lg:p-6">
+      <div className="max-w-6xl mx-auto">
+
+        {/* Top bar */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span className="text-sm font-medium text-gray-700">Kasir POS</span>
+          </div>
+          <span className="text-gray-300">·</span>
+          <span className="text-xs text-gray-400">{cart.length} item di keranjang</span>
+        </div>
+
+        {/* Grid */}
+        <div className={`grid gap-4 ${isTablet ? 'grid-cols-4' : 'grid-cols-5'}`}>
           {ringkasanPosition === 'right' ? (
             <>
               {CartColumn}

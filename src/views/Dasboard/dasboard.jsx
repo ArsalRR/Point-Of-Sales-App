@@ -50,82 +50,137 @@ const LoadingChart = () => (
 )
 
 export default function Dashboard() {
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-  } = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: getDasboard,
-    staleTime: 1000 * 60 * 5,
-    refetchOnWindowFocus: false,
-  })
+ // ambil data
+const {
+  data,
+  isLoading,
+  isError,
+  error,
+} = useQuery({
+  queryKey: ["dashboard"],
+  queryFn: getDasboard,
+  staleTime: 1000 * 60 * 5,
+  refetchOnWindowFocus: false,
+})
 
-  const {
-    data: dailyRevenue,
-    isLoading: isLoadingDaily,
-    isRefetching: isRefetchingDaily,
-  } = useQuery({
-    queryKey: ["pendapatanHarian"],
-    queryFn: getDasboard,
-    staleTime: 0,
-    refetchInterval: 5000,
-    refetchOnWindowFocus: true,
-  })
+const {
+  data: dailyRevenue,
+  isLoading: isLoadingDaily,
+  isRefetching: isRefetchingDaily,
+} = useQuery({
+  queryKey: ["pendapatanHarian"],
+  queryFn: getDasboard,
+  staleTime: 0,
+  refetchInterval: 5000,
+  refetchOnWindowFocus: true,
+})
 
-  const formatCurrency = (value) =>
-    new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value)
 
-  const formatCompactCurrency = (value) => {
-    if (value >= 1000000000) {
-      return `Rp${(value / 1000000000).toFixed(1)}M`
-    } else if (value >= 1000000) {
-      return `Rp${(value / 1000000).toFixed(1)}Jt`
-    } else if (value >= 1000) {
-      return `Rp${(value / 1000).toFixed(1)}K`
-    }
-    return formatCurrency(value)
+// helper: pastikan angka bersih
+const toNumber = (val) => {
+  if (!val) return 0
+  return Number(String(val).replace(/[^\d.-]/g, "")) || 0
+}
+
+
+// format rupiah normal
+const formatCurrency = (value) => {
+  const number = toNumber(value)
+
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(number)
+}
+
+
+// format ringkas biar mudah dibaca
+const formatCompactCurrency = (value) => {
+  const number = toNumber(value)
+
+  const format = (n) =>
+    Number.isInteger(n) ? n : n.toFixed(1)
+
+  if (number >= 1_000_000_000_000) {
+    return `Rp ${format(number / 1_000_000_000_000)} T`
   }
 
-  const getMonthName = (monthNumber) => {
-    const monthNames = [
-      "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
-      "Jul", "Agu", "Sep", "Okt", "Nov", "Des"
-    ]
-    const monthIndex = parseInt(monthNumber) - 1
-    return monthNames[monthIndex] || monthNumber
+  if (number >= 1_000_000_000) {
+    return `Rp ${format(number / 1_000_000_000)} M`
   }
 
-  const processChartData = (chartData) => {
-    if (!chartData || !Array.isArray(chartData)) return []
-    return chartData.map((item, index) => ({
-      ...item,
-      bulanName: getMonthName(item.bulan),
-      originalBulan: item.bulan,
-      isCurrentMonth: index === chartData.length - 1,
-    }))
+  if (number >= 1_000_000) {
+    return `Rp ${format(number / 1_000_000)} Jt`
   }
 
-  const calculateGrowth = (currentData) => {
-    if (!currentData?.grafik || currentData.grafik.length < 2) return null
-    const months = currentData.grafik
-    const current = months[months.length - 1]?.total_pendapatan || 0
-    const previous = months[months.length - 2]?.total_pendapatan || 0
-    
-    if (previous === 0) return null
-    
-    const growth = ((current - previous) / previous) * 100
-    return {
-      value: Math.round(growth * 10) / 10,
-      isPositive: growth >= 0
-    }
+  if (number >= 1_000) {
+    return `Rp ${format(number / 1_000)} Rb`
   }
+
+  return `Rp ${number}`
+}
+
+
+// nama bulan
+const getMonthName = (monthNumber) => {
+  const months = [
+    "Jan","Feb","Mar","Apr","Mei","Jun",
+    "Jul","Agu","Sep","Okt","Nov","Des"
+  ]
+
+  const index = Number(monthNumber) - 1
+  return months[index] || "-"
+}
+
+
+// normalisasi data chart
+const processChartData = (chartData) => {
+  if (!Array.isArray(chartData)) return []
+
+  return chartData.map((item, index) => ({
+    ...item,
+    total_pendapatan: toNumber(item.total_pendapatan),
+    bulanName: getMonthName(item.bulan),
+    isCurrentMonth: index === chartData.length - 1,
+  }))
+}
+
+
+// hitung total
+const calculateTotal = (data) => {
+  return data.reduce(
+    (acc, curr) => acc + toNumber(curr.total_pendapatan),
+    0
+  )
+}
+
+
+// hitung rata-rata
+const calculateAverage = (data) => {
+  if (!data.length) return 0
+  return calculateTotal(data) / data.length
+}
+
+
+// growth aman
+const calculateGrowth = (currentData) => {
+  const grafik = currentData?.grafik
+  if (!Array.isArray(grafik) || grafik.length < 2) return null
+
+  const current = toNumber(grafik[grafik.length - 1]?.total_pendapatan)
+  const previous = toNumber(grafik[grafik.length - 2]?.total_pendapatan)
+
+  if (previous === 0) return null
+
+  const growth = ((current - previous) / previous) * 100
+
+  return {
+    value: Math.round(growth * 10) / 10,
+    isPositive: growth >= 0,
+  }
+}
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -398,8 +453,6 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
-
-        {/* Grafik Pendapatan */}
         <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg hover:shadow-xl transition-shadow mb-6 sm:mb-8">
           <CardHeader className="pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -479,10 +532,10 @@ export default function Dashboard() {
                         key={`cell-${index}`}
                         className="transition-all duration-300 hover:opacity-80"
                         fill={entry.isCurrentMonth 
-                          ? '#3b82f6' // Blue for current month
+                          ? '#3b82f6'
                           : index % 2 === 0 
-                            ? '#4b5563' // Dark gray for even months
-                            : '#6b7280' // Light gray for odd months
+                            ? '#4b5563' 
+                            : '#6b7280' 
                         }
                       />
                     ))}
@@ -508,8 +561,6 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Informasi Tambahan */}
         <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-1">
           <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
             <CardHeader>
@@ -521,7 +572,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600 dark:text-gray-400">Rata-rata Pendapatan/Bulan</span>
                 <span className="font-semibold text-gray-900 dark:text-white">
-                  {formatCompactCurrency(
+                  {formatCurrency(
                     chartData.reduce((acc, curr) => acc + (curr.total_pendapatan || 0), 0) / chartData.length || 0
                   )}
                 </span>
@@ -540,7 +591,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600 dark:text-gray-400">Total Pendapatan 6 Bulan</span>
                 <span className="font-semibold text-gray-900 dark:text-white">
-                  {formatCompactCurrency(
+                  {formatCurrency(
                     chartData.reduce((acc, curr) => acc + (curr.total_pendapatan || 0), 0)
                   )}
                 </span>
