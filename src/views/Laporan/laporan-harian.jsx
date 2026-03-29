@@ -252,20 +252,6 @@ const ProductSearchResults = ({ searchTerm, laporan }) => {
     </Card>
   )
 }
-const ScrollToTopButton = ({ visible, onClick }) => {
-  if (!visible) return null
-  
-  return (
-    <Button
-      onClick={onClick}
-      className="hidden lg:inline-flex fixed bottom-24 right-6 z-50 w-10 h-10 rounded-full p-0 bg-gray-900 hover:bg-gray-800 shadow-lg"
-      size="icon"
-    >
-      <ArrowUp className="h-5 w-5 text-white" />
-    </Button>
-  )
-}
-
 export default function LaporanHarian() {
   const [laporan, setLaporan] = useState([])
   const [loading, setLoading] = useState(true)
@@ -765,7 +751,6 @@ export default function LaporanHarian() {
               </div>
             </div>
           )}
-          <ScrollToTopButton visible={showScrollTop} onClick={scrollToTop} />
           <DialogFooter className="shrink-0 bg-white border-t border-gray-300 p-4 flex-row gap-2">
             <Button
               variant="outline"
