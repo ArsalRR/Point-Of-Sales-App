@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ShoppingCart, Scan, Trash2, Plus, Minus, CreditCard, Search, X, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
+import { ShoppingCart, Scan, Trash2, Plus, Minus, CreditCard, Search, X, ChevronLeft, ChevronRight, Printer } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,8 +11,7 @@ import NotaPembelian from '../Kasir/NotaPembelian'
 import { useKasir } from '@/hooks/useKasir'
 import { parseRupiah } from '@/utils/kasirUtils'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-
-// ─── Quick amount pills ───────────────────────────────────────────────────────
+import Swal from 'sweetalert2'
 function QuickAmounts({ total, onSelect }) {
   if (!total) return null
   const rounds = [
@@ -39,8 +38,6 @@ function QuickAmounts({ total, onSelect }) {
     </div>
   )
 }
-
-// ─── Clock ───────────────────────────────────────────────────────────────────
 function LiveClock() {
   const [time, setTime] = useState('')
   useEffect(() => {
@@ -54,8 +51,6 @@ function LiveClock() {
   }, [])
   return <span className="font-mono text-sm text-gray-500 tabular-nums">{time}</span>
 }
-
-// ─── Payment Status Card ──────────────────────────────────────────────────────
 function PaymentStatus({ paymentStatus, formatRupiah }) {
   if (!paymentStatus || paymentStatus.status === 'empty') return null
   const cfg = {
@@ -73,8 +68,6 @@ function PaymentStatus({ paymentStatus, formatRupiah }) {
     </div>
   )
 }
-
-// ─── Cart Item Card ───────────────────────────────────────────────────────────
 function CartItemCard({
   item, isTablet,
   updateQty, removeItem, handleChangeSatuan,
@@ -85,7 +78,6 @@ function CartItemCard({
   return (
     <Card className="border border-gray-200 rounded-xl bg-white overflow-hidden">
       <CardContent className="p-0">
-        {/* Top row: name + delete */}
         <div className="flex items-start gap-2 px-4 pt-4 pb-2">
           <div className="flex-1 min-w-0">
             <p className={`font-semibold text-gray-900 truncate ${isTablet ? 'text-sm' : 'text-base'}`}>
@@ -109,11 +101,7 @@ function CartItemCard({
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
-
-        {/* Divider */}
         <Separator className="bg-gray-100" />
-
-        {/* Bottom row: satuan + qty + subtotal */}
         <div className="flex items-center gap-3 px-4 py-3">
           {/* Satuan */}
           <Select
@@ -137,7 +125,7 @@ function CartItemCard({
             </SelectContent>
           </Select>
 
-          {/* Qty Controls — large touch targets */}
+          {/* Qty Controls */}
           <div className="flex items-center gap-1.5 flex-shrink-0">
             <Button
               variant="outline"
@@ -178,11 +166,148 @@ function CartItemCard({
     </Card>
   )
 }
+function PaymentModal({
+  isOpen,
+  onClose,
+  onOk,
+  onCetak,
+  total,
+  cartLength,
+  formData,
+  handleTotalUangChange,
+  handleQuickAmount,
+  paymentStatus,
+  formatRupiah,
+  isProcessing,
+}) {
+  if (!isOpen) return null
+
+  const canSubmit = paymentStatus?.status !== 'insufficient' && cartLength > 0 && !isProcessing
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        background: 'rgba(0,0,0,0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem',
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        className="bg-white rounded-2xl border border-gray-200 w-full shadow-2xl flex flex-col"
+        style={{ maxWidth: 480, maxHeight: '90vh' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gray-900 flex items-center justify-center flex-shrink-0">
+              <CreditCard className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="font-bold text-gray-900 text-base leading-tight">Konfirmasi Pembayaran</p>
+              <p className="text-xs text-gray-400 mt-0.5">{cartLength} item dalam keranjang</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors flex-shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
+          <div className="bg-gray-950 rounded-xl px-5 py-4 flex items-center justify-between">
+            <span className="text-sm text-gray-400 font-medium">Total Pembayaran</span>
+            <span className="text-2xl font-black text-white tracking-tight">
+              Rp {total.toLocaleString('id-ID')}
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">
+              Uang Dibayar
+            </Label>
+           <Input
+                id="total_uang"
+                type="text"
+                name="total_uang"
+                value={formData.total_uang}
+                onChange={handleTotalUangChange}
+                placeholder="Masukkan jumlah uang"
+                className="h-14 text-xl font-bold border-2 border-gray-900 rounded-xl focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 bg-white tracking-tight"
+                autoComplete="off"
+                autoFocus
+              />
+            <QuickAmounts total={total} onSelect={handleQuickAmount} />
+          </div>
+          <PaymentStatus paymentStatus={paymentStatus} formatRupiah={formatRupiah} />
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 pb-6 pt-3 border-t border-gray-100 flex gap-2.5 flex-shrink-0">
+          {/* Batal */}
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={isProcessing}
+            className="flex-1 h-12 rounded-xl border-gray-200 text-gray-500 font-semibold hover:bg-gray-50"
+          >
+            Batal
+          </Button>
+
+          {/* Cetak */}
+          <Button
+            variant="outline"
+            onClick={onCetak}
+            disabled={!canSubmit}
+            className="flex-1 h-12 rounded-xl border-gray-300 text-gray-800 font-semibold hover:bg-gray-50 gap-2"
+          >
+            {isProcessing ? (
+              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <Printer className="w-4 h-4" />
+            )}
+            Cetak
+          </Button>
+          <Button
+            onClick={onOk}
+            disabled={!canSubmit}
+            className="flex-[1.4] h-12 rounded-xl bg-gray-900 hover:bg-black text-white font-bold gap-2 border-0 disabled:opacity-40 transition-all"
+          >
+            {isProcessing ? (
+              <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            )}
+            OK · Simpan
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
 export default function ListKasir() {
   const kasir = useKasir()
   const isTablet = useMediaQuery('(min-width: 768px) and (max-width: 1023px)')
   const isDesktop = useMediaQuery('(min-width: 1024px)')
   const [ringkasanPosition, setRingkasanPosition] = useState('right')
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
 
   const {
     showPrint, printData,
@@ -199,7 +324,34 @@ export default function ListKasir() {
     getCurrentPrice, getSatuanInfo, formatRupiah, focusSearchInput,
     handleQuickAmount,
   } = kasir
+  const handleOpenPaymentModal = () => {
+    if (cart.length === 0 || isProcessing) return
+    setShowPaymentModal(true)
+  }
 
+  const handleModalClose = () => {
+    setShowPaymentModal(false)
+  }
+
+  
+  const handleModalOk = async () => {
+  setShowPaymentModal(false)
+  await handleSubmit({ preventDefault: () => {} })
+  
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon: 'success',
+    title: 'Transaksi berhasil disimpan',
+    showConfirmButton: false,
+    timer: 2500,
+    timerProgressBar: true,
+  })
+}
+  const handleModalCetak = async () => {
+    setShowPaymentModal(false)
+    await handleSubmit({ preventDefault: () => {} }, true)
+  }
   if (showPrint && printData) {
     return (
       <NotaPembelian
@@ -282,7 +434,7 @@ export default function ListKasir() {
               onFocus={() => { if (searchQuery.length > 0) setShowSearchResults(true) }}
               onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
               placeholder="Scan barcode atau ketik nama produk..."
-              className={`pl-9 pr-10 w-full border-2 border-gray-200 rounded-xl focus:border-gray-900 focus:ring-0 bg-gray-50 focus:bg-white transition-all ${isTablet ? 'h-12 text-sm' : 'h-12 text-sm'}`}
+              className="pl-9 pr-10 w-full border-2 border-gray-200 rounded-xl focus:border-gray-900 focus:ring-0 bg-gray-50 focus:bg-white transition-all h-12 text-sm"
               autoComplete="off"
             />
             {searchQuery && (
@@ -303,6 +455,8 @@ export default function ListKasir() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Cart items */}
       <Card className="border border-gray-200 bg-white rounded-xl shadow-sm flex-1">
         <CardHeader className="pb-3 pt-4 px-4 flex flex-row items-center justify-between border-b border-gray-100">
           <div className="flex items-center gap-2">
@@ -331,7 +485,7 @@ export default function ListKasir() {
             </div>
           ) : (
             <div
-              className={`space-y-3 overflow-y-auto pr-1`}
+              className="space-y-3 overflow-y-auto pr-1"
               style={{ maxHeight: isDesktop ? 'calc(100vh - 280px)' : '420px' }}
             >
               {cart.map((item) => (
@@ -354,7 +508,7 @@ export default function ListKasir() {
     </div>
   )
 
-  // ─── Ringkasan Column ────────────────────────────────────────────────────
+  // ─── Ringkasan Column ──────────────────────────────────────────────────────
   const RingkasanColumn = (
     <div className={`flex flex-col gap-0 ${isTablet ? 'col-span-1' : 'col-span-2'}`}>
       <Card
@@ -414,59 +568,35 @@ export default function ListKasir() {
               <span className="font-black text-gray-900 text-2xl">Rp {total.toLocaleString()}</span>
             </div>
           </div>
+
+          {/* Potongan */}
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Potongan Harga</Label>
-             <Input
-                id="diskon"
-                type="text"
-                name="diskon"
-                value={formData.diskon}
-                onChange={handleDiskonChange}
-                placeholder="Contoh: 5000 atau 10%"
-                className={`border-2 border-gray-300 focus:border-black focus:ring-2 focus:ring-black/20 ${isTablet ? 'h-10 text-sm rounded-lg' : 'h-12 text-base rounded-lg'}`}
-                autoComplete="off"
-              />
+            <Input
+              id="diskon"
+              type="text"
+              name="diskon"
+              value={formData.diskon}
+              onChange={handleDiskonChange}
+              placeholder="Contoh: 5000 atau 10%"
+              className={`border-2 border-gray-300 focus:border-black focus:ring-2 focus:ring-black/20 ${isTablet ? 'h-10 text-sm rounded-lg' : 'h-12 text-base rounded-lg'}`}
+              autoComplete="off"
+            />
           </div>
-
-          {/* Uang Input */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Uang Dibayar</Label>
-             <Input
-                id="total_uang"
-                type="text"
-                name="total_uang"
-                value={formData.total_uang}
-                onChange={handleTotalUangChange}
-                placeholder="Masukkan jumlah uang"
-                className={`border-2 border-gray-300 focus:border-black focus:ring-2 focus:ring-black/20 ${isTablet ? 'h-10 text-sm rounded-lg' : 'h-12 text-base rounded-lg'}`}
-                autoComplete="off"
-              />
-            <QuickAmounts total={total} onSelect={handleQuickAmount} />
-          </div>
-
-          <PaymentStatus paymentStatus={paymentStatus} formatRupiah={formatRupiah} />
         </div>
+
+        {/* Footer — Simpan button */}
         <div className="flex-shrink-0 px-4 pb-4 pt-2 border-t border-gray-100 bg-white rounded-b-xl">
           <Button
-            onClick={handleSubmit}
+            onClick={handleOpenPaymentModal}
             disabled={cart.length === 0 || isProcessing}
             className="w-full h-12 text-base font-bold text-white rounded-xl border-0 bg-gray-900 hover:bg-black transition-all disabled:opacity-40"
             size="lg"
           >
-            {isProcessing ? (
-              <span className="flex items-center gap-2">
-                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Memproses...
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                <CreditCard className="w-5 h-5" />
-                Simpan Transaksi
-              </span>
-            )}
+            <span className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5" />
+              Simpan Transaksi
+            </span>
           </Button>
           {cart.length === 0 && (
             <p className="mt-2 text-center text-gray-400 text-xs">
@@ -477,10 +607,27 @@ export default function ListKasir() {
       </Card>
     </div>
   )
+
+  // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 p-3 md:p-4 lg:p-6">
-      <div className="max-w-6xl mx-auto">
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={handleModalClose}
+        onOk={handleModalOk}
+        onCetak={handleModalCetak}
+        total={total}
+        cartLength={cart.length}
+        formData={formData}
+        handleTotalUangChange={handleTotalUangChange}
+        handleQuickAmount={handleQuickAmount}
+        paymentStatus={paymentStatus}
+        formatRupiah={formatRupiah}
+        isProcessing={isProcessing}
+      />
 
+      <div className="max-w-6xl mx-auto">
         {/* Top bar */}
         <div className="flex items-center gap-3 mb-4">
           <div className="flex items-center gap-2">

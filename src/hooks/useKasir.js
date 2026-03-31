@@ -350,7 +350,7 @@ export const useKasir = () => {
     
   }, [handleBarcodeFound])
 
-  const postTransaksi = useCallback(async (data) => {
+  const postTransaksi = useCallback(async (data, shouldPrint = false) => {
     try {
       setIsProcessing(true)
       const res = await postKasir(data)
@@ -383,7 +383,11 @@ export const useKasir = () => {
         total_uang: '',
         kembalian: 0
       })
-      setShowPrint(true)
+
+      if (shouldPrint) {       
+        setShowPrint(true)
+      }
+
       focusSearchInput()
     } catch (error) {
       console.error('Error posting transaksi:', error)
@@ -393,31 +397,29 @@ export const useKasir = () => {
     }
   }, [cart, cartSubtotal, formData.diskon, formData.total_uang, showToast, focusSearchInput])
 
-  const handleSubmit = useCallback((e) => {
-    e.preventDefault()
+ const handleSubmit = useCallback((e, shouldPrint = false) => {
+  e.preventDefault()
 
-    if (!user) {
-      showToast("Gagal", "User belum terdeteksi", "error")
-      return
-    }
+  if (!user) {
+    showToast("Gagal", "User belum terdeteksi", "error")
+    return
+  }
 
-    if (cart.length === 0) {
-      showToast("Gagal", "Keranjang masih kosong", "error")
-      return
-    }
+  if (cart.length === 0) {
+    showToast("Gagal", "Keranjang masih kosong", "error")
+    return
+  }
 
-    const payload = {
-      produk_id: cart.map(i => i.kode_barang),
-      jumlah_terjual_per_hari: cart.map(i => i.jumlah),
-      satuan: cart.map(i => i.satuan_terpilih || i.satuan),
-      users_id: user.id,
-      diskon: parseRupiah(formData.diskon),
-    }
+  const payload = {
+    produk_id: cart.map(i => i.kode_barang),
+    jumlah_terjual_per_hari: cart.map(i => i.jumlah),
+    satuan: cart.map(i => i.satuan_terpilih || i.satuan),
+    users_id: user.id,
+    diskon: parseRupiah(formData.diskon),
+  }
 
-    postTransaksi(payload)
-  }, [user, cart, formData.diskon, postTransaksi, showToast])
-
-  // Effects
+  postTransaksi(payload, shouldPrint) 
+}, [user, cart, formData.diskon, postTransaksi, showToast])
   useEffect(() => {
     fetchHargaPromo()
   }, [fetchHargaPromo])
