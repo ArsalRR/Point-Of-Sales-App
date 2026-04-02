@@ -8,10 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import NotaPembelian from '../Kasir/NotaPembelian'
-import { useKasir } from '@/hooks/useKasir'
-import { parseRupiah } from '@/utils/kasirUtils'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
-import Swal from 'sweetalert2'
+import { useListKasir } from '@/hooks/Uselistkasir'
+
+const isAndroid = () => /Android/i.test(navigator.userAgent)
+
 function QuickAmounts({ total, onSelect }) {
   if (!total) return null
   const rounds = [
@@ -38,6 +38,7 @@ function QuickAmounts({ total, onSelect }) {
     </div>
   )
 }
+
 function LiveClock() {
   const [time, setTime] = useState('')
   useEffect(() => {
@@ -51,6 +52,7 @@ function LiveClock() {
   }, [])
   return <span className="font-mono text-sm text-gray-500 tabular-nums">{time}</span>
 }
+
 function PaymentStatus({ paymentStatus, formatRupiah }) {
   if (!paymentStatus || paymentStatus.status === 'empty') return null
   const cfg = {
@@ -68,72 +70,219 @@ function PaymentStatus({ paymentStatus, formatRupiah }) {
     </div>
   )
 }
+
+function VariantDropdown({ item, transaksi, addProductToCart }) {
+  const [showVariant, setShowVariant] = useState(false)
+  const [variantLimit, setVariantLimit] = useState(5)
+
+  const getWords = (name) => {
+    return name
+      .toLowerCase()
+      .replace(/[\d\/]+\s*(kg|gr|gram|ltr|ml|pcs|pak|bks|bungkus|lusin|kodi)?/gi, ' ')
+      .replace(/[^a-z\s]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length >= 3)
+  }
+
+  const baseWords = getWords(item.nama_barang)
+  const baseWordSet = new Set(baseWords)
+
+  const calculateSimilarity = (namaBarang) => {
+    const pWords = getWords(namaBarang)
+    if (baseWords.length === 0 || pWords.length === 0) return 0
+    
+    const exactMatches = pWords.filter(w => baseWordSet.has(w)).length
+    
+    let partialMatches = 0
+    for (const baseWord of baseWords) {
+      for (const pWord of pWords) {
+        if (pWord.includes(baseWord) || baseWord.includes(pWord)) {
+          partialMatches++
+          break
+        }
+      }
+    }
+    
+    const totalScore = (exactMatches * 1.5 + partialMatches * 0.5) / Math.max(baseWords.length, pWords.length)
+    return totalScore
+  }
+
+  const allVariants = (transaksi || [])
+    .filter((p) => {
+      if (p.kode_barang === item.kode_barang) return false
+      const similarity = calculateSimilarity(p.nama_barang)
+      return similarity >= 0.3
+    })
+    .map((p) => ({
+      ...p,
+      _score: calculateSimilarity(p.nama_barang)
+    }))
+    .sort((a, b) => b._score - a._score)
+
+  if (allVariants.length === 0) return null
+
+  const handleShowVariant = () => {
+    if (!showVariant) {
+      // First click: show 5 variants
+      setShowVariant(true)
+      setVariantLimit(5)
+    } else {
+      // Second click: show 10 or all variants
+      setVariantLimit(prev => prev === 5 ? Math.min(10, allVariants.length) : allVariants.length)
+    }
+  }
+
+  const displayedVariants = showVariant ? allVariants.slice(0, variantLimit) : []
+
+  const isShowMoreVisible = showVariant && variantLimit < allVariants.length
+  const isShowLessVisible = showVariant && variantLimit > 5
+
+  return (
+    <div className="mx-0 mt-0 border-t border-gray-200 bg-gray-50 rounded-b-xl px-4 py-3">
+      {!showVariant ? (
+        <button
+          onClick={handleShowVariant}
+          className="w-full py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-all"
+        >
+          + Tampilkan Ukuran Lainnya ({allVariants.length})
+        </button>
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              Ukuran Lainnya ({displayedVariants.length}/{allVariants.length})
+            </p>
+            <button
+              onClick={() => setShowVariant(false)}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Daftar varian */}
+          <div className="flex flex-wrap gap-2 mb-3">
+            {displayedVariants.map((p) => (
+              <button
+                key={p.kode_barang}
+                onClick={() => addProductToCart(p)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-gray-300 hover:border-gray-500 hover:bg-gray-100 transition-all active:scale-95"
+              >
+                <span className="text-xs text-gray-700">{p.nama_barang}</span>
+                <span className="text-xs font-semibold text-gray-900">
+                  Rp {p.harga.toLocaleString()}
+                </span>
+                <span className="text-gray-400 text-sm ml-0.5">+</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Tombol Show More / Show Less */}
+          <div className="flex gap-2">
+            {isShowMoreVisible && (
+              <button
+                onClick={handleShowVariant}
+                className="flex-1 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-medium transition-all"
+              >
+                Tampilkan {variantLimit === 5 ? 10 : allVariants.length} ukuran
+              </button>
+            )}
+            {isShowLessVisible && (
+              <button
+                onClick={() => {
+                  setVariantLimit(5)
+                }}
+                className="flex-1 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-500 text-xs font-medium transition-all border border-gray-200"
+              >
+                Tampilkan 5 Ukuran 
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function hasRenteng(val) {
+  if (val === null || val === undefined) return false
+  if (typeof val === 'string' && val.trim() === '') return false
+  if (typeof val === 'number' && (isNaN(val) || val === 0)) return false
+  return true
+}
+
 function CartItemCard({
   item, isTablet,
   updateQty, removeItem, handleChangeSatuan,
   subtotal, getCurrentPrice, getSatuanInfo,
+  transaksi, addProductToCart,
 }) {
   const price = getCurrentPrice(item)
   const sub = subtotal(item)
+  const showSelect = hasRenteng(item.harga_renteng)
+
   return (
-    <Card className="border border-gray-200 rounded-xl bg-white overflow-hidden">
+    <Card className="border border-gray-200 rounded-xl bg-white overflow-hidden shadow-sm">
       <CardContent className="p-0">
-        <div className="flex items-start gap-2 px-4 pt-4 pb-2">
+        <div className="flex items-start gap-3 px-4 pt-4 pb-3">
           <div className="flex-1 min-w-0">
-            <p className={`font-semibold text-gray-900 truncate ${isTablet ? 'text-sm' : 'text-base'}`}>
+            <p className={`font-semibold text-gray-900 leading-snug ${isTablet ? 'text-sm' : 'text-sm'}`}>
               {item.nama_barang}
             </p>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <Badge variant="outline" className="border-gray-300 text-gray-600 text-xs font-mono">
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <Badge
+                variant="outline"
+                className="border-gray-200 text-gray-500 text-[11px] font-mono px-1.5 py-0 h-5 leading-none"
+              >
                 {item.kode_barang}
               </Badge>
-              <span className="text-xs text-gray-500">
+              <span className="text-[11px] text-gray-400 leading-none">
                 Rp {price.toLocaleString()} / {item.satuan_terpilih || item.satuan}
               </span>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
             onClick={() => removeItem(item.kode_barang)}
-            className="h-9 w-9 p-0 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 flex-shrink-0"
+            className="mt-0.5 flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
           >
             <Trash2 className="w-4 h-4" />
-          </Button>
+          </button>
         </div>
-        <Separator className="bg-gray-100" />
-        <div className="flex items-center gap-3 px-4 py-3">
-          {/* Satuan */}
-          <Select
-            value={item.satuan_terpilih || 'satuan'}
-            onValueChange={(v) => handleChangeSatuan(item.kode_barang, v)}
-          >
-            <SelectTrigger className="h-10 text-sm rounded-lg border border-gray-200 bg-gray-50 min-w-[100px] flex-1 focus:border-gray-400 focus:ring-0">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-white border border-gray-200 rounded-xl shadow-lg">
-              <SelectItem value="satuan">Satuan</SelectItem>
-              {item.harga_renteng && (
-                <>
-                  <SelectItem value="renteng">Renteng</SelectItem>
-                  <SelectItem value="dus">Dus</SelectItem>
-                  <SelectItem value="pack">Pack</SelectItem>
-                  <SelectItem value="dingin">Minuman dingin</SelectItem>
-                  <SelectItem value="penjual_gas">Penjual gas</SelectItem>
-                </>
-              )}
-            </SelectContent>
-          </Select>
 
-          {/* Qty Controls */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+        <Separator className="bg-gray-100" />
+
+        {showSelect && (
+          <div className="px-4 pt-3 pb-1">
+            <Select
+              value={item.satuan_terpilih || 'satuan'}
+              onValueChange={(v) => handleChangeSatuan(item.kode_barang, v)}
+            >
+              <SelectTrigger className="h-9 text-sm rounded-lg border border-gray-200 bg-gray-50 w-full focus:border-gray-400 focus:ring-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-white border border-gray-200 rounded-xl shadow-lg">
+                <SelectItem value="satuan">Satuan</SelectItem>
+                <SelectItem value="renteng">Renteng</SelectItem>
+                <SelectItem value="dus">Dus</SelectItem>
+                <SelectItem value="pack">Pack</SelectItem>
+                <SelectItem value="dingin">Minuman dingin</SelectItem>
+                <SelectItem value="penjual_gas">Penjual gas</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between px-4 py-3 gap-4">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); updateQty(item.kode_barang, item.jumlah - 1, e) }}
-              className="h-10 w-10 p-0 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
+              className="h-9 w-9 p-0 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 hover:border-gray-300 flex-shrink-0"
             >
-              <Minus className="w-4 h-4" />
+              <Minus className="w-3.5 h-3.5" />
             </Button>
             <Input
               type="number"
@@ -141,60 +290,54 @@ function CartItemCard({
               onChange={(e) => updateQty(item.kode_barang, Math.max(1, Number(e.target.value) || 1), e)}
               onFocus={(e) => e.target.scrollIntoView({ behavior: 'instant', block: 'nearest' })}
               onBlur={(e) => { if (!e.target.value || parseInt(e.target.value) < 1) updateQty(item.kode_barang, 1, e) }}
-              className="w-14 h-10 text-center border border-gray-300 rounded-lg font-semibold text-sm focus:border-gray-500 focus:ring-0"
+              className="w-12 h-9 text-center border border-gray-200 rounded-lg font-bold text-sm focus:border-gray-500 focus:ring-0 px-0"
               min="1"
             />
             <Button
               variant="outline"
               size="sm"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); updateQty(item.kode_barang, item.jumlah + 1, e) }}
-              className="h-10 w-10 p-0 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
+              className="h-9 w-9 p-0 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 hover:border-gray-300 flex-shrink-0"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
             </Button>
           </div>
-
-          {/* Subtotal */}
-          <div className="text-right flex-shrink-0 min-w-[80px]">
-            <p className="font-bold text-gray-900 text-sm">Rp {sub.toLocaleString()}</p>
+          <div className="text-right flex-shrink-0">
+            <p className="font-bold text-gray-900 text-sm leading-tight">
+              Rp {sub.toLocaleString()}
+            </p>
             {item.satuan_terpilih && item.satuan_terpilih !== 'satuan' && (
-              <p className="text-xs text-gray-500 truncate mt-0.5">{getSatuanInfo(item)}</p>
+              <p className="text-[11px] text-gray-400 mt-0.5 truncate max-w-[100px]">
+                {getSatuanInfo(item)}
+              </p>
             )}
           </div>
         </div>
+
+        <VariantDropdown
+          item={item}
+          transaksi={transaksi}
+          addProductToCart={addProductToCart}
+        />
       </CardContent>
     </Card>
   )
 }
+
 function PaymentModal({
-  isOpen,
-  onClose,
-  onOk,
-  onCetak,
-  total,
-  cartLength,
-  formData,
-  handleTotalUangChange,
-  handleQuickAmount,
-  paymentStatus,
-  formatRupiah,
-  isProcessing,
+  isOpen, onClose, onOk, onCetak,
+  total, cartLength, formData,
+  handleTotalUangChange, handleQuickAmount,
+  paymentStatus, formatRupiah, isProcessing,
 }) {
   if (!isOpen) return null
-
   const canSubmit = paymentStatus?.status !== 'insufficient' && cartLength > 0 && !isProcessing
-
   return (
     <div
       style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
+        position: 'fixed', inset: 0, zIndex: 9999,
         background: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '1rem',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
@@ -203,7 +346,6 @@ function PaymentModal({
         style={{ maxWidth: 480, maxHeight: '90vh' }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gray-900 flex items-center justify-center flex-shrink-0">
@@ -222,7 +364,6 @@ function PaymentModal({
           </button>
         </div>
 
-        {/* Body */}
         <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
           <div className="bg-gray-950 rounded-xl px-5 py-4 flex items-center justify-between">
             <span className="text-sm text-gray-400 font-medium">Total Pembayaran</span>
@@ -230,30 +371,27 @@ function PaymentModal({
               Rp {total.toLocaleString('id-ID')}
             </span>
           </div>
-
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">
               Uang Dibayar
             </Label>
-           <Input
-                id="total_uang"
-                type="text"
-                name="total_uang"
-                value={formData.total_uang}
-                onChange={handleTotalUangChange}
-                placeholder="Masukkan jumlah uang"
-                className="h-14 text-xl font-bold border-2 border-gray-900 rounded-xl focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 bg-white tracking-tight"
-                autoComplete="off"
-                autoFocus
-              />
+            <Input
+              id="total_uang"
+              type="text"
+              name="total_uang"
+              value={formData.total_uang}
+              onChange={handleTotalUangChange}
+              placeholder="Masukkan jumlah uang"
+              className="h-14 text-xl font-bold border-2 border-gray-900 rounded-xl focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 bg-white tracking-tight"
+              autoComplete="off"
+              autoFocus
+            />
             <QuickAmounts total={total} onSelect={handleQuickAmount} />
           </div>
           <PaymentStatus paymentStatus={paymentStatus} formatRupiah={formatRupiah} />
         </div>
 
-        {/* Footer */}
         <div className="px-6 pb-6 pt-3 border-t border-gray-100 flex gap-2.5 flex-shrink-0">
-          {/* Batal */}
           <Button
             variant="outline"
             onClick={onClose}
@@ -262,8 +400,6 @@ function PaymentModal({
           >
             Batal
           </Button>
-
-          {/* Cetak */}
           <Button
             variant="outline"
             onClick={onCetak}
@@ -302,79 +438,125 @@ function PaymentModal({
     </div>
   )
 }
+
 export default function ListKasir() {
-  const kasir = useKasir()
-  const isTablet = useMediaQuery('(min-width: 768px) and (max-width: 1023px)')
-  const isDesktop = useMediaQuery('(min-width: 1024px)')
-  const [ringkasanPosition, setRingkasanPosition] = useState('right')
-  const [showPaymentModal, setShowPaymentModal] = useState(false)
-
   const {
-    showPrint, printData,
-    searchQuery, setSearchQuery,
-    showSearchResults, setShowSearchResults,
-    cart, isProcessing, formData, transaksi,
+    isTablet,
+    isDesktop,
+    ringkasanPosition,
+    setRingkasanPosition,
+    showPaymentModal,
+
+    showPrint,
+    printData,
+    searchQuery,
+    setSearchQuery,
+    showSearchResults,
+    setShowSearchResults,
+    cart,
+    isProcessing,
+    formData,
+    transaksi,
     searchInputRef,
-    searchResults, cartSubtotal, total, paymentStatus,
-    setShowPrint, setPrintData,
-    addProductToCart, updateQty, removeItem, subtotal, handleChangeSatuan,
-    handleDiskonChange, handleTotalUangChange,
-    handleSearchSelect,
-    handleSubmit,
-    getCurrentPrice, getSatuanInfo, formatRupiah, focusSearchInput,
+    searchResults,
+    cartSubtotal,
+    total,
+    paymentStatus,
+
+    handleOpenPaymentModal,
+    handleModalClose,
+    handleModalOk,
+    handleModalCetak,
+    handleSearchChange,
+    handleSearchKeyDown,
+    handleSearchResultSelect,
+    handleSearchClear,
+    handleClosePrint,
+
+    addProductToCart,
+    updateQty,
+    removeItem,
+    subtotal,
+    handleChangeSatuan,
+    handleDiskonChange,
+    handleTotalUangChange,
     handleQuickAmount,
-  } = kasir
-  const handleOpenPaymentModal = () => {
-    if (cart.length === 0 || isProcessing) return
-    setShowPaymentModal(true)
-  }
 
-  const handleModalClose = () => {
-    setShowPaymentModal(false)
-  }
+    getCurrentPrice,
+    getSatuanInfo,
+    formatRupiah,
+    parseRupiah,
+  } = useListKasir()
 
-  
-  const handleModalOk = async () => {
-  setShowPaymentModal(false)
-  await handleSubmit({ preventDefault: () => {} })
-  
-  Swal.fire({
-    toast: true,
-    position: 'top-end',
-    icon: 'success',
-    title: 'Transaksi berhasil disimpan',
-    showConfirmButton: false,
-    timer: 2500,
-    timerProgressBar: true,
-  })
-}
-  const handleModalCetak = async () => {
-    setShowPaymentModal(false)
-    await handleSubmit({ preventDefault: () => {} }, true)
-  }
+  // Barcode scanner listener khusus Android
+  useEffect(() => {
+    if (!isAndroid()) return
+
+    const keyTimes = []
+    let buffer = ''
+    let timer = null
+
+    const handleGlobalKey = (e) => {
+      const now = Date.now()
+      keyTimes.push(now)
+
+      if (e.key.length === 1) {
+        buffer += e.key
+      }
+
+      if (e.key === 'Enter' && buffer.length >= 3) {
+        const intervals = keyTimes.slice(1).map((t, i) => t - keyTimes[i])
+        const allFast = intervals.length === 0 || intervals.every((gap) => gap < 50)
+        if (allFast) {
+          searchInputRef.current?.focus()
+          setSearchQuery(buffer)
+          setShowSearchResults(true)
+        }
+        buffer = ''
+        keyTimes.length = 0
+        clearTimeout(timer)
+        return
+      }
+
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        if (buffer.length >= 4 && keyTimes.length >= 4) {
+          const intervals = keyTimes.slice(1).map((t, i) => t - keyTimes[i])
+          const allFast = intervals.every((gap) => gap < 50)
+          if (allFast) {
+            searchInputRef.current?.focus()
+            setSearchQuery(buffer)
+            setShowSearchResults(true)
+          }
+        }
+        buffer = ''
+        keyTimes.length = 0
+      }, 100)
+    }
+
+    window.addEventListener('keydown', handleGlobalKey)
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKey)
+      clearTimeout(timer)
+    }
+  }, [])
+
   if (showPrint && printData) {
     return (
       <NotaPembelian
         transactionData={printData}
-        onClose={() => {
-          setShowPrint(false)
-          setPrintData(null)
-          focusSearchInput(searchInputRef)
-        }}
+        onClose={handleClosePrint}
       />
     )
   }
+
   const SearchDropdown = showSearchResults && searchResults.length > 0 && (
     <Card className="absolute top-full left-0 right-0 z-50 mt-1.5 max-h-72 overflow-auto shadow-2xl border border-gray-200 rounded-xl">
       <CardContent className="p-0">
         {searchResults.map((product, index) => (
           <button
             key={product.kode_barang}
-            onClick={() => {
-              handleSearchSelect(product)
-              setSearchQuery('')
-              setShowSearchResults(false)
-            }}
+            onClick={() => handleSearchResultSelect(product)}
             className={`w-full text-left px-4 py-3 flex items-center gap-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors ${index === 0 ? 'bg-gray-50' : ''}`}
           >
             <div className="flex-1 min-w-0">
@@ -392,60 +574,36 @@ export default function ListKasir() {
       </CardContent>
     </Card>
   )
+
   const CartColumn = (
-    <div className={`flex flex-col gap-4 ${isTablet ? 'col-span-3' : 'col-span-3'}`}>
+    <div className={`flex flex-col gap-3 ${isTablet ? 'col-span-3' : 'col-span-3'}`}>
       <Card className="border border-gray-200 bg-white rounded-xl shadow-sm">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-3">
+        <CardContent className="px-4 py-3">
+          <div className="flex items-center gap-2 mb-2.5">
             <div className="w-7 h-7 rounded-lg bg-gray-900 flex items-center justify-center flex-shrink-0">
               <Scan className="w-4 h-4 text-white" />
             </div>
-            <Label className="text-gray-900 font-semibold text-sm">Scan Barcode / Cari Produk</Label>
+            <Label className="text-gray-800 font-semibold text-sm">Scan Barcode / Cari Produk</Label>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <Input
               ref={searchInputRef}
               value={searchQuery}
-              onChange={(e) => {
-                const value = e.target.value
-                setSearchQuery(value)
-                const exactProduct = transaksi.find((p) => p.kode_barang.trim() === value.trim())
-                if (exactProduct && value.length >= 3) {
-                  setTimeout(() => handleSearchSelect(exactProduct), 50)
-                  return
-                }
-                setShowSearchResults(value.length > 0)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  const product = transaksi.find((p) => p.kode_barang.trim() === searchQuery.trim())
-                  if (product) {
-                    handleSearchSelect(product)
-                    setSearchQuery('')
-                    setShowSearchResults(false)
-                    return
-                  }
-                  if (searchResults.length > 0) handleSearchSelect(searchResults[0])
-                }
-                if (e.key === 'Escape') setShowSearchResults(false)
-              }}
+              onChange={handleSearchChange}
+              onKeyDown={handleSearchKeyDown}
               onFocus={() => { if (searchQuery.length > 0) setShowSearchResults(true) }}
               onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
               placeholder="Scan barcode atau ketik nama produk..."
-              className="pl-9 pr-10 w-full border-2 border-gray-200 rounded-xl focus:border-gray-900 focus:ring-0 bg-gray-50 focus:bg-white transition-all h-12 text-sm"
+              className="pl-9 pr-10 w-full border-2 border-gray-200 rounded-xl focus:border-gray-900 focus:ring-0 bg-gray-50 focus:bg-white transition-all h-11 text-sm"
               autoComplete="off"
+              autoFocus={!isAndroid()}
             />
             {searchQuery && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  setSearchQuery('')
-                  setShowSearchResults(false)
-                  searchInputRef.current?.focus()
-                }}
+                onClick={handleSearchClear}
                 className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 hover:bg-gray-100 rounded-lg"
               >
                 <X className="w-4 h-4" />
@@ -456,9 +614,8 @@ export default function ListKasir() {
         </CardContent>
       </Card>
 
-      {/* Cart items */}
       <Card className="border border-gray-200 bg-white rounded-xl shadow-sm flex-1">
-        <CardHeader className="pb-3 pt-4 px-4 flex flex-row items-center justify-between border-b border-gray-100">
+        <CardHeader className="pb-3 pt-3.5 px-4 flex flex-row items-center justify-between border-b border-gray-100">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-gray-900 flex items-center justify-center">
               <ShoppingCart className="w-4 h-4 text-white" />
@@ -466,13 +623,13 @@ export default function ListKasir() {
             <CardTitle className="text-sm font-semibold text-gray-900">Keranjang Belanja</CardTitle>
           </div>
           {cart.length > 0 && (
-            <Badge className="bg-gray-100 text-gray-700 border border-gray-200 font-semibold text-xs px-2">
+            <Badge className="bg-gray-100 text-gray-600 border border-gray-200 font-semibold text-xs px-2">
               {cart.length} item
             </Badge>
           )}
         </CardHeader>
 
-        <CardContent className="p-4">
+        <CardContent className="p-3">
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-14 text-center gap-3">
               <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center">
@@ -485,8 +642,11 @@ export default function ListKasir() {
             </div>
           ) : (
             <div
-              className="space-y-3 overflow-y-auto pr-1"
-              style={{ maxHeight: isDesktop ? 'calc(100vh - 280px)' : '420px' }}
+              className="space-y-2.5 overflow-y-auto"
+              style={{
+                maxHeight: isDesktop ? 'calc(100vh - 260px)' : '440px',
+                paddingRight: '2px',
+              }}
             >
               {cart.map((item) => (
                 <CartItemCard
@@ -499,6 +659,8 @@ export default function ListKasir() {
                   subtotal={subtotal}
                   getCurrentPrice={getCurrentPrice}
                   getSatuanInfo={getSatuanInfo}
+                  transaksi={transaksi}
+                  addProductToCart={addProductToCart}
                 />
               ))}
             </div>
@@ -508,14 +670,12 @@ export default function ListKasir() {
     </div>
   )
 
-  // ─── Ringkasan Column ──────────────────────────────────────────────────────
   const RingkasanColumn = (
     <div className={`flex flex-col gap-0 ${isTablet ? 'col-span-1' : 'col-span-2'}`}>
       <Card
         className={`border border-gray-200 bg-white rounded-xl shadow-sm flex flex-col ${isDesktop ? 'sticky top-6' : ''}`}
         style={{ maxHeight: isDesktop ? 'calc(100vh - 48px)' : undefined }}
       >
-        {/* Header */}
         <CardHeader className="pb-3 pt-4 px-4 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-semibold text-gray-900">Ringkasan Pesanan</CardTitle>
@@ -545,10 +705,7 @@ export default function ListKasir() {
           </div>
         </CardHeader>
 
-        {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-
-          {/* Totals Summary */}
           <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-2">
             <div className="flex justify-between items-center text-sm">
               <span className="text-gray-500">Subtotal ({cart.length} item)</span>
@@ -569,7 +726,6 @@ export default function ListKasir() {
             </div>
           </div>
 
-          {/* Potongan */}
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Potongan Harga</Label>
             <Input
@@ -585,7 +741,6 @@ export default function ListKasir() {
           </div>
         </div>
 
-        {/* Footer — Simpan button */}
         <div className="flex-shrink-0 px-4 pb-4 pt-2 border-t border-gray-100 bg-white rounded-b-xl">
           <Button
             onClick={handleOpenPaymentModal}
@@ -608,10 +763,8 @@ export default function ListKasir() {
     </div>
   )
 
-  // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 p-3 md:p-4 lg:p-6">
-      {/* Payment Modal */}
       <PaymentModal
         isOpen={showPaymentModal}
         onClose={handleModalClose}
@@ -628,7 +781,6 @@ export default function ListKasir() {
       />
 
       <div className="max-w-6xl mx-auto">
-        {/* Top bar */}
         <div className="flex items-center gap-3 mb-4">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -638,7 +790,6 @@ export default function ListKasir() {
           <span className="text-xs text-gray-400">{cart.length} item di keranjang</span>
         </div>
 
-        {/* Grid */}
         <div className={`grid gap-4 ${isTablet ? 'grid-cols-4' : 'grid-cols-5'}`}>
           {ringkasanPosition === 'right' ? (
             <>
