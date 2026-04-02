@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react"
-
 export const buildStrukText = (trx) => {
   const line = "------------------------------"
   const doubleLine = "=============================="
@@ -68,7 +67,6 @@ const sendToRawBT = (text) => {
     console.error("Gagal membuka RawBT:", err)
   }
 }
-
 const printDesktop = (printAreaRef) => {
   if (!printAreaRef?.current) {
     window.print()
@@ -78,87 +76,102 @@ const printDesktop = (printAreaRef) => {
   const style = `
     <style>
       @page {
-        size: 58mm auto;
+        size: 45mm auto;
         margin: 0;
       }
 
       html, body {
         margin: 0;
         padding: 0;
-        width: 58mm;
-        overflow: hidden;
+        width: 45mm;  
+      }
+
+      * {
+        box-sizing: border-box;
+        max-width: 100%;
       }
 
       body {
-        font-family: "Courier New", monospace;
-        font-size: 10px;
+        font-family: "Courier New", Consolas, monospace;
+        font-size: 8px;
         font-weight: 700;
         color: #000;
       }
 
       .print-area {
-        width: 48mm;
-        max-width: 48mm;
-        margin: 0 auto;
+        width: 45mm;  
+        max-width: 45mm;    
         overflow: hidden;
+        transform: scale(0.95);
+        transform-origin: top left;
       }
 
       .ticket {
-        width: 48mm;
+        width: 100%;
+        max-width: 45mm;      
+        padding: 2mm 0;
       }
 
       .center {
         text-align: center;
-        margin-bottom: 4px;
+        margin-bottom: 2px;
       }
 
       .line {
         border-top: 1px solid #000;
-        margin: 4px 0;
+        margin: 5px 0;
       }
 
-      .item {
-        margin-bottom: 4px;
+      .item { 
+        margin-bottom: 5px;
       }
 
       .item-name {
-        font-size: 10px;
-        line-height: 1.2;
-        word-break: break-all;
+        font-size: 9px;
+        line-height: 1.3;
+        word-wrap: break-word;
+        margin-bottom: 2px;
       }
 
-      .item-table {
+      .item-info {
+        display: flex;
         width: 100%;
-        table-layout: fixed;
-        border-collapse: collapse;
         font-size: 9px;
       }
 
-      .item-table td {
-        padding: 0;
-        overflow: hidden;
+      .info-price {
+        width: 40%;
+        text-align: left;
         white-space: nowrap;
       }
 
-      .col-price { width: 40%; text-align: left; }
-      .col-qty   { width: 20%; text-align: center; }
-      .col-total { width: 40%; text-align: right; }
+      .info-qty {
+        width: 20%;
+        text-align: center;
+        white-space: nowrap;
+      }
+
+      .info-total {
+        width: 40%;
+        text-align: right;
+        white-space: nowrap;
+      }
 
       .row {
         display: flex;
         justify-content: space-between;
         font-size: 10px;
-        margin-bottom: 2px;
+        margin-bottom: 3px;
       }
 
-      .row span {
-        max-width: 48%;
-        overflow: hidden;
+      .row span:last-child {
         white-space: nowrap;
+        text-align: right;
       }
 
       .total {
         font-size: 12px;
+        font-weight: 700;
       }
 
       .footer {
@@ -198,6 +211,7 @@ export const handlePrint = (transactionData, printAreaRef) => {
     printDesktop(printAreaRef)
   }
 }
+
 const NotaPembelian = ({ transactionData, onClose }) => {
   const hasPrinted = useRef(false)
   const printAreaRef = useRef(null)
@@ -227,15 +241,14 @@ const NotaPembelian = ({ transactionData, onClose }) => {
       <style>{`
         @media print {
           @page {
-            size: 58mm auto;
+            size: 45mm auto;
             margin: 0;
           }
 
           html, body {
             margin: 0;
             padding: 0;
-            width: 58mm;
-            overflow: hidden;
+            width: 45mm;  
           }
 
           body * {
@@ -252,26 +265,28 @@ const NotaPembelian = ({ transactionData, onClose }) => {
             top: 0;
             left: 0;
             width: 45mm;
-            margin: 0 auto;
           }
         }
 
         * {
           box-sizing: border-box;
+          max-width: 100%;
         }
 
         .print-area {
-          width: 48mm;
-          max-width: 48mm;
-          margin: 0 auto;
+          width: 45mm;  
+          max-width: 45mm;    
           overflow: hidden;
-          font-family: "Courier New", monospace;
+          font-family: "Courier New", Consolas, monospace;
           font-size: 10px;
           font-weight: 700;
+          color: #000;
         }
 
         .ticket {
-          width: 48mm;
+          width: 100%;
+          max-width: 45mm;      
+          padding: 2mm 0;
         }
 
         .center {
@@ -285,45 +300,55 @@ const NotaPembelian = ({ transactionData, onClose }) => {
         }
 
         .item {
-          margin-bottom: 4px;
+          margin-bottom: 5px;
         }
 
         .item-name {
-          word-break: break-all;
+          font-size: 9px;
+          line-height: 1.3;
+          word-wrap: break-word;
+          margin-bottom: 2px;
         }
 
-        .item-table {
+        .item-info {
+          display: flex;
           width: 100%;
-          table-layout: fixed;
-          border-collapse: collapse;
           font-size: 9px;
         }
 
-        .item-table td {
-          padding: 0;
+        .info-price {
+          width: 40%;
+          text-align: left;
           white-space: nowrap;
-          overflow: hidden;
         }
 
-        .col-price { width: 40%; text-align: left; }
-        .col-qty   { width: 20%; text-align: center; }
-        .col-total { width: 40%; text-align: right; }
+        .info-qty {
+          width: 20%;
+          text-align: center;
+          white-space: nowrap;
+        }
+
+        .info-total {
+          width: 40%;
+          text-align: right;
+          white-space: nowrap;
+        }
 
         .row {
           display: flex;
           justify-content: space-between;
           font-size: 10px;
-          margin-bottom: 2px;
+          margin-bottom: 3px;
         }
 
-        .row span {
-          max-width: 48%;
-          overflow: hidden;
+        .row span:last-child {
           white-space: nowrap;
+          text-align: right;
         }
 
         .total {
           font-size: 12px;
+          font-weight: 700;
         }
 
         .footer {
@@ -348,19 +373,21 @@ const NotaPembelian = ({ transactionData, onClose }) => {
 
         {transactionData?.items?.map((i, idx) => (
           <div key={idx} className="item">
-            <div className="item-name">{i.nama_barang}</div>
+            <div className="item-name">
+              {i.nama_barang}
+            </div>
 
-            <table className="item-table">
-              <tbody>
-                <tr>
-                  <td className="col-price">{rupiah(i.harga)}</td>
-                  <td className="col-qty">x{i.jumlah}</td>
-                  <td className="col-total">
-                    {rupiah(i.harga * i.jumlah)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <div className="item-info">
+              <div className="info-price">
+                {rupiah(i.harga)}
+              </div>
+              <div className="info-qty">
+                x{i.jumlah}
+              </div>
+              <div className="info-total">
+                {rupiah(i.harga * i.jumlah)}
+              </div>
+            </div>
           </div>
         ))}
 
@@ -396,9 +423,9 @@ const NotaPembelian = ({ transactionData, onClose }) => {
         </div>
       </div>
     </div>
-  )
+)
 }
 
 
-
+ 
 export default NotaPembelian

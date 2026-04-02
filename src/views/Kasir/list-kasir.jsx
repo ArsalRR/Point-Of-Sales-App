@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { ShoppingCart, Scan, Trash2, Plus, Minus, CreditCard, Search, X, ChevronLeft, ChevronRight, Printer } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
@@ -90,9 +91,7 @@ function VariantDropdown({ item, transaksi, addProductToCart }) {
   const calculateSimilarity = (namaBarang) => {
     const pWords = getWords(namaBarang)
     if (baseWords.length === 0 || pWords.length === 0) return 0
-    
     const exactMatches = pWords.filter(w => baseWordSet.has(w)).length
-    
     let partialMatches = 0
     for (const baseWord of baseWords) {
       for (const pWord of pWords) {
@@ -102,7 +101,6 @@ function VariantDropdown({ item, transaksi, addProductToCart }) {
         }
       }
     }
-    
     const totalScore = (exactMatches * 1.5 + partialMatches * 0.5) / Math.max(baseWords.length, pWords.length)
     return totalScore
   }
@@ -110,30 +108,23 @@ function VariantDropdown({ item, transaksi, addProductToCart }) {
   const allVariants = (transaksi || [])
     .filter((p) => {
       if (p.kode_barang === item.kode_barang) return false
-      const similarity = calculateSimilarity(p.nama_barang)
-      return similarity >= 0.3
+      return calculateSimilarity(p.nama_barang) >= 0.3
     })
-    .map((p) => ({
-      ...p,
-      _score: calculateSimilarity(p.nama_barang)
-    }))
+    .map((p) => ({ ...p, _score: calculateSimilarity(p.nama_barang) }))
     .sort((a, b) => b._score - a._score)
 
   if (allVariants.length === 0) return null
 
   const handleShowVariant = () => {
     if (!showVariant) {
-      // First click: show 5 variants
       setShowVariant(true)
       setVariantLimit(5)
     } else {
-      // Second click: show 10 or all variants
       setVariantLimit(prev => prev === 5 ? Math.min(10, allVariants.length) : allVariants.length)
     }
   }
 
   const displayedVariants = showVariant ? allVariants.slice(0, variantLimit) : []
-
   const isShowMoreVisible = showVariant && variantLimit < allVariants.length
   const isShowLessVisible = showVariant && variantLimit > 5
 
@@ -161,8 +152,6 @@ function VariantDropdown({ item, transaksi, addProductToCart }) {
               </svg>
             </button>
           </div>
-
-          {/* Daftar varian */}
           <div className="flex flex-wrap gap-2 mb-3">
             {displayedVariants.map((p) => (
               <button
@@ -178,8 +167,6 @@ function VariantDropdown({ item, transaksi, addProductToCart }) {
               </button>
             ))}
           </div>
-
-          {/* Tombol Show More / Show Less */}
           <div className="flex gap-2">
             {isShowMoreVisible && (
               <button
@@ -191,12 +178,10 @@ function VariantDropdown({ item, transaksi, addProductToCart }) {
             )}
             {isShowLessVisible && (
               <button
-                onClick={() => {
-                  setVariantLimit(5)
-                }}
+                onClick={() => setVariantLimit(5)}
                 className="flex-1 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-500 text-xs font-medium transition-all border border-gray-200"
               >
-                Tampilkan 5 Ukuran 
+                Tampilkan 5 Ukuran
               </button>
             )}
           </div>
@@ -228,7 +213,7 @@ function CartItemCard({
       <CardContent className="p-0">
         <div className="flex items-start gap-3 px-4 pt-4 pb-3">
           <div className="flex-1 min-w-0">
-            <p className={`font-semibold text-gray-900 leading-snug ${isTablet ? 'text-sm' : 'text-sm'}`}>
+            <p className="font-semibold text-gray-900 leading-snug text-sm">
               {item.nama_barang}
             </p>
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -323,59 +308,107 @@ function CartItemCard({
     </Card>
   )
 }
-
 function PaymentModal({
   isOpen, onClose, onOk, onCetak,
-  total, cartLength, formData,
+  total, cartSubtotal, cartLength, formData,
   handleTotalUangChange, handleQuickAmount,
-  paymentStatus, formatRupiah, isProcessing,
+  handleDiskonChange,
+  paymentStatus, formatRupiah, parseRupiah, isProcessing,
 }) {
   if (!isOpen) return null
   const canSubmit = paymentStatus?.status !== 'insufficient' && cartLength > 0 && !isProcessing
+
+  const diskonValue = parseRupiah(formData.diskon)
+  const hasDiskon = formData.diskon && diskonValue > 0
+
   return (
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 9999,
         background: 'rgba(0,0,0,0.5)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
-        className="bg-white rounded-2xl border border-gray-200 w-full shadow-2xl flex flex-col"
-        style={{ maxWidth: 480, maxHeight: '90vh' }}
+        className="bg-white w-full flex flex-col"
+        style={{
+          maxWidth: 520,
+          maxHeight: '90dvh',
+          borderRadius: '20px',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100 flex-shrink-0">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-2 pb-4 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gray-900 flex items-center justify-center flex-shrink-0">
               <CreditCard className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="font-bold text-gray-900 text-base leading-tight">Konfirmasi Pembayaran</p>
+              <p className="font-bold text-gray-900 text-base leading-tight">Pembayaran</p>
               <p className="text-xs text-gray-400 mt-0.5">{cartLength} item dalam keranjang</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors flex-shrink-0"
+            className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
-          <div className="bg-gray-950 rounded-xl px-5 py-4 flex items-center justify-between">
-            <span className="text-sm text-gray-400 font-medium">Total Pembayaran</span>
-            <span className="text-2xl font-black text-white tracking-tight">
-              Rp {total.toLocaleString('id-ID')}
-            </span>
+        {/* Scrollable body */}
+        <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1">
+
+          {/* Ringkasan harga */}
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-2.5">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-500">Subtotal ({cartLength} item)</span>
+              <span className="font-medium text-gray-700">Rp {cartSubtotal.toLocaleString('id-ID')}</span>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">
+                Potongan Harga
+              </Label>
+               <Input
+              id="diskon"
+              type="text"
+              name="diskon"
+              value={formData.diskon}
+              onChange={handleDiskonChange}
+              placeholder="Contoh: 5000 atau 10%"
+              className={`border-2 border-gray-300 focus:border-black focus:ring-2 focus:ring-black/20 'h-10 text-sm rounded-lg' : 'h-12 text-base rounded-lg'}`}
+              autoComplete="off"
+            />
+            </div>
+
+            {hasDiskon && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500">Potongan</span>
+                <span className="font-semibold text-red-600">
+                  -{formatRupiah(diskonValue)}
+                </span>
+              </div>
+            )}
+
+            <Separator className="bg-gray-200" />
+
+            <div className="flex justify-between items-baseline">
+              <span className="font-bold text-gray-900 text-sm">TOTAL</span>
+              <span className="font-black text-gray-900 text-2xl tracking-tight">
+                Rp {total.toLocaleString('id-ID')}
+              </span>
+            </div>
           </div>
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">
               Uang Dibayar
             </Label>
-            <Input
+           <Input
               id="total_uang"
               type="text"
               name="total_uang"
@@ -388,10 +421,13 @@ function PaymentModal({
             />
             <QuickAmounts total={total} onSelect={handleQuickAmount} />
           </div>
+
+          {/* Status kembalian / kurang */}
           <PaymentStatus paymentStatus={paymentStatus} formatRupiah={formatRupiah} />
         </div>
 
-        <div className="px-6 pb-6 pt-3 border-t border-gray-100 flex gap-2.5 flex-shrink-0">
+        {/* Action buttons */}
+        <div className="px-5 pb-6 pt-3 border-t border-gray-100 flex gap-2.5 flex-shrink-0">
           <Button
             variant="outline"
             onClick={onClose}
@@ -488,7 +524,27 @@ export default function ListKasir() {
     parseRupiah,
   } = useListKasir()
 
-  // Barcode scanner listener khusus Android
+  const searchWrapperRef = useRef(null)
+  const [dropdownRect, setDropdownRect] = useState(null)
+
+  // Hitung posisi dropdown berdasarkan posisi input di layar
+  const updateDropdownRect = () => {
+    if (!searchInputRef.current) return
+    const rect = searchInputRef.current.getBoundingClientRect()
+    setDropdownRect({
+      top: rect.bottom + 6,
+      left: rect.left,
+      width: rect.width,
+    })
+  }
+
+  const handleSearchFocus = () => {
+    if (searchQuery.length > 0) setShowSearchResults(true)
+    updateDropdownRect()
+  }
+  useEffect(() => {
+    if (showSearchResults) updateDropdownRect()
+  }, [showSearchResults, searchQuery])
   useEffect(() => {
     if (!isAndroid()) return
 
@@ -500,9 +556,7 @@ export default function ListKasir() {
       const now = Date.now()
       keyTimes.push(now)
 
-      if (e.key.length === 1) {
-        buffer += e.key
-      }
+      if (e.key.length === 1) buffer += e.key
 
       if (e.key === 'Enter' && buffer.length >= 3) {
         const intervals = keyTimes.slice(1).map((t, i) => t - keyTimes[i])
@@ -542,78 +596,99 @@ export default function ListKasir() {
   }, [])
 
   if (showPrint && printData) {
-    return (
-      <NotaPembelian
-        transactionData={printData}
-        onClose={handleClosePrint}
-      />
-    )
+    return <NotaPembelian transactionData={printData} onClose={handleClosePrint} />
   }
-
-  const SearchDropdown = showSearchResults && searchResults.length > 0 && (
-    <Card className="absolute top-full left-0 right-0 z-50 mt-1.5 max-h-72 overflow-auto shadow-2xl border border-gray-200 rounded-xl">
-      <CardContent className="p-0">
-        {searchResults.map((product, index) => (
-          <button
-            key={product.kode_barang}
-            onClick={() => handleSearchResultSelect(product)}
-            className={`w-full text-left px-4 py-3 flex items-center gap-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors ${index === 0 ? 'bg-gray-50' : ''}`}
-          >
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-gray-900 text-sm truncate">{product.nama_barang}</p>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="font-mono text-xs text-gray-500">{product.kode_barang}</span>
-                <span className="text-xs text-gray-500">· Rp {product.harga.toLocaleString()} / {product.satuan}</span>
+  const SearchDropdown = showSearchResults && searchResults.length > 0 && dropdownRect
+    ? createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            top: dropdownRect.top,
+            left: dropdownRect.left,
+            width: dropdownRect.width,
+            zIndex: 99999,
+            maxHeight: 260,
+            overflowY: 'auto',
+            background: '#fff',
+            border: '1px solid #e5e7eb',
+            borderRadius: 12,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+          }}
+        >
+          {searchResults.map((product, index) => (
+            <button
+              key={product.kode_barang}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => handleSearchResultSelect(product)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                width: '100%', textAlign: 'left',
+                padding: '10px 16px',
+                borderBottom: index < searchResults.length - 1 ? '1px solid #f3f4f6' : 'none',
+                background: index === 0 ? '#f9fafb' : '#fff',
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontWeight: 600, fontSize: 14, color: '#111827', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {product.nama_barang}
+                </p>
+                <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#6b7280' }}>{product.kode_barang}</span>
+                  <span style={{ fontSize: 12, color: '#6b7280' }}>· Rp {product.harga.toLocaleString()} / {product.satuan}</span>
+                </div>
               </div>
-            </div>
-            <Badge className="bg-gray-900 text-white text-xs font-semibold flex-shrink-0">
-              {product.stok}
-            </Badge>
-          </button>
-        ))}
-      </CardContent>
-    </Card>
-  )
-
+              <Badge className="bg-gray-900 text-white text-xs font-semibold flex-shrink-0">
+                {product.stok}
+              </Badge>
+            </button>
+          ))}
+        </div>,
+        document.body
+      )
+    : null
   const CartColumn = (
-    <div className={`flex flex-col gap-3 ${isTablet ? 'col-span-3' : 'col-span-3'}`}>
-      <Card className="border border-gray-200 bg-white rounded-xl shadow-sm">
-        <CardContent className="px-4 py-3">
-          <div className="flex items-center gap-2 mb-2.5">
-            <div className="w-7 h-7 rounded-lg bg-gray-900 flex items-center justify-center flex-shrink-0">
-              <Scan className="w-4 h-4 text-white" />
+    <div className="flex flex-col gap-3 col-span-3">
+      <div ref={searchWrapperRef} style={{ scrollMarginTop: '8px' }}>
+        <Card className="border border-gray-200 bg-white rounded-xl shadow-sm">
+          <CardContent className="px-4 py-3">
+            <div className="flex items-center gap-2 mb-2.5">
+              <div className="w-7 h-7 rounded-lg bg-gray-900 flex items-center justify-center flex-shrink-0">
+                <Scan className="w-4 h-4 text-white" />
+              </div>
+              <Label className="text-gray-800 font-semibold text-sm">Scan Barcode / Cari Produk</Label>
             </div>
-            <Label className="text-gray-800 font-semibold text-sm">Scan Barcode / Cari Produk</Label>
-          </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            <Input
-              ref={searchInputRef}
-              value={searchQuery}
-              onChange={handleSearchChange}
-              onKeyDown={handleSearchKeyDown}
-              onFocus={() => { if (searchQuery.length > 0) setShowSearchResults(true) }}
-              onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
-              placeholder="Scan barcode atau ketik nama produk..."
-              className="pl-9 pr-10 w-full border-2 border-gray-200 rounded-xl focus:border-gray-900 focus:ring-0 bg-gray-50 focus:bg-white transition-all h-11 text-sm"
-              autoComplete="off"
-              autoFocus={!isAndroid()}
-            />
-            {searchQuery && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSearchClear}
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 hover:bg-gray-100 rounded-lg"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            )}
-            {SearchDropdown}
-          </div>
-        </CardContent>
-      </Card>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <Input
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={handleSearchChange}
+                onKeyDown={handleSearchKeyDown}
+                onFocus={handleSearchFocus}
+                onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
+                placeholder="Scan barcode atau ketik nama produk..."
+                className="pl-9 pr-10 w-full border-2 border-gray-200 rounded-xl focus:border-gray-900 focus:ring-0 bg-gray-50 focus:bg-white transition-all h-11 text-sm"
+                autoComplete="off"
+                autoFocus={!isAndroid()}
+              />
+              {searchQuery && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleSearchClear}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      {SearchDropdown}
 
+      {/* Keranjang */}
       <Card className="border border-gray-200 bg-white rounded-xl shadow-sm flex-1">
         <CardHeader className="pb-3 pt-3.5 px-4 flex flex-row items-center justify-between border-b border-gray-100">
           <div className="flex items-center gap-2">
@@ -669,7 +744,6 @@ export default function ListKasir() {
       </Card>
     </div>
   )
-
   const RingkasanColumn = (
     <div className={`flex flex-col gap-0 ${isTablet ? 'col-span-1' : 'col-span-2'}`}>
       <Card
@@ -678,7 +752,7 @@ export default function ListKasir() {
       >
         <CardHeader className="pb-3 pt-4 px-4 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold text-gray-900">Ringkasan Pesanan</CardTitle>
+            <CardTitle className="text-sm font-semibold text-gray-900">Ringkasan</CardTitle>
             <div className="flex items-center gap-1.5">
               <LiveClock />
               <Button
@@ -704,42 +778,35 @@ export default function ListKasir() {
             </div>
           </div>
         </CardHeader>
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+  <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-2">
+    {/* Subtotal */}
+    <div className="flex justify-between items-center text-sm">
+      <span className="text-gray-500">Subtotal ({cart.length} item)</span>
+      <span className="font-semibold text-gray-900">Rp {cartSubtotal.toLocaleString()}</span>
+    </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-2">
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-500">Subtotal ({cart.length} item)</span>
-              <span className="font-semibold text-gray-900">Rp {cartSubtotal.toLocaleString()}</span>
-            </div>
-            {formData.diskon && (
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-500">Potongan</span>
-                <span className="font-semibold text-red-600">
-                  -{formatRupiah(parseRupiah(formData.diskon))}
-                </span>
-              </div>
-            )}
-            <Separator className="bg-gray-200" />
-            <div className="flex justify-between items-baseline">
-              <span className="font-bold text-gray-900 text-base">TOTAL</span>
-              <span className="font-black text-gray-900 text-2xl">Rp {total.toLocaleString()}</span>
-            </div>
-          </div>
+    {/* Diskon - hanya muncul jika ada diskon */}
+    {parseRupiah(formData.diskon) > 0 && (
+      <div className="flex justify-between items-center text-sm">
+        <span className="text-gray-500">Diskon</span>
+        <span className="text-red-500 font-medium">
+          - {formatRupiah(parseRupiah(formData.diskon))}
+        </span>
+      </div>
+    )}
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Potongan Harga</Label>
-            <Input
-              id="diskon"
-              type="text"
-              name="diskon"
-              value={formData.diskon}
-              onChange={handleDiskonChange}
-              placeholder="Contoh: 5000 atau 10%"
-              className={`border-2 border-gray-300 focus:border-black focus:ring-2 focus:ring-black/20 ${isTablet ? 'h-10 text-sm rounded-lg' : 'h-12 text-base rounded-lg'}`}
-              autoComplete="off"
-            />
-          </div>
-        </div>
+    <Separator className="bg-gray-200" />
+    <div className="flex justify-between items-baseline">
+      <span className="font-bold text-gray-900 text-base">TOTAL</span>
+      <span className="font-black text-gray-900 text-2xl">Rp {total.toLocaleString()}</span>
+    </div>
+
+    <p className="text-[11px] text-gray-400 text-center pt-1">
+     Harga akan otomatis terpotong jika ada diskon.
+    </p>
+  </div>
+</div>
 
         <div className="flex-shrink-0 px-4 pb-4 pt-2 border-t border-gray-100 bg-white rounded-b-xl">
           <Button
@@ -771,12 +838,15 @@ export default function ListKasir() {
         onOk={handleModalOk}
         onCetak={handleModalCetak}
         total={total}
+        cartSubtotal={cartSubtotal}
         cartLength={cart.length}
         formData={formData}
         handleTotalUangChange={handleTotalUangChange}
         handleQuickAmount={handleQuickAmount}
+        handleDiskonChange={handleDiskonChange}
         paymentStatus={paymentStatus}
         formatRupiah={formatRupiah}
+        parseRupiah={parseRupiah}
         isProcessing={isProcessing}
       />
 
@@ -789,7 +859,6 @@ export default function ListKasir() {
           <span className="text-gray-300">·</span>
           <span className="text-xs text-gray-400">{cart.length} item di keranjang</span>
         </div>
-
         <div className={`grid gap-4 ${isTablet ? 'grid-cols-4' : 'grid-cols-5'}`}>
           {ringkasanPosition === 'right' ? (
             <>

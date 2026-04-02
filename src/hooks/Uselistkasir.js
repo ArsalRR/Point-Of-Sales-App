@@ -39,14 +39,22 @@ export function useListKasir() {
     setShowPaymentModal(false)
     await handleSubmit({ preventDefault: () => {} })
     Swal.fire({
-      toast: true,
-      position: 'top-end',
-      icon: 'success',
-      title: 'Transaksi berhasil disimpan',
-      showConfirmButton: false,
-      timer: 2500,
-      timerProgressBar: true,
-    })
+  toast: true,
+  position: 'top-end',
+  icon: 'success',
+  title: 'Transaksi Berhasil!',
+  text: 'Pesanan sudah tersimpan',
+  showConfirmButton: false,
+  timer: 2500,
+  timerProgressBar: true,
+  background: '#ffffff',
+  iconColor: '#059669',
+  customClass: {
+    popup: 'rounded-xl shadow-lg',
+    title: 'text-sm font-semibold text-gray-800',
+    timerProgressBar: 'bg-emerald-500'
+  }
+});
   }
 
   const handleModalCetak = async () => {

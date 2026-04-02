@@ -257,7 +257,7 @@ const calculateGrowth = (currentData) => {
               </h1>
               <p className="text-gray-600 dark:text-gray-400 flex items-center gap-2 text-sm sm:text-base">
                 <Calendar className="h-4 w-4" />
-                Update terakhir: {new Date().toLocaleDateString('id-ID', {
+                Data Terakhir: {new Date().toLocaleDateString('id-ID', {
                   weekday: 'long',
                   year: 'numeric',
                   month: 'long',
@@ -270,8 +270,7 @@ const calculateGrowth = (currentData) => {
                 variant="outline" 
                 className="text-xs border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400"
               >
-                <RefreshCw className="h-3 w-3 mr-1" />
-                Auto-refresh 5s
+               
               </Badge>
             </div>
           </div>
