@@ -11,8 +11,6 @@ import { Separator } from '@/components/ui/separator'
 import NotaPembelian from '../Kasir/NotaPembelian'
 import { useListKasir } from '@/hooks/Uselistkasir'
 
-const isAndroid = () => /Android/i.test(navigator.userAgent)
-
 function QuickAmounts({ total, onSelect }) {
   if (!total) return null
   const rounds = [
@@ -308,6 +306,7 @@ function CartItemCard({
     </Card>
   )
 }
+
 function PaymentModal({
   isOpen, onClose, onOk, onCetak,
   total, cartSubtotal, cartLength, formData,
@@ -317,7 +316,6 @@ function PaymentModal({
 }) {
   if (!isOpen) return null
   const canSubmit = paymentStatus?.status !== 'insufficient' && cartLength > 0 && !isProcessing
-
   const diskonValue = parseRupiah(formData.diskon)
   const hasDiskon = formData.diskon && diskonValue > 0
 
@@ -335,14 +333,9 @@ function PaymentModal({
     >
       <div
         className="bg-white w-full flex flex-col"
-        style={{
-          maxWidth: 520,
-          maxHeight: '90dvh',
-          borderRadius: '20px',
-        }}
+        style={{ maxWidth: 520, maxHeight: '90dvh', borderRadius: '20px' }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-5 pt-2 pb-4 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gray-900 flex items-center justify-center flex-shrink-0">
@@ -361,10 +354,7 @@ function PaymentModal({
           </button>
         </div>
 
-        {/* Scrollable body */}
         <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1">
-
-          {/* Ringkasan harga */}
           <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-2.5">
             <div className="flex justify-between items-center text-sm">
               <span className="text-gray-500">Subtotal ({cartLength} item)</span>
@@ -374,29 +364,24 @@ function PaymentModal({
               <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">
                 Potongan Harga
               </Label>
-               <Input
-              id="diskon"
-              type="text"
-              name="diskon"
-              value={formData.diskon}
-              onChange={handleDiskonChange}
-              placeholder="Contoh: 5000 atau 10%"
-              className={`border-2 border-gray-300 focus:border-black focus:ring-2 focus:ring-black/20 'h-10 text-sm rounded-lg' : 'h-12 text-base rounded-lg'}`}
-              autoComplete="off"
-            />
+              <Input
+                id="diskon"
+                type="text"
+                name="diskon"
+                value={formData.diskon}
+                onChange={handleDiskonChange}
+                placeholder="Contoh: 5000 atau 10%"
+                className="border-2 border-gray-300 focus:border-black focus:ring-2 focus:ring-black/20 h-10 text-sm rounded-lg"
+                autoComplete="off"
+              />
             </div>
-
             {hasDiskon && (
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-500">Potongan</span>
-                <span className="font-semibold text-red-600">
-                  -{formatRupiah(diskonValue)}
-                </span>
+                <span className="font-semibold text-red-600">-{formatRupiah(diskonValue)}</span>
               </div>
             )}
-
             <Separator className="bg-gray-200" />
-
             <div className="flex justify-between items-baseline">
               <span className="font-bold text-gray-900 text-sm">TOTAL</span>
               <span className="font-black text-gray-900 text-2xl tracking-tight">
@@ -404,11 +389,12 @@ function PaymentModal({
               </span>
             </div>
           </div>
+
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">
               Uang Dibayar
             </Label>
-           <Input
+            <Input
               id="total_uang"
               type="text"
               name="total_uang"
@@ -422,11 +408,9 @@ function PaymentModal({
             <QuickAmounts total={total} onSelect={handleQuickAmount} />
           </div>
 
-          {/* Status kembalian / kurang */}
           <PaymentStatus paymentStatus={paymentStatus} formatRupiah={formatRupiah} />
         </div>
 
-        {/* Action buttons */}
         <div className="px-5 pb-6 pt-3 border-t border-gray-100 flex gap-2.5 flex-shrink-0">
           <Button
             variant="outline"
@@ -482,7 +466,6 @@ export default function ListKasir() {
     ringkasanPosition,
     setRingkasanPosition,
     showPaymentModal,
-
     showPrint,
     printData,
     searchQuery,
@@ -498,7 +481,6 @@ export default function ListKasir() {
     cartSubtotal,
     total,
     paymentStatus,
-
     handleOpenPaymentModal,
     handleModalClose,
     handleModalOk,
@@ -508,7 +490,6 @@ export default function ListKasir() {
     handleSearchResultSelect,
     handleSearchClear,
     handleClosePrint,
-
     addProductToCart,
     updateQty,
     removeItem,
@@ -517,7 +498,6 @@ export default function ListKasir() {
     handleDiskonChange,
     handleTotalUangChange,
     handleQuickAmount,
-
     getCurrentPrice,
     getSatuanInfo,
     formatRupiah,
@@ -527,77 +507,37 @@ export default function ListKasir() {
   const searchWrapperRef = useRef(null)
   const [dropdownRect, setDropdownRect] = useState(null)
 
-  // Hitung posisi dropdown berdasarkan posisi input di layar
   const updateDropdownRect = () => {
     if (!searchInputRef.current) return
     const rect = searchInputRef.current.getBoundingClientRect()
-    setDropdownRect({
-      top: rect.bottom + 6,
-      left: rect.left,
-      width: rect.width,
-    })
+    setDropdownRect({ top: rect.bottom + 6, left: rect.left, width: rect.width })
   }
 
-  const handleSearchFocus = () => {
-    if (searchQuery.length > 0) setShowSearchResults(true)
-    updateDropdownRect()
-  }
+  // Refocus input setelah modal tutup
+  useEffect(() => {
+    if (!showPaymentModal) {
+      const id = setTimeout(() => searchInputRef.current?.focus(), 150)
+      return () => clearTimeout(id)
+    }
+  }, [showPaymentModal])
+
+  // Refocus input setelah print selesai
+  useEffect(() => {
+    if (!showPrint) {
+      const id = setTimeout(() => searchInputRef.current?.focus(), 150)
+      return () => clearTimeout(id)
+    }
+  }, [showPrint])
+
+  // Update posisi dropdown saat terbuka
   useEffect(() => {
     if (showSearchResults) updateDropdownRect()
-  }, [showSearchResults, searchQuery])
-  useEffect(() => {
-    if (!isAndroid()) return
-
-    const keyTimes = []
-    let buffer = ''
-    let timer = null
-
-    const handleGlobalKey = (e) => {
-      const now = Date.now()
-      keyTimes.push(now)
-
-      if (e.key.length === 1) buffer += e.key
-
-      if (e.key === 'Enter' && buffer.length >= 3) {
-        const intervals = keyTimes.slice(1).map((t, i) => t - keyTimes[i])
-        const allFast = intervals.length === 0 || intervals.every((gap) => gap < 50)
-        if (allFast) {
-          searchInputRef.current?.focus()
-          setSearchQuery(buffer)
-          setShowSearchResults(true)
-        }
-        buffer = ''
-        keyTimes.length = 0
-        clearTimeout(timer)
-        return
-      }
-
-      clearTimeout(timer)
-      timer = setTimeout(() => {
-        if (buffer.length >= 4 && keyTimes.length >= 4) {
-          const intervals = keyTimes.slice(1).map((t, i) => t - keyTimes[i])
-          const allFast = intervals.every((gap) => gap < 50)
-          if (allFast) {
-            searchInputRef.current?.focus()
-            setSearchQuery(buffer)
-            setShowSearchResults(true)
-          }
-        }
-        buffer = ''
-        keyTimes.length = 0
-      }, 100)
-    }
-
-    window.addEventListener('keydown', handleGlobalKey)
-    return () => {
-      window.removeEventListener('keydown', handleGlobalKey)
-      clearTimeout(timer)
-    }
-  }, [])
+  }, [showSearchResults])
 
   if (showPrint && printData) {
     return <NotaPembelian transactionData={printData} onClose={handleClosePrint} />
   }
+
   const SearchDropdown = showSearchResults && searchResults.length > 0 && dropdownRect
     ? createPortal(
         <div
@@ -647,6 +587,7 @@ export default function ListKasir() {
         document.body
       )
     : null
+
   const CartColumn = (
     <div className="flex flex-col gap-3 col-span-3">
       <div ref={searchWrapperRef} style={{ scrollMarginTop: '8px' }}>
@@ -665,12 +606,15 @@ export default function ListKasir() {
                 value={searchQuery}
                 onChange={handleSearchChange}
                 onKeyDown={handleSearchKeyDown}
-                onFocus={handleSearchFocus}
-                onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
+                onFocus={() => {
+                  if (searchQuery.length > 0) setShowSearchResults(true)
+                  updateDropdownRect()
+                }}
+               onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
                 placeholder="Scan barcode atau ketik nama produk..."
                 className="pl-9 pr-10 w-full border-2 border-gray-200 rounded-xl focus:border-gray-900 focus:ring-0 bg-gray-50 focus:bg-white transition-all h-11 text-sm"
                 autoComplete="off"
-                autoFocus={!isAndroid()}
+                autoFocus 
               />
               {searchQuery && (
                 <Button
@@ -688,7 +632,6 @@ export default function ListKasir() {
       </div>
       {SearchDropdown}
 
-      {/* Keranjang */}
       <Card className="border border-gray-200 bg-white rounded-xl shadow-sm flex-1">
         <CardHeader className="pb-3 pt-3.5 px-4 flex flex-row items-center justify-between border-b border-gray-100">
           <div className="flex items-center gap-2">
@@ -744,6 +687,7 @@ export default function ListKasir() {
       </Card>
     </div>
   )
+
   const RingkasanColumn = (
     <div className={`flex flex-col gap-0 ${isTablet ? 'col-span-1' : 'col-span-2'}`}>
       <Card
@@ -778,35 +722,31 @@ export default function ListKasir() {
             </div>
           </div>
         </CardHeader>
+
         <div className="flex-1 overflow-y-auto px-4 py-4">
-  <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-2">
-    {/* Subtotal */}
-    <div className="flex justify-between items-center text-sm">
-      <span className="text-gray-500">Subtotal ({cart.length} item)</span>
-      <span className="font-semibold text-gray-900">Rp {cartSubtotal.toLocaleString()}</span>
-    </div>
-
-    {/* Diskon - hanya muncul jika ada diskon */}
-    {parseRupiah(formData.diskon) > 0 && (
-      <div className="flex justify-between items-center text-sm">
-        <span className="text-gray-500">Diskon</span>
-        <span className="text-red-500 font-medium">
-          - {formatRupiah(parseRupiah(formData.diskon))}
-        </span>
-      </div>
-    )}
-
-    <Separator className="bg-gray-200" />
-    <div className="flex justify-between items-baseline">
-      <span className="font-bold text-gray-900 text-base">TOTAL</span>
-      <span className="font-black text-gray-900 text-2xl">Rp {total.toLocaleString()}</span>
-    </div>
-
-    <p className="text-[11px] text-gray-400 text-center pt-1">
-     Harga akan otomatis terpotong jika ada diskon.
-    </p>
-  </div>
-</div>
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-500">Subtotal ({cart.length} item)</span>
+              <span className="font-semibold text-gray-900">Rp {cartSubtotal.toLocaleString()}</span>
+            </div>
+            {parseRupiah(formData.diskon) > 0 && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500">Diskon</span>
+                <span className="text-red-500 font-medium">
+                  - {formatRupiah(parseRupiah(formData.diskon))}
+                </span>
+              </div>
+            )}
+            <Separator className="bg-gray-200" />
+            <div className="flex justify-between items-baseline">
+              <span className="font-bold text-gray-900 text-base">TOTAL</span>
+              <span className="font-black text-gray-900 text-2xl">Rp {total.toLocaleString()}</span>
+            </div>
+            <p className="text-[11px] text-gray-400 text-center pt-1">
+              Harga akan otomatis terpotong jika ada diskon.
+            </p>
+          </div>
+        </div>
 
         <div className="flex-shrink-0 px-4 pb-4 pt-2 border-t border-gray-100 bg-white rounded-b-xl">
           <Button
@@ -861,15 +801,9 @@ export default function ListKasir() {
         </div>
         <div className={`grid gap-4 ${isTablet ? 'grid-cols-4' : 'grid-cols-5'}`}>
           {ringkasanPosition === 'right' ? (
-            <>
-              {CartColumn}
-              {RingkasanColumn}
-            </>
+            <>{CartColumn}{RingkasanColumn}</>
           ) : (
-            <>
-              {RingkasanColumn}
-              {CartColumn}
-            </>
+            <>{RingkasanColumn}{CartColumn}</>
           )}
         </div>
       </div>
