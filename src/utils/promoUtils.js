@@ -1,56 +1,64 @@
 /**
+ * Helper: parse angka dari string/number
+ */
+const toNumber = (val) => {
+  const num = Number(val)
+  return isNaN(num) ? 0 : num
+}
+
+/**
+ * Tentukan tipe_harga item berdasarkan satuan_terpilih
+ * Cocok dengan logika getCurrentPrice
+ */
+const getTipeHargaItem = (item) => {
+  const rentengSatuanTypes = ['renteng', 'dus', 'pack', 'lusin', 'penjual_gas', 'dingin']
+  const satuan = (item.satuan_terpilih || 'satuan').toLowerCase()
+  return rentengSatuanTypes.includes(satuan) ? 'harga_renteng' : 'harga'
+}
+
+/**
  * Mencari semua promo untuk kode barang tertentu
  */
 export const findAllPromos = (hargaPromo, kodeBarang) => {
   if (!Array.isArray(hargaPromo) || !kodeBarang) return []
-  
-  const normalizedKode = kodeBarang.trim().toLowerCase()
-  
+
+  const normalizedKode = kodeBarang.toString().trim().toLowerCase()
+
   return hargaPromo.filter(p => {
     const promoKode = p?.kode_barang || p?.produk?.kode_barang
     return promoKode?.toString().trim().toLowerCase() === normalizedKode
   })
 }
-
-/**
- * Menghitung total diskon dari promo untuk cart dengan logika:
- * 1. Untuk produk YANG SAMA: jika qty ≥ min_qty, dapat diskon
- * 2. Untuk produk BERBEDA dengan kat_promo SAMA: qty dijumlahkan, jika total ≥ min_qty, dapat diskon
- * 3. Hanya ambil diskon terbesar jika ada konflik
- */
 export const calculatePromoDiscount = (cart, hargaPromo) => {
-  if (!Array.isArray(hargaPromo) || hargaPromo.length === 0 || !Array.isArray(cart) || cart.length === 0) {
-    return 0
-  }
+  if (
+    !Array.isArray(hargaPromo) || hargaPromo.length === 0 ||
+    !Array.isArray(cart) || cart.length === 0
+  ) return 0
 
-  // 1. Buat struktur data untuk mapping
-  const promoMap = {}
+  const promoMap    = {}
   const katPromoMap = {}
-  
+
+  // 1. Build promoMap & katPromoMap
   hargaPromo.forEach(promo => {
     const kodeBarang = promo.kode_barang || promo?.produk?.kode_barang
     if (!kodeBarang) return
-    
-    const katPromo = promo.kat_promo || 'default'
-    const key = `${katPromo}_${promo.potongan_harga}_${promo.min_qty}`
-    
-    // Tambah ke promoMap
-    if (!promoMap[kodeBarang]) {
-      promoMap[kodeBarang] = []
-    }
-    promoMap[kodeBarang].push({
-      ...promo,
-      katPromo,
-      key
-    })
-    
-    // Inisialisasi katPromoMap
+
+    const katPromo  = promo.kat_promo  || 'default'
+    const tipeHarga = promo.tipe_harga || 'harga'
+    const potongan  = toNumber(promo.potongan_harga)
+    const minQty    = toNumber(promo.min_qty)
+    const key       = `${katPromo}_${potongan}_${minQty}_${tipeHarga}`
+
+    if (!promoMap[kodeBarang]) promoMap[kodeBarang] = []
+    promoMap[kodeBarang].push({ ...promo, katPromo, tipeHarga, potongan, minQty, key })
+
     if (!katPromoMap[key]) {
       katPromoMap[key] = {
-        kat_promo: katPromo,
-        potongan_harga: promo.potongan_harga,
-        min_qty: promo.min_qty,
-        total_qty: 0,
+        kat_promo     : katPromo,
+        potongan_harga: potongan,
+        min_qty       : minQty,
+        tipe_harga    : tipeHarga,
+        total_qty     : 0,
         individual_discounts: []
       }
     }
@@ -58,45 +66,47 @@ export const calculatePromoDiscount = (cart, hargaPromo) => {
 
   // 2. Proses cart items
   cart.forEach(item => {
-    const promos = promoMap[item.kode_barang] || []
-    
+    const promos        = promoMap[item.kode_barang] || []
+    const tipeHargaItem = getTipeHargaItem(item) // ← dari satuan_terpilih
+    const jumlah        = toNumber(item.jumlah)
+
     promos.forEach(promo => {
-      const key = promo.key
-      
-      // A. PRODUK SAMA: Cek jika qty item memenuhi min_qty sendiri
-      if (item.jumlah >= promo.min_qty) {
-        const multiplier = Math.floor(item.jumlah / promo.min_qty)
-        const individualDiscount = promo.potongan_harga * multiplier
-        katPromoMap[key].individual_discounts.push(individualDiscount)
+      // Hanya proses promo yang tipe_harga-nya cocok dengan satuan item
+      if (promo.tipeHarga !== tipeHargaItem) return
+
+      const { key, potongan, minQty } = promo
+
+      // A. PRODUK SAMA: qty item memenuhi min_qty sendiri
+      if (jumlah >= minQty) {
+        const multiplier = Math.floor(jumlah / minQty)
+        katPromoMap[key].individual_discounts.push(potongan * multiplier)
       }
-      
-      // B. TAMBAH ke total_qty untuk produk berbeda (kat_promo sama)
-      katPromoMap[key].total_qty += item.jumlah
+
+      // B. Akumulasi qty untuk grup kat_promo
+      katPromoMap[key].total_qty += jumlah
     })
   })
 
-  // 3. Hitung diskon untuk setiap kat_promo group
+  // 3. Hitung diskon
   let totalDiskon = 0
-  
+
   Object.values(katPromoMap).forEach(group => {
     if (group.total_qty === 0) return
-    
+
     const discounts = []
-    
-    // A. Diskon dari INDIVIDUAL produk (produk sama)
+
+    // A. Diskon individual terbesar
     if (group.individual_discounts.length > 0) {
-      const maxIndividual = Math.max(...group.individual_discounts)
-      discounts.push(maxIndividual)
+      discounts.push(Math.max(...group.individual_discounts))
     }
-    
-    // B. Diskon dari PRODUK BERBEDA (qty digabung)
+
+    // B. Diskon gabungan (produk berbeda, kat_promo sama)
     if (group.total_qty >= group.min_qty) {
       const multiplier = Math.floor(group.total_qty / group.min_qty)
-      const combinedDiscount = group.potongan_harga * multiplier
-      discounts.push(combinedDiscount)
+      discounts.push(group.potongan_harga * multiplier)
     }
-    
-    // C. Ambil diskon TERBESAR dari kedua tipe
+
+    // C. Ambil terbesar
     if (discounts.length > 0) {
       totalDiskon += Math.max(...discounts)
     }
@@ -109,50 +119,61 @@ export const calculatePromoDiscount = (cart, hargaPromo) => {
  * Versi sederhana untuk performance (tanpa individual discount tracking)
  */
 export const calculatePromoDiscountSimple = (cart, hargaPromo) => {
-  if (!Array.isArray(hargaPromo) || hargaPromo.length === 0 || !Array.isArray(cart) || cart.length === 0) {
-    return 0
-  }
+  if (
+    !Array.isArray(hargaPromo) || hargaPromo.length === 0 ||
+    !Array.isArray(cart) || cart.length === 0
+  ) return 0
 
-  // Kelompokkan promo berdasarkan kat_promo + potongan + min_qty
   const promoGroups = {}
-  
+
   // 1. Inisialisasi grup promo
   hargaPromo.forEach(promo => {
-    const key = `${promo.kat_promo || 'default'}_${promo.potongan_harga}_${promo.min_qty}`
-    
+    const tipeHarga = promo.tipe_harga || 'harga'
+    const potongan  = toNumber(promo.potongan_harga)
+    const minQty    = toNumber(promo.min_qty)
+    const key       = `${promo.kat_promo || 'default'}_${potongan}_${minQty}_${tipeHarga}`
+
     if (!promoGroups[key]) {
       promoGroups[key] = {
-        potongan_harga: promo.potongan_harga,
-        min_qty: promo.min_qty,
-        total_qty: 0,
-        kode_barangs: new Set()
+        potongan_harga: potongan,
+        min_qty       : minQty,
+        tipe_harga    : tipeHarga,
+        total_qty     : 0,
+        kode_barangs  : new Set()
       }
     }
   })
 
-  // 2. Proses cart items
+  // 2. Buat itemMap lalu akumulasi qty per grup
   const itemMap = {}
   cart.forEach(item => {
     itemMap[item.kode_barang] = item
   })
-  
+
   hargaPromo.forEach(promo => {
-    const kodeBarang = promo.kode_barang || promo?.produk?.kode_barang
+    const kodeBarang     = promo.kode_barang || promo?.produk?.kode_barang
     if (!kodeBarang || !itemMap[kodeBarang]) return
-    
-    const key = `${promo.kat_promo || 'default'}_${promo.potongan_harga}_${promo.min_qty}`
-    const group = promoGroups[key]
-    const item = itemMap[kodeBarang]
-    
+
+    const item           = itemMap[kodeBarang]
+    const tipeHargaPromo = promo.tipe_harga || 'harga'
+    const tipeHargaItem  = getTipeHargaItem(item) // ← dari satuan_terpilih
+
+    if (tipeHargaPromo !== tipeHargaItem) return
+
+    const potongan = toNumber(promo.potongan_harga)
+    const minQty   = toNumber(promo.min_qty)
+    const key      = `${promo.kat_promo || 'default'}_${potongan}_${minQty}_${tipeHargaPromo}`
+    const group    = promoGroups[key]
+
     if (group) {
-      group.total_qty += item.jumlah
+      group.total_qty += toNumber(item.jumlah)
       group.kode_barangs.add(kodeBarang)
     }
   })
 
   // 3. Hitung diskon
   let totalDiskon = 0
-  
+
   Object.values(promoGroups).forEach(group => {
     if (group.total_qty >= group.min_qty) {
       const multiplier = Math.floor(group.total_qty / group.min_qty)

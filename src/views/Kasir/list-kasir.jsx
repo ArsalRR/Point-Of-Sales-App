@@ -252,6 +252,7 @@ function CartItemCard({
                 <SelectItem value="pack">Pack</SelectItem>
                 <SelectItem value="dingin">Minuman dingin</SelectItem>
                 <SelectItem value="penjual_gas">Penjual gas</SelectItem>
+                <SelectItem value="lusin">Lusin</SelectItem>
               </SelectContent>
             </Select>
           </div>

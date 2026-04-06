@@ -4,6 +4,7 @@ export const SATUAN_TYPES = {
   RENTENG: 'renteng',
   DUS: 'dus',
   PACK: 'pack',
+  LUSIN: 'lusin',
   PENJUAL_GAS: 'penjual_gas',
   DINGIN: 'dingin'
 }
@@ -72,6 +73,7 @@ export const getCurrentPrice = (item) => {
     [SATUAN_TYPES.RENTENG]: item.harga_renteng,
     [SATUAN_TYPES.DUS]: item.harga_renteng,
     [SATUAN_TYPES.PACK]: item.harga_renteng,
+    [SATUAN_TYPES.LUSIN]: item.harga_renteng,
     [SATUAN_TYPES.PENJUAL_GAS]: item.harga_renteng,
     [SATUAN_TYPES.DINGIN]: item.harga_renteng,
   }
@@ -95,6 +97,10 @@ export const getSatuanInfo = (item) => {
     [SATUAN_TYPES.PACK]: item.jumlah_lainnya ? `1 pack = ${item.jumlah_lainnya} pcs` : "Harga pack",
     [SATUAN_TYPES.PENJUAL_GAS]: "Harga penjual gas",
     [SATUAN_TYPES.DINGIN]: "Harga Minuman Dingin",
+    [SATUAN_TYPES.LUSIN]: item.jumlah_lainnya
+  ? `1 lusin = ${item.jumlah_lainnya * 2} pcs`
+  : "Harga lusin",
+
   }
   return infoMap[satuan] || ""
 }

@@ -12,8 +12,9 @@ import AsyncSelect from "react-select/async"
 import CreatableSelect from "react-select/creatable"
 import { getProduk } from "@/api/Produkapi"
 import { postHargaPromo, getHargaPromo } from "@/api/HargaPromoapi"
-import { Tag, PackageOpen, Percent, Search, ArrowLeft, FolderOpen } from "lucide-react"
+import { Tag, PackageOpen, Percent, Search, ArrowLeft, FolderOpen, DollarSign } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 const formatCurrency = (value) => {
   const numericValue = value.replace(/[^0-9]/g, "")
@@ -36,6 +37,7 @@ const schema = yup.object().shape({
     .required("Minimal qty wajib diisi"),
   potongan_harga: yup.string().required("Potongan harga wajib diisi"),
   kat_promo: yup.string().nullable(),
+  tipe_harga: yup.string().required("Pilih tipe harga").default("harga"),
 })
 
 export default function CreateHargaPromo() {
@@ -43,6 +45,7 @@ export default function CreateHargaPromo() {
   const [isLoading, setIsLoading] = useState(false)
   const [existingPromos, setExistingPromos] = useState([])
   const [katPromoOptions, setKatPromoOptions] = useState([])
+  const [selectedTipeHarga, setSelectedTipeHarga] = useState("harga")
   const produkCacheRef = useRef([])
   const isFetchingRef = useRef(false)
   const navigate = useNavigate()
@@ -62,12 +65,13 @@ export default function CreateHargaPromo() {
       min_qty: "",
       potongan_harga: "",
       kat_promo: null,
+      tipe_harga: "harga",
     },
   })
 
   const selectedProducts = watch("produk_id")
   const minQty = watch("min_qty")
-  const potonganHarga = watch("potongan_harga")
+  const tipeHarga = watch("tipe_harga")
 
   const customSelectStyles = {
     control: (base, state) => ({
@@ -148,6 +152,7 @@ export default function CreateHargaPromo() {
         } else if (res?.data?.data && Array.isArray(res.data.data)) {
           dataArray = res.data.data
         }
+        
         try {
           const promoRes = await getHargaPromo()
           let promoData = []
@@ -159,8 +164,7 @@ export default function CreateHargaPromo() {
             promoData = promoRes.data.data
           }
           setExistingPromos(promoData)
-
-          // Extract unique kat_promo from existing promos
+          
           const uniqueKatPromo = [...new Set(
             promoData
               .map(promo => promo.kat_promo)
@@ -179,11 +183,16 @@ export default function CreateHargaPromo() {
 
         if (dataArray.length > 0) {
           const options = dataArray.map((p) => {
-            const label = `${p.nama_barang} - Rp${Number(p.harga).toLocaleString()}`
+            const hargaDisplay = p.harga_renteng 
+              ? `Harga: Rp${Number(p.harga).toLocaleString()} | Renteng: Rp${Number(p.harga_renteng).toLocaleString()}`
+              : `Rp${Number(p.harga).toLocaleString()}`
+            const label = `${p.nama_barang} - ${hargaDisplay}`
             return {
               value: p.id,
               label: label,
               nama_barang: p.nama_barang,
+              harga: p.harga,
+              harga_renteng: p.harga_renteng || null,
             }
           })
           produkCacheRef.current = options
@@ -217,21 +226,24 @@ export default function CreateHargaPromo() {
     callback(filtered.slice(0, 100))
   }
   
-  const getExistingPromoInfo = (produkId) => {
+  const getExistingPromoInfo = (produkId, tipeHarga = null) => {
     return existingPromos
       .filter((promo) => {
         const produkIds = Array.isArray(promo.produk_id)
           ? promo.produk_id
           : [promo.produk_id]
-        return produkIds.includes(produkId)
+        const matchProduk = produkIds.includes(produkId)
+        const matchTipe = tipeHarga ? promo.tipe_harga === tipeHarga : true
+        return matchProduk && matchTipe
       })
       .map((promo) => ({
         min_qty: promo.min_qty,
         potongan_harga: promo.potongan_harga,
+        tipe_harga: promo.tipe_harga,
       }))
   }
   
-  const formatOptionLabel = ({ value, label }) => {
+  const formatOptionLabel = ({ value, label, data }) => {
     const promoInfo = getExistingPromoInfo(value)
 
     return (
@@ -254,7 +266,7 @@ export default function CreateHargaPromo() {
     )
   }
   
-  const validateDuplicatePromo = (selectedProducts, minQty) => {
+  const validateDuplicatePromo = (selectedProducts, minQty, tipeHarga) => {
     if (!minQty || !selectedProducts || selectedProducts.length === 0) {
       return { isValid: true }
     }
@@ -264,7 +276,7 @@ export default function CreateHargaPromo() {
         const produkIds = Array.isArray(promo.produk_id)
           ? promo.produk_id
           : [promo.produk_id]
-        return produkIds.includes(product.value)
+        return produkIds.includes(product.value) && promo.tipe_harga === tipeHarga
       })
       const hasSameMinQty = existingPromoForProduct.find(
         (promo) => promo.min_qty === Number(minQty)
@@ -274,7 +286,7 @@ export default function CreateHargaPromo() {
         return {
           isValid: false,
           productName: product.nama_barang,
-          type: 'min_qty',
+          tipeHarga: tipeHarga === "harga" ? "Harga Reguler" : "Harga Renteng/dll",
           minQty: minQty,
         }
       }
@@ -284,10 +296,10 @@ export default function CreateHargaPromo() {
   }
 
   const onSubmit = async (data) => {
-    const validation = validateDuplicatePromo(data.produk_id, data.min_qty)
+    const validation = validateDuplicatePromo(data.produk_id, data.min_qty, data.tipe_harga)
 
     if (!validation.isValid) {
-      const message = `Produk <strong>${validation.productName}</strong> sudah memiliki promo dengan minimal qty <strong>${validation.minQty}</strong>.<br><br>Silakan gunakan minimal qty yang berbeda.`
+      const message = `Produk <strong>${validation.productName}</strong> dengan <strong>${validation.tipeHarga}</strong> sudah memiliki promo dengan minimal qty <strong>${validation.minQty}</strong>.<br><br>Silakan gunakan minimal qty yang berbeda atau pilih tipe harga lain.`
 
       Swal.fire({
         icon: "warning",
@@ -298,22 +310,41 @@ export default function CreateHargaPromo() {
       return
     }
 
+    if (data.tipe_harga === "harga_renteng") {
+      const produkTanpaRenteng = data.produk_id.filter(
+        product => !product.harga_renteng || product.harga_renteng === 0
+      )
+      
+      if (produkTanpaRenteng.length > 0) {
+        Swal.fire({
+          icon: "warning",
+          title: "Produk Tidak Memiliki Harga Renteng/dll",
+          html: `Produk <strong>${produkTanpaRenteng.map(p => p.nama_barang).join(", ")}</strong> tidak memiliki harga renteng atau lainnya. Silakan pilih tipe harga reguler.`,
+          confirmButtonColor: "#000",
+        })
+        return
+      }
+    }
+
     const payload = {
       produk_id: data.produk_id.map((p) => p.value),
       min_qty: Number(data.min_qty),
       potongan_harga: parseCurrency(data.potongan_harga),
       kat_promo: data.kat_promo || null,
+      tipe_harga: data.tipe_harga, // Mengirim tipe_harga ke backend
     }
+
+    console.log("Payload yang dikirim:", payload)
 
     setIsLoading(true)
     try {
       const response = await postHargaPromo(payload)
-      const data = response.data || response
-      const sukses = data.sukses || 0
-      const gagal = data.gagal || []
+      const result = response.data || response
+      const sukses = result.sukses || 0
+      const gagal = result.gagal || []
 
       if (sukses > 0) {
-        let message = `${sukses} produk berhasil ditambahkan`
+        let message = `${sukses} produk berhasil ditambahkan dengan ${data.tipe_harga === "harga" ? "Harga Reguler" : "Harga Renteng/dll"}`
         if (gagal.length > 0) {
           message += `. ${gagal.length} produk ditolak karena duplikasi.`
         }
@@ -332,15 +363,17 @@ export default function CreateHargaPromo() {
         })
         reset()
         setFormattedHarga("")
+        setSelectedTipeHarga("harga")
       } else {
         Swal.fire({
           icon: "error",
           title: "Semua Produk Ditolak!",
-          text: "Semua produk yang dipilih sudah memiliki promo dengan min_qty atau potongan harga yang sama.",
+          text: "Semua produk yang dipilih sudah memiliki promo dengan kombinasi yang sama.",
           confirmButtonColor: "#000",
         })
       }
     } catch (error) {
+      console.error("Error:", error)
       Swal.fire({
         icon: "error",
         title: "Gagal!",
@@ -354,7 +387,19 @@ export default function CreateHargaPromo() {
     }
   }
   
-  const duplicateCheck = validateDuplicatePromo(selectedProducts, minQty)
+  const duplicateCheck = validateDuplicatePromo(selectedProducts, minQty, tipeHarga)
+
+  // Helper untuk mendapatkan harga yang akan dipotong
+  const getTargetHarga = () => {
+    if (!selectedProducts || selectedProducts.length === 0) return null
+    if (selectedProducts.length === 1) {
+      const product = selectedProducts[0]
+      return tipeHarga === "harga" ? product.harga : product.harga_renteng
+    }
+    return null
+  }
+
+  const targetHarga = getTargetHarga()
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
@@ -407,17 +452,10 @@ export default function CreateHargaPromo() {
                         produkCacheRef.current.length === 0
                           ? "Memuat daftar produk..."
                           : inputValue.length < 2
-                          ? "Ketik Untuk Mencari Produk"
+                          ? "Ketik 2 karakter atau lebih untuk mencari"
                           : `Tidak ditemukan "${inputValue}"`
                       }
                       loadingMessage={() => "Mencari produk..."}
-                      components={{
-                        DropdownIndicator: () => (
-                          <div className="px-2">
-                            <Search className="w-4 h-4 text-gray-400" />
-                          </div>
-                        ),
-                      }}
                     />
                   )}
                 />
@@ -427,12 +465,11 @@ export default function CreateHargaPromo() {
                     {errors.produk_id.message}
                   </p>
                 )}
-
-                {/* Info promo yang sudah ada untuk produk terpilih */}
+                
                 {selectedProducts && selectedProducts.length > 0 && (
                   <div className="mt-2 space-y-2">
                     {selectedProducts.map((product) => {
-                      const promoInfo = getExistingPromoInfo(product.value)
+                      const promoInfo = getExistingPromoInfo(product.value, tipeHarga)
                       if (promoInfo.length === 0) return null
 
                       return (
@@ -461,8 +498,66 @@ export default function CreateHargaPromo() {
                 <p className="text-xs text-gray-500 flex items-center gap-1">
                   <Search className="w-3 h-3" />
                   {produkCacheRef.current.length > 0
-                    ? `${produkCacheRef.current.length} produk tersedia. Ketik untuk mencari cepat.`
+                    ? `${produkCacheRef.current.length} produk tersedia. Ketik 2 karakter untuk mencari cepat.`
                     : "Memuat daftar produk..."}
+                </p>
+              </div>
+
+              {/* Radio Group untuk Pilih Tipe Harga */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4" />
+                  Pilih Tipe Harga untuk Potongan
+                  <span className="text-red-500">*</span>
+                </Label>
+                
+                <Controller
+                  name="tipe_harga"
+                  control={control}
+                  render={({ field }) => (
+                    <RadioGroup
+                      value={field.value}
+                      onValueChange={(value) => {
+                        field.onChange(value)
+                        setSelectedTipeHarga(value)
+                      }}
+                      className="flex gap-6"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="harga" id="harga" />
+                        <Label htmlFor="harga" className="font-normal text-sm cursor-pointer">
+                          Harga Reguler
+                          {targetHarga && (
+                            <span className="ml-2 text-gray-500">
+                              (Rp{targetHarga?.toLocaleString()})
+                            </span>
+                          )}
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="harga_renteng" id="harga_renteng" />
+                        <Label htmlFor="harga_renteng" className="font-normal text-sm cursor-pointer">
+                          Harga Renteng atau dan lain lain
+                          {targetHarga && (
+                            <span className="ml-2 text-gray-500">
+                              (Rp{targetHarga?.toLocaleString()})
+                            </span>
+                          )}
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  )}
+                />
+                
+                {errors.tipe_harga && (
+                  <p className="text-sm text-red-600 font-medium flex items-center gap-1">
+                    <span className="text-lg">•</span>
+                    {errors.tipe_harga.message}
+                  </p>
+                )}
+
+                <p className="text-xs text-gray-500">
+                  Pilih tipe harga yang akan mendapatkan potongan (Harga Reguler atau Harga Renteng/dll)
                 </p>
               </div>
 
@@ -499,6 +594,7 @@ export default function CreateHargaPromo() {
                 </p>
               </div>
 
+              {/* Minimal Pembelian */}
               <div className="space-y-2">
                 <Label
                   htmlFor="min_qty"
@@ -521,8 +617,7 @@ export default function CreateHargaPromo() {
                     {errors.min_qty.message}
                   </p>
                 )}
-
-                {/* Warning duplikasi real-time */}
+                
                 {!duplicateCheck.isValid && (
                   <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-300 rounded-lg">
                     <Badge
@@ -532,7 +627,8 @@ export default function CreateHargaPromo() {
                       ⚠️ Perhatian
                     </Badge>
                     <p className="text-sm text-yellow-800">
-                      Produk <strong>{duplicateCheck.productName}</strong> sudah
+                      Produk <strong>{duplicateCheck.productName}</strong> dengan{" "}
+                      <strong>{duplicateCheck.tipeHarga}</strong> sudah
                       memiliki promo dengan minimal qty{" "}
                       <strong>{duplicateCheck.minQty}</strong>. Gunakan minimal qty yang berbeda.
                     </p>
@@ -544,6 +640,7 @@ export default function CreateHargaPromo() {
                 </p>
               </div>
 
+              {/* Potongan Harga */}
               <div className="space-y-2">
                 <Label
                   htmlFor="potongan_harga"
@@ -579,9 +676,9 @@ export default function CreateHargaPromo() {
                   Nilai potongan harga yang akan diberikan per produk
                 </p>
               </div>
-
               <div className="border-t-2 border-gray-200 my-6"></div>
 
+              {/* Tombol Aksi */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   type="button"

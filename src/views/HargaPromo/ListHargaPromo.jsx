@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Loader2, Edit, Trash, Search, ChevronLeft, ChevronRight, Plus } from "lucide-react"
+import { Loader2, Edit, Trash, Search, ChevronLeft, ChevronRight, Plus, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Swal from "sweetalert2"
@@ -83,6 +83,22 @@ export default function ListHargaPromo() {
         })
       }
     }
+  }
+
+  // Perbaiki: Gunakan tipe_harga dari data promo, bukan dari produk
+  const getDisplayPrice = (item) => {
+    if (item.tipe_harga === "harga_renteng") {
+      return item.produk?.harga_renteng || item.produk?.harga || 0
+    }
+    return item.produk?.harga || 0
+  }
+
+  // Perbaiki: Gunakan tipe_harga dari data promo
+  const getPriceTypeLabel = (tipeHarga) => {
+    if (tipeHarga === "harga_renteng") {
+      return { text: "Harga Renteng", color: "purple" }
+    }
+    return { text: "Harga Reguler", color: "blue" }
   }
 
   const filteredData = data.filter(item => {
@@ -160,6 +176,7 @@ export default function ListHargaPromo() {
                     <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-50 hover:to-gray-100">
                       <TableHead className="font-semibold text-gray-700">No</TableHead>
                       <TableHead className="font-semibold text-gray-700">Nama Produk</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Tipe Harga</TableHead>
                       <TableHead className="font-semibold text-gray-700">Harga Jual</TableHead>
                       <TableHead className="font-semibold text-gray-700">Minimal Pembelian</TableHead>
                       <TableHead className="font-semibold text-gray-700">Kategori Promo</TableHead>
@@ -168,124 +185,177 @@ export default function ListHargaPromo() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {currentData.map((item, index) => (
-                      <TableRow
-                        key={item.id}
-                        className={`hover:bg-blue-50/50 transition-colors ${
-                          index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
-                        }`}
-                      >
-                        <TableCell className="font-medium text-gray-900">
-                          {startIndex + index + 1 || "-"}
-                        </TableCell>
-                        <TableCell className="font-medium text-gray-900">
-                          {item.produk?.nama_barang || "-"}
-                        </TableCell>
-                        <TableCell className="text-gray-700">
-                          Rp {item.produk.harga.toLocaleString("id-ID")}
-                        </TableCell>
-                        <TableCell className="text-gray-700">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {item.min_qty}
-                          </span>
-                        </TableCell>
-                      <TableCell className="font-medium text-gray-900">
-                          {item.kat_promo || "-"}
-                        </TableCell>
-                        <TableCell className="text-gray-900 font-medium">
-                          Rp {item.potongan_harga.toLocaleString("id-ID")}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <Link
-                              to={`/hargapromo/edit/${item.id}`}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                              Edit
-                            </Link>
-                            <button
-                              onClick={() => hapusData(item.id)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                            >
-                              <Trash className="w-3.5 h-3.5" />
-                              Hapus
-                            </button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {currentData.map((item, index) => {
+                      const displayPrice = getDisplayPrice(item)
+                      const priceType = getPriceTypeLabel(item.tipe_harga) // Perbaiki: gunakan item.tipe_harga
+                      
+                      return (
+                        <TableRow
+                          key={item.id}
+                          className={`hover:bg-blue-50/50 transition-colors ${
+                            index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
+                          }`}
+                        >
+                          <TableCell className="font-medium text-gray-900">
+                            {startIndex + index + 1 || "-"}
+                          </TableCell>
+                          <TableCell className="font-medium text-gray-900">
+                            {item.produk?.nama_barang || "-"}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                              priceType.color === 'purple' 
+                                ? 'bg-purple-100 text-purple-800' 
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              <Tag className="w-3 h-3 mr-1" />
+                              {priceType.text}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-gray-700">
+                            <div>
+                              <span className="font-medium">Rp {displayPrice.toLocaleString("id-ID")}</span>
+                              {item.tipe_harga === "harga_renteng" && item.produk?.harga && (
+                                <p className="text-xs text-gray-400 line-through">
+                                  Rp {item.produk.harga.toLocaleString("id-ID")}
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-gray-700">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              Min {item.min_qty}
+                            </span>
+                          </TableCell>
+                          <TableCell className="font-medium text-gray-900">
+                            {item.kat_promo || "-"}
+                          </TableCell>
+                          <TableCell className="text-gray-900 font-medium">
+                            <span className="text-red-600">
+                              -Rp {item.potongan_harga.toLocaleString("id-ID")}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <Link
+                                to={`/hargapromo/edit/${item.id}`}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                                Edit
+                              </Link>
+                              <button
+                                onClick={() => hapusData(item.id)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                              >
+                                <Trash className="w-3.5 h-3.5" />
+                                Hapus
+                              </button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </div>
+
+              {/* Mobile Card View */}
               <div className="md:hidden space-y-3">
-                {currentData.map((item) => (
-                  <Card 
-                    key={item.id} 
-                    className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
-                  >
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
-                        <div className="pb-3 border-b border-gray-100">
-                          <p className="text-xs font-medium text-gray-500 mb-1.5">Nama Produk</p>
-                          <p className="font-semibold text-gray-900 text-base">
-                            {item.produk?.nama_barang || "-"}
-                          </p>
-                        </div>
-                         <div className="pb-3 border-b border-gray-100">
-                          <p className="text-xs font-medium text-gray-500 mb-1.5">Harga Jual</p>
-                          <p className="font-semibold text-gray-900 text-base">
-                            Rp {item.produk.harga.toLocaleString("id-ID")}
-                          </p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-xs font-medium text-gray-500 mb-1.5">Minimal Pembelian</p>
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
-                              {item.min_qty}
-                            </span>
-                          </div>
-                           <div>
-                            <p className="text-xs font-medium text-gray-500 mb-1.5">Kategori Promo</p>
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-semibold bg-green-100 text-dark-800">
-                              {item.kat_promo}
-                            </span>
-                          </div>
-                          <div>
-                            <p className="text-xs font-medium text-gray-500 mb-1.5">Potongan</p>
-                            <p className="font-semibold text-gray-900 text-sm">
-                              Rp {item.potongan_harga.toLocaleString("id-ID")}
+                {currentData.map((item) => {
+                  const displayPrice = getDisplayPrice(item)
+                  const priceType = getPriceTypeLabel(item.tipe_harga) // Perbaiki: gunakan item.tipe_harga
+                  
+                  return (
+                    <Card 
+                      key={item.id} 
+                      className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      <CardContent className="p-4">
+                        <div className="space-y-3">
+                          <div className="pb-3 border-b border-gray-100">
+                            <p className="text-xs font-medium text-gray-500 mb-1.5">Nama Produk</p>
+                            <p className="font-semibold text-gray-900 text-base">
+                              {item.produk?.nama_barang || "-"}
                             </p>
                           </div>
-                        </div>
-                        <div className="flex gap-2 pt-3 border-t border-gray-100">
-                          <Link
-                            to={`/hargapromo/edit/${item.id}`}
-                            className="flex-1"
-                          >
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="w-full h-9 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:text-blue-800 font-medium"
+                          
+                          <div className="pb-3 border-b border-gray-100">
+                            <p className="text-xs font-medium text-gray-500 mb-1.5">Tipe Harga</p>
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                              priceType.color === 'purple' 
+                                ? 'bg-purple-100 text-purple-800' 
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              <Tag className="w-3 h-3 mr-1" />
+                              {priceType.text}
+                            </span>
+                          </div>
+                          
+                          <div className="pb-3 border-b border-gray-100">
+                            <p className="text-xs font-medium text-gray-500 mb-1.5">Harga Jual</p>
+                            <div>
+                              <p className="font-semibold text-gray-900 text-base">
+                                Rp {displayPrice.toLocaleString("id-ID")}
+                              </p>
+                              {item.tipe_harga === "harga_renteng" && item.produk?.harga && (
+                                <p className="text-xs text-gray-400 line-through mt-1">
+                                  Harga reguler: Rp {item.produk.harga.toLocaleString("id-ID")}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-xs font-medium text-gray-500 mb-1.5">Minimal Pembelian</p>
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
+                                {item.min_qty}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-gray-500 mb-1.5">Kategori Promo</p>
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">
+                                {item.kat_promo || "-"}
+                              </span>
+                            </div>
+                            <div className="col-span-2">
+                              <p className="text-xs font-medium text-gray-500 mb-1.5">Potongan Harga</p>
+                              <p className="font-semibold text-red-600 text-base">
+                                -Rp {item.potongan_harga.toLocaleString("id-ID")}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2 pt-3 border-t border-gray-100">
+                            <Link
+                              to={`/hargapromo/edit/${item.id}`}
+                              className="flex-1"
                             >
-                              <Edit className="w-3.5 h-3.5 mr-1.5" />
-                              Edit
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="w-full h-9 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:text-blue-800 font-medium"
+                              >
+                                <Edit className="w-3.5 h-3.5 mr-1.5" />
+                                Edit
+                              </Button>
+                            </Link>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => hapusData(item.id)}
+                              className="flex-1 h-9 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:text-red-800 font-medium"
+                            >
+                              <Trash className="w-3.5 h-3.5 mr-1.5" />
+                              Hapus
                             </Button>
-                          </Link>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => hapusData(item.id)}
-                            className="flex-1 h-9 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:text-red-800 font-medium"
-                          >
-                            <Trash className="w-3.5 h-3.5 mr-1.5" />
-                            Hapus
-                          </Button>
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  )
+                })}
               </div>
 
               {/* Pagination */}
@@ -353,18 +423,16 @@ export default function ListHargaPromo() {
           )}
         </CardContent>
       </Card>
-
-<div className="md:hidden fixed bottom-37 right-6 z-50">
-  <Link to="/hargapromo/create">
-    <Button 
-      size="lg"
-      className="h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 active:scale-95"
-    >
-      <Plus className="w-6 h-6" />
-    </Button>
-  </Link>
-</div>
-
+      <div className="md:hidden fixed bottom-6 right-6 z-50">
+        <Link to="/hargapromo/create">
+          <Button 
+            size="lg"
+            className="h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 active:scale-95 bg-blue-600 hover:bg-blue-700"
+          >
+            <Plus className="w-6 h-6" />
+          </Button>
+        </Link>
+      </div>
     </div>
   )
 }

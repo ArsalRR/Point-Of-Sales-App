@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import Swal from "sweetalert2"
 import AsyncSelect from "react-select/async"
 import CreatableSelect from "react-select/creatable"
@@ -35,6 +36,7 @@ const schema = yup.object().shape({
     .required("Minimal qty wajib diisi"),
   potongan_harga: yup.string().required("Potongan harga wajib diisi"),
   kat_promo: yup.string().nullable(),
+  tipe_harga: yup.string().required("Pilih tipe harga").default("harga"),
 })
 
 export default function EditHargaPromo() {
@@ -45,6 +47,7 @@ export default function EditHargaPromo() {
   const [isLoading, setIsLoading] = useState(false)
   const [isFetchingData, setIsFetchingData] = useState(true)
   const [katPromoOptions, setKatPromoOptions] = useState([])
+  const [selectedTipeHarga, setSelectedTipeHarga] = useState("harga")
   const produkCacheRef = useRef([])
   const isFetchingRef = useRef(false)
 
@@ -54,6 +57,7 @@ export default function EditHargaPromo() {
     control,
     formState: { errors },
     setValue,
+    watch,
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
@@ -61,6 +65,7 @@ export default function EditHargaPromo() {
       min_qty: "",
       potongan_harga: "",
       kat_promo: null,
+      tipe_harga: "harga",
     },
   })
 
@@ -178,6 +183,9 @@ export default function EditHargaPromo() {
             return {
               value: p.id,
               label: label,
+              nama_barang: p.nama_barang,
+              harga: p.harga,
+              harga_renteng: p.harga_renteng,
             }
           })
           produkCacheRef.current = options
@@ -222,6 +230,11 @@ export default function EditHargaPromo() {
           if (data.kat_promo) {
             setValue("kat_promo", data.kat_promo)
           }
+
+          // Set tipe_harga
+          const tipeHargaValue = data.tipe_harga || data.price_type || "harga"
+          setSelectedTipeHarga(tipeHargaValue)
+          setValue("tipe_harga", tipeHargaValue)
 
           const waitForCache = setInterval(() => {
             if (produkCacheRef.current.length > 0) {
@@ -281,7 +294,10 @@ export default function EditHargaPromo() {
       min_qty: Number(data.min_qty),
       potongan_harga: parseCurrency(data.potongan_harga),
       kat_promo: data.kat_promo || null,
+      tipe_harga: data.tipe_harga, // Tambahkan tipe_harga ke payload
     }
+
+    console.log("Payload update:", payload)
 
     setIsLoading(true)
     try {
@@ -385,6 +401,54 @@ export default function EditHargaPromo() {
                   {produkCacheRef.current.length > 0
                     ? `${produkCacheRef.current.length} produk tersedia. Ketik untuk mencari cepat.`
                     : "Memuat daftar produk..."}
+                </p>
+              </div>
+
+              {/* Radio Group untuk Tipe Harga */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  <PackageOpen className="w-4 h-4" />
+                  Pilih Tipe Harga untuk Potongan
+                  <span className="text-red-500">*</span>
+                </Label>
+                
+                <Controller
+                  name="tipe_harga"
+                  control={control}
+                  render={({ field }) => (
+                    <RadioGroup
+                      value={field.value}
+                      onValueChange={(value) => {
+                        field.onChange(value)
+                        setSelectedTipeHarga(value)
+                      }}
+                      className="flex gap-6"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="harga" id="harga" />
+                        <Label htmlFor="harga" className="font-normal text-sm cursor-pointer">
+                          Harga Reguler
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="harga_renteng" id="harga_renteng" />
+                        <Label htmlFor="harga_renteng" className="font-normal text-sm cursor-pointer">
+                          Harga Renteng atau dan lain lain
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  )}
+                />
+                
+                {errors.tipe_harga && (
+                  <p className="text-sm text-red-600 font-medium flex items-center gap-1">
+                    <span className="text-lg">•</span>
+                    {errors.tipe_harga.message}
+                  </p>
+                )}
+                
+                <p className="text-xs text-gray-500">
+                  Pilih tipe harga yang akan mendapatkan potongan (Harga Reguler atau Harga Renteng/dll)
                 </p>
               </div>
 
