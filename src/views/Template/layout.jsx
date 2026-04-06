@@ -242,10 +242,6 @@ export default function ShadcnSidebar({ children }) {
           </Button>
         </div>
 
-        {/* ── MAIN CONTENT ── 
-            Desktop/tablet: penuh 100% lebar di bawah navbar
-            Mobile: di bawah mobile top bar
-        ── */}
         <main className="flex-1 p-3 md:p-6 pb-20 md:pb-6 overflow-y-auto w-full">
           {children}
         </main>

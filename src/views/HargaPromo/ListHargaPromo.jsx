@@ -423,16 +423,16 @@ export default function ListHargaPromo() {
           )}
         </CardContent>
       </Card>
-      <div className="md:hidden fixed bottom-6 right-6 z-50">
-        <Link to="/hargapromo/create">
-          <Button 
-            size="lg"
-            className="h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 active:scale-95 bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="w-6 h-6" />
-          </Button>
-        </Link>
-      </div>
+     <div className="md:hidden fixed bottom-37 right-6 z-50">
+  <Link to="/hargapromo/create">
+    <Button 
+      size="lg"
+      className="h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 active:scale-95"
+    >
+      <Plus className="w-6 h-6" />
+    </Button>
+  </Link>
+</div>
     </div>
   )
 }
