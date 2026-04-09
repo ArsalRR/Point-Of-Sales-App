@@ -633,6 +633,7 @@ export const useKasir = () => {
     formatRupiah,
     focusSearchInput: () => focusSearchInput(0),
     showBarcodeNotFoundAlert,
-    showToast
+    showToast,
+    postTransaksi
   }
 }
