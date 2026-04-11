@@ -165,11 +165,6 @@ export function useListKasir() {
   const handleDeleteHold = useCallback((holdId) => {
     setHolds(prev => prev.filter(h => h.id !== holdId))
   }, [])
-
-  // ─── Recalculate promo saat cartOverride berubah ───────────────────────────
-  // checkAndApplyPromo di useKasir hanya watch hookCart, bukan cartOverride.
-  // Saat user hapus/ubah item di cartOverride, kita hitung ulang diskon promo
-  // sendiri dan update diskonOverride agar total selalu sinkron.
   useEffect(() => {
     if (cartOverride === null || !promoLoaded) return
 
@@ -191,25 +186,10 @@ export function useListKasir() {
   }
 
   const handleModalClose = () => setShowPaymentModal(false)
-
-  // ─── FIX UTAMA ─────────────────────────────────────────────────────────────
-  // Saat cartOverride aktif:
-  //
-  // 1. hookHandleSubmit → membaca `cart` dari closure useKasir (kosong) ✗
-  // 2. hookPostTransaksi → membaca `cart` & `cartSubtotal` dari closure useKasir
-  //    untuk membangun printData → hasilnya 0 ✗
-  //
-  // Solusi: saat cartOverride aktif, kita:
-  //   a. Kirim payload ke API sendiri via postKasir (bukan hookPostTransaksi)
-  //   b. Bangun printData sendiri dari cartOverride + diskonOverride
-  //   c. Set printData & showPrint langsung via setPrintData / setShowPrint
-  //      yang sudah diekspose dari useKasir
-  // ──────────────────────────────────────────────────────────────────────────
   const handleSubmit = useCallback(async (e, isCetak = false) => {
     e.preventDefault()
 
     if (cartOverride !== null && cartOverride.length > 0) {
-      // Hitung semua nilai dari cartOverride — bukan dari hookCart
       const overrideSubtotal = hitungTotalHarga(cartOverride)
       const diskonValue = parseRupiah(diskonOverride || '') || 0
       const overrideTotal = Math.max(0, overrideSubtotal - diskonValue)
@@ -226,14 +206,12 @@ export function useListKasir() {
 
       try {
         const res = await postKasir(payload)
-
-        // Bangun printData dari cartOverride — bukan dari hookCart yang kosong
         const transactionData = {
           no_transaksi: res.no_transaksi,
           items: cartOverride.map(item => ({
             jumlah: item.jumlah,
             nama_barang: item.nama_barang,
-            harga: getCurrentPrice(item),  // helper murni, tidak pakai closure
+            harga: getCurrentPrice(item),  
             satuan: item.satuan_terpilih || item.satuan,
           })),
           subtotal: overrideSubtotal,
@@ -242,11 +220,8 @@ export function useListKasir() {
           total_uang: totalUang,
           kembalian,
         }
-
-        // Set print data ke useKasir state agar NotaPembelian bisa render
         setPrintData(transactionData)
 
-        // Reset override
         setCartOverride(null)
         setDiskonOverride(null)
         hookHandleDiskonChange({ target: { value: '' } })
@@ -271,8 +246,6 @@ export function useListKasir() {
 
       return
     }
-
-    // Tidak ada override — pakai flow normal dari useKasir
     await hookHandleSubmit(e, isCetak)
   }, [
     cartOverride, diskonOverride,

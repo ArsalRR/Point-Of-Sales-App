@@ -1,14 +1,22 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { BrowserRouter } from 'react-router-dom';
-import { registerSW } from "virtual:pwa-register"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-const queryClient = new QueryClient()
-const updateSW = registerSW({
-  onNeedRefresh() {},
-  onOfflineReady() {}
-})
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import './App.css';
+
+const queryClient = new QueryClient();
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then((registration) => {
+      })
+      .catch((err) => {
+      });
+  });
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
@@ -17,4 +25,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>
-)
+);

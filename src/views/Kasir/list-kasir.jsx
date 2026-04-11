@@ -65,18 +65,41 @@ function QuickAmounts({ total, onSelect }) {
 
 function PaymentStatus({ paymentStatus, formatRupiah }) {
   if (!paymentStatus || paymentStatus.status === 'empty') return null
-  const cfg = {
-    insufficient: { bg: 'bg-gray-100 border-gray-300', text: 'text-gray-900', label: 'Uang Kurang' },
-    overpaid: { bg: 'bg-gray-100 border-gray-300', text: 'text-gray-900', label: 'Kembalian' },
-    exact: { bg: 'bg-gray-100 border-gray-300', text: 'text-gray-900', label: 'Uang Pas' },
+  
+  const config = {
+    insufficient: { 
+      bg: 'bg-red-50', 
+      border: 'border-l-4 border-red-500',
+      label: 'Uang Kurang',
+      labelColor: 'text-red-600',
+      textColor: 'text-gray-800'
+    },
+    overpaid: { 
+      bg: 'bg-emerald-50', 
+      border: 'border-l-4 border-emerald-500',
+      label: 'Kembalian',
+      labelColor: 'text-emerald-600',
+      textColor: 'text-gray-800'
+    },
+    exact: { 
+      bg: 'bg-sky-50', 
+      border: 'border-l-4 border-sky-500',
+      label: 'Uang Pas',
+      labelColor: 'text-sky-600',
+      textColor: 'text-gray-800'
+    },
   }
-  const c = cfg[paymentStatus.status] || {}
+  
+  const c = config[paymentStatus.status]
+  
   return (
-    <div className={`rounded-xl border px-4 py-3 flex items-center gap-3 ${c.bg}`}>
-      <div className="flex-1">
-        <p className={`text-xs font-semibold mb-0.5 ${c.text}`}>{c.label}</p>
-        <p className={`text-lg font-bold ${c.text}`}>{paymentStatus.message}</p>
-      </div>
+    <div className={`rounded-lg ${c.bg} ${c.border} p-4 shadow-sm`}>
+      <p className={`text-xs font-medium uppercase tracking-wide mb-1 ${c.labelColor}`}>
+        {c.label}
+      </p>
+      <p className={`text-xl font-bold ${c.textColor}`}>
+        {paymentStatus.message}
+      </p>
     </div>
   )
 }
