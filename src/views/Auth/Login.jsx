@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useForm } from "react-hook-form"
 import { yupResolver } from "@hookform/resolvers/yup"
@@ -16,7 +16,18 @@ export default function Login() {
   const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isReadOnly, setIsReadOnly] = useState(true)
 
+  useEffect(() => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
+    const timer = setTimeout(() => {
+      setIsReadOnly(false)
+    }, 100)
+
+    return () => clearTimeout(timer)
+  }, [])
   const {
     register,
     handleSubmit,
@@ -47,8 +58,19 @@ export default function Login() {
     }
   }
 
+  const inputClass = (hasError) =>
+    `w-full h-12 rounded-xl px-4 text-base text-black placeholder-zinc-300 bg-zinc-50 border outline-none
+    transition-all duration-200
+    focus:bg-white focus:border-black focus:ring-4 focus:ring-black/5
+    ${hasError
+      ? "border-red-300 bg-red-50 focus:border-red-400 focus:ring-red-100"
+      : "border-zinc-200"
+    }`
+
   return (
     <div className="flex min-h-screen">
+
+      {/* ── KIRI 50%: IMAGE PANEL ── */}
       <div className="hidden lg:flex w-1/2 bg-zinc-950 relative overflow-hidden flex-col items-center justify-center gap-10 px-16">
         <div
           className="absolute inset-0"
@@ -59,15 +81,17 @@ export default function Login() {
         />
         <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-zinc-950 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-zinc-950 to-transparent" />
+
         <div className="relative z-10 flex flex-col items-center gap-8 text-center w-full">
           <div className="flex items-center gap-2.5 bg-white/5 border border-white/10 rounded-full px-4 py-2">
             <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center">
               <ShoppingBag className="w-3.5 h-3.5 text-black" />
             </div>
             <span className="text-white/70 text-xs font-medium tracking-widest uppercase">
-              Toko IFA
+              Toko Sembako IFA
             </span>
           </div>
+
           <div className="relative w-full max-w-xs">
             <div className="absolute inset-4 bg-white/5 blur-2xl rounded-3xl" />
             <div className="relative w-full aspect-square rounded-2xl overflow-hidden border border-white/10 shadow-[0_32px_64px_rgba(0,0,0,0.8)]">
@@ -88,6 +112,7 @@ export default function Login() {
               Melayani Transaksi
             </p>
           </div>
+
           <div className="flex items-center gap-3 w-32">
             <div className="flex-1 h-px bg-white/10" />
             <div className="w-1 h-1 rounded-full bg-white/20" />
@@ -101,8 +126,10 @@ export default function Login() {
             <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
               <ShoppingBag className="w-4 h-4 text-white" />
             </div>
-            <span className="font-semibold text-black text-sm">Toko IFA</span>
+            <span className="font-semibold text-black text-sm">Toko Sembako IFA</span>
           </div>
+
+          {/* Heading */}
           <div className="mb-10">
             <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-zinc-400 mb-3">
               Selamat Datang Kembali
@@ -115,6 +142,7 @@ export default function Login() {
             </p>
           </div>
 
+          {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <div className="space-y-2">
               <label className="block text-[10px] font-semibold tracking-[0.15em] uppercase text-zinc-500">
@@ -123,21 +151,17 @@ export default function Login() {
               <input
                 type="email"
                 placeholder="nama@email.com"
+                autoComplete="email"
+                readOnly={isReadOnly}    
                 {...register("email")}
-                className={`w-full h-12 rounded-xl px-4 text-sm text-black placeholder-zinc-300 bg-zinc-50 border outline-none
-                  transition-all duration-200
-                  focus:bg-white focus:border-black focus:ring-4 focus:ring-black/5
-                  ${errors.email
-                    ? "border-red-300 bg-red-50 focus:border-red-400 focus:ring-red-100"
-                    : "border-zinc-200"
-                  }`}
+                className={inputClass(errors.email)}
               />
               {errors.email && (
                 <p className="text-red-500 text-xs">{errors.email.message}</p>
               )}
             </div>
 
-            {/* Password field */}
+            {/* Password */}
             <div className="space-y-2">
               <label className="block text-[10px] font-semibold tracking-[0.15em] uppercase text-zinc-500">
                 Password
@@ -146,14 +170,10 @@ export default function Login() {
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="Masukkan password"
+                  autoComplete="current-password"
+                  readOnly={isReadOnly}
                   {...register("password")}
-                  className={`w-full h-12 rounded-xl px-4 pr-12 text-sm text-black placeholder-zinc-300 bg-zinc-50 border outline-none
-                    transition-all duration-200
-                    focus:bg-white focus:border-black focus:ring-4 focus:ring-black/5
-                    ${errors.password
-                      ? "border-red-300 bg-red-50 focus:border-red-400 focus:ring-red-100"
-                      : "border-zinc-200"
-                    }`}
+                  className={`${inputClass(errors.password)} pr-12`}
                 />
                 <button
                   type="button"
@@ -171,8 +191,6 @@ export default function Login() {
                 <p className="text-red-500 text-xs">{errors.password.message}</p>
               )}
             </div>
-
-            {/* Submit button */}
             <button
               type="submit"
               disabled={isLoading}
