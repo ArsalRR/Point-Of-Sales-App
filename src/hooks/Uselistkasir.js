@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useKasir } from '@/hooks/useKasir'
-import { parseRupiah, getCurrentPrice, formatRupiah as formatRupiahUtil } from '@/utils/kasirUtils'
+import { parseRupiah, getCurrentPrice, formatRupiah as formatRupiahUtil, SATUAN_TYPES } from '@/utils/kasirUtils'
 import { calculatePromoDiscount } from '@/utils/promoUtils'
 import { postKasir } from '@/api/Kasirapi'
 import Swal from 'sweetalert2'
@@ -8,13 +8,7 @@ import Swal from 'sweetalert2'
 const MAX_HOLDS = 3
 
 function hitungTotalHarga(cart) {
-  return cart.reduce((sum, item) => {
-    const harga =
-      item.satuan_terpilih === 'renteng' ? (item.harga_renteng || item.harga)
-      : item.satuan_terpilih === 'dus'   ? (item.harga_dus    || item.harga)
-      : item.harga
-    return sum + harga * item.jumlah
-  }, 0)
+  return cart.reduce((sum, item) => sum + (getCurrentPrice(item) * item.jumlah), 0)
 }
 
 function useWindowWidth() {
@@ -27,7 +21,6 @@ function useWindowWidth() {
   return width
 }
 
-// ─── Hitung paymentStatus secara mandiri berdasarkan total & total_uang ───────
 function hitungPaymentStatus(total, totalUangRaw, formatRupiah) {
   const totalUang = parseRupiah(totalUangRaw) || 0
   if (!totalUang || total === 0) return { status: 'empty' }
@@ -69,7 +62,8 @@ export function useListKasir() {
     addProductToCart: hookAddProduct,
     updateQty: hookUpdateQty,
     removeItem: hookRemoveItem,
-    subtotal, handleChangeSatuan,
+    removeItemByKode: hookRemoveItemByKode,
+    subtotal, handleChangeSatuan: hookHandleChangeSatuan,
     handleDiskonChange: hookHandleDiskonChange,
     handleTotalUangChange,
     handleSubmit: hookHandleSubmit,
@@ -96,10 +90,6 @@ export function useListKasir() {
     ? Math.max(0, hitungTotalHarga(cartOverride) - (parseRupiah(formData.diskon) || 0))
     : hookTotal
 
-  // ─── FIX: paymentStatus dihitung ulang saat cartOverride aktif ─────────────
-  // Ketika cartOverride aktif, hookPaymentStatus masih menggunakan hookTotal
-  // (total dari hook asli), bukan total override — sehingga kembalian salah.
-  // Solusi: hitung paymentStatus secara mandiri dari `total` yang sudah benar.
   const paymentStatus = useMemo(() => {
     if (cartOverride !== null) {
       return hitungPaymentStatus(total, hookFormData.total_uang, formatRupiah)
@@ -115,65 +105,105 @@ export function useListKasir() {
     setDropdownRect({ top: rect.bottom + 6, left: rect.left, width: rect.width })
   }, [searchInputRef])
 
-  // ─── Cart override handlers ─────────────────────────────────────────────────
+  // ─── Cart handlers ──────────────────────────────────────────────────────────
 
   const handleDiskonChange = useCallback((e) => {
     if (cartOverride !== null) setDiskonOverride(e.target.value)
     hookHandleDiskonChange(e)
   }, [cartOverride, hookHandleDiskonChange])
 
-  const updateQty = useCallback((kodeBarang, qty, e) => {
+  // updateQty: spesifik per kode_barang + satuan
+  const updateQty = useCallback((kodeBarang, satuan, qty, e) => {
     if (cartOverride !== null) {
       if (qty < 1) {
         setCartOverride(prev => {
-          const next = prev.filter(i => i.kode_barang !== kodeBarang)
+          const next = prev.filter(i =>
+            !(i.kode_barang === kodeBarang &&
+              (i.satuan_terpilih || SATUAN_TYPES.SATUAN) === satuan)
+          )
           return next.length > 0 ? next : null
         })
       } else {
         setCartOverride(prev =>
-          prev.map(i => i.kode_barang === kodeBarang ? { ...i, jumlah: qty } : i)
+          prev.map(i =>
+            i.kode_barang === kodeBarang &&
+            (i.satuan_terpilih || SATUAN_TYPES.SATUAN) === satuan
+              ? { ...i, jumlah: qty }
+              : i
+          )
         )
       }
     } else {
-      hookUpdateQty(kodeBarang, qty, e)
+      hookUpdateQty(kodeBarang, satuan, qty, e)
     }
   }, [cartOverride, hookUpdateQty])
 
-  const removeItem = useCallback((kodeBarang) => {
+  // removeItem: hapus hanya baris yang cocok kode_barang + satuan (untuk tombol hapus per baris)
+  const removeItem = useCallback((kodeBarang, satuan) => {
     if (cartOverride !== null) {
       setCartOverride(prev => {
-        const next = prev.filter(i => i.kode_barang !== kodeBarang)
+        const next = prev.filter(i =>
+          !(i.kode_barang === kodeBarang &&
+            (i.satuan_terpilih || SATUAN_TYPES.SATUAN) === satuan)
+        )
         return next.length > 0 ? next : null
       })
     } else {
-      hookRemoveItem(kodeBarang)
+      hookRemoveItem(kodeBarang, satuan)
     }
   }, [cartOverride, hookRemoveItem])
 
+  // addProductToCart: key unik = kode_barang + satuan 'satuan'
   const addProductToCart = useCallback((product) => {
     if (cartOverride !== null) {
       setCartOverride(prev => {
-        const exist = prev.find(i => i.kode_barang === product.kode_barang)
-        if (exist) {
-          return prev.map(i =>
-            i.kode_barang === product.kode_barang ? { ...i, jumlah: i.jumlah + 1 } : i
+        const existIndex = prev.findIndex(i =>
+          i.kode_barang === product.kode_barang &&
+          (i.satuan_terpilih || SATUAN_TYPES.SATUAN) === SATUAN_TYPES.SATUAN
+        )
+        if (existIndex !== -1) {
+          return prev.map((i, idx) =>
+            idx === existIndex ? { ...i, jumlah: i.jumlah + 1 } : i
           )
         }
-        return [...prev, { ...product, jumlah: 1, satuan_terpilih: product.satuan_terpilih || 'satuan' }]
+        return [
+          { ...product, jumlah: 1, satuan_terpilih: SATUAN_TYPES.SATUAN },
+          ...prev,
+        ]
       })
     } else {
       hookAddProduct(product)
     }
   }, [cartOverride, hookAddProduct])
 
-  // ─── Hold ───────────────────────────────────────────────────────────────────
+  // handleChangeSatuan: spesifik per kode_barang + oldSatuan
+  const handleChangeSatuan = useCallback((kodeBarang, oldSatuan, newSatuan) => {
+    if (cartOverride !== null) {
+      setCartOverride(prev =>
+        prev.map(i =>
+          i.kode_barang === kodeBarang &&
+          (i.satuan_terpilih || SATUAN_TYPES.SATUAN) === oldSatuan
+            ? { ...i, satuan_terpilih: newSatuan, jumlah: 1 }
+            : i
+        )
+      )
+    } else {
+      hookHandleChangeSatuan(kodeBarang, oldSatuan, newSatuan)
+    }
+  }, [cartOverride, hookHandleChangeSatuan])
+
+  // ─── Hold ────────────────────────────────────────────────────────────────────
 
   const toastConfig = (icon, title, text, color = '#6b7280', progressColor = 'bg-gray-500') => ({
     toast: true, position: 'top-end', icon,
     title, text,
     showConfirmButton: false, timer: 2000, timerProgressBar: true,
     background: '#ffffff', iconColor: color,
-    customClass: { popup: 'rounded-xl shadow-lg', title: 'text-sm font-semibold text-gray-800', timerProgressBar: progressColor },
+    customClass: {
+      popup: 'rounded-xl shadow-lg',
+      title: 'text-sm font-semibold text-gray-800',
+      timerProgressBar: progressColor
+    },
   })
 
   const handleHold = useCallback(() => {
@@ -186,10 +216,10 @@ export function useListKasir() {
       return
     }
 
-    const snapshot       = JSON.parse(JSON.stringify(cart))
-    const currentDiskon  = formData.diskon
-    const diskonValue    = parseRupiah(currentDiskon) || 0
-    const subtotalValue  = hitungTotalHarga(snapshot)
+    const snapshot      = JSON.parse(JSON.stringify(cart))
+    const currentDiskon = formData.diskon
+    const diskonValue   = parseRupiah(currentDiskon) || 0
+    const subtotalValue = hitungTotalHarga(snapshot)
     const totalSetelahDiskon = Math.max(0, subtotalValue - diskonValue)
 
     setHolds(prev => [...prev, {
@@ -204,17 +234,22 @@ export function useListKasir() {
     }])
 
     if (cartOverride !== null) {
+      // Cart override: cukup reset override
       setCartOverride(null)
       setDiskonOverride(null)
     } else {
-      snapshot.forEach(item => hookRemoveItem(item.kode_barang))
+      // Hook cart: hapus semua baris per unique kode_barang
+      // hookRemoveItemByKode menghapus SEMUA baris dengan kode_barang tsb (satuan & renteng sekaligus)
+      const uniqueKodes = [...new Set(snapshot.map(i => i.kode_barang))]
+      uniqueKodes.forEach(kode => hookRemoveItemByKode(kode))
     }
+
     hookHandleDiskonChange({ target: { value: '' } })
 
     setTimeout(() => {
       Swal.fire(toastConfig('success', 'Transaksi Ditahan!', `Pesanan berhasil disimpan${currentDiskon ? ' dengan diskon' : ''}`, '#10b981', 'bg-black'))
     }, 100)
-  }, [cart, cartOverride, holds, formData.diskon, hookRemoveItem, hookHandleDiskonChange])
+  }, [cart, cartOverride, holds, formData.diskon, hookRemoveItemByKode, hookHandleDiskonChange])
 
   const handleRestore = useCallback((holdId) => {
     const target = holds.find(h => h.id === holdId)
@@ -230,7 +265,7 @@ export function useListKasir() {
     setHolds(prev => prev.filter(h => h.id !== holdId))
   }, [])
 
-  // ─── Promo auto-apply ───────────────────────────────────────────────────────
+  // ─── Promo auto-apply ────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (cartOverride === null || !promoLoaded) return
@@ -245,7 +280,7 @@ export function useListKasir() {
     hookHandleDiskonChange({ target: { value: newDiskon } })
   }, [cartOverride, hargaPromo, promoLoaded, hookHandleDiskonChange])
 
-  // ─── Fokus otomatis ─────────────────────────────────────────────────────────
+  // ─── Fokus otomatis ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!showPaymentModal) {
@@ -265,7 +300,7 @@ export function useListKasir() {
     if (showSearchResults) updateDropdownRect()
   }, [showSearchResults, updateDropdownRect])
 
-  // ─── Payment modal ───────────────────────────────────────────────────────────
+  // ─── Payment modal ────────────────────────────────────────────────────────────
 
   const handleOpenPaymentModal = useCallback(() => {
     if (cart.length === 0 || isProcessing) return
@@ -315,7 +350,11 @@ export function useListKasir() {
         focusSearchInput()
       } catch (error) {
         console.error('Error posting transaksi override:', error)
-        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Gagal', text: 'Terjadi kesalahan saat memproses transaksi', showConfirmButton: false, timer: 3000 })
+        Swal.fire({
+          toast: true, position: 'top-end', icon: 'error',
+          title: 'Gagal', text: 'Terjadi kesalahan saat memproses transaksi',
+          showConfirmButton: false, timer: 3000
+        })
       }
       return
     }
@@ -334,7 +373,7 @@ export function useListKasir() {
     await handleSubmit({ preventDefault: () => {} }, true)
   }, [handleSubmit])
 
-  // ─── Search handlers ─────────────────────────────────────────────────────────
+  // ─── Search handlers ──────────────────────────────────────────────────────────
 
   const handleSearchChange = useCallback((e) => {
     const value = e.target.value
@@ -401,7 +440,7 @@ export function useListKasir() {
   const handleOpenHoldModal  = useCallback(() => setShowHoldModal(true),  [])
   const handleCloseHoldModal = useCallback(() => setShowHoldModal(false), [])
 
-  // ─── Quick amounts ────────────────────────────────────────────────────────────
+  // ─── Quick amounts ─────────────────────────────────────────────────────────────
 
   const getQuickAmounts = useCallback((totalValue) => {
     if (!totalValue) return []
@@ -416,7 +455,7 @@ export function useListKasir() {
     return [...new Set(rounds)].slice(0, 5)
   }, [])
 
-  // ─── Return ───────────────────────────────────────────────────────────────────
+  // ─── Return ────────────────────────────────────────────────────────────────────
 
   return {
     // Layout

@@ -36,7 +36,6 @@ export const useKasir = () => {
   const [user, setUser] = useState(null)
   const [hargaPromo, setHargaPromo] = useState([])
   const [promoLoaded, setPromoLoaded] = useState(false)
-
   const searchInputRef = useRef(null)
   const barcodeBufferRef = useRef('')
   const lastKeyTimeRef = useRef(0)
@@ -45,8 +44,6 @@ export const useKasir = () => {
   const isProcessingBarcodeRef = useRef(false)
   const lastBarcodeProcessedRef = useRef({ code: '', timestamp: 0 })
   const addToCartLockRef = useRef(false)
-
-  // Ref untuk scanner agar tidak perlu re-register handler
   const processBarcodeRef = useRef(null)
   const searchResultsRef = useRef([])
 
@@ -155,42 +152,49 @@ export const useKasir = () => {
       console.error("Gagal ambil transaksi:", error)
     }
   }, [])
+ const addProductToCart = useCallback((product, quantity = 1) => {
+  if (!product) return
+  if (addToCartLockRef.current) return
+  addToCartLockRef.current = true
 
-  const addProductToCart = useCallback((product, quantity = 1) => {
-    if (!product) return
-
-    if (addToCartLockRef.current) return
-
-    addToCartLockRef.current = true
-
-    setCart(prevCart => {
-      const exist = prevCart.find(c => c.kode_barang === product.kode_barang)
-
-      if (exist) {
-        return prevCart.map(c =>
-          c.kode_barang === product.kode_barang
-            ? { ...c, jumlah: c.jumlah + quantity }
-            : c
-        )
-      }
-      return [
-        {
-          ...product,
-          jumlah: quantity,
-          satuan_terpilih: SATUAN_TYPES.SATUAN
-        },
-        ...prevCart
-      ]
+  setCart(prevCart => {
+    // Cari item yang sama: kode_barang sama DAN satuan_terpilih == 'satuan' (atau belum dipilih)
+    const exist = prevCart.find(c => {
+      if (c.kode_barang !== product.kode_barang) return false
+      const satuanItem = c.satuan_terpilih || SATUAN_TYPES.SATUAN
+      // Hanya merge jika satuan saat ini adalah 'satuan'
+      return satuanItem === SATUAN_TYPES.SATUAN
     })
 
-    showToast("Berhasil", `${product.nama_barang} ditambahkan (+${quantity})`, "success", 1500)
+    if (exist) {
+      return prevCart.map(c => {
+        if (c.kode_barang !== product.kode_barang) return c
+        const satuanItem = c.satuan_terpilih || SATUAN_TYPES.SATUAN
+        if (satuanItem === SATUAN_TYPES.SATUAN) {
+          return { ...c, jumlah: c.jumlah + quantity }
+        }
+        return c
+      })
+    }
 
-    setTimeout(() => {
-      addToCartLockRef.current = false
-    }, 500)
-  }, [showToast])
+    return [
+      {
+        ...product,
+        jumlah: quantity,
+        satuan_terpilih: SATUAN_TYPES.SATUAN
+      },
+      ...prevCart
+    ]
+  })
 
-  const updateQty = useCallback((kode_barang, newQty, event) => {
+  showToast("Berhasil", `${product.nama_barang} ditambahkan (+${quantity})`, "success", 1500)
+
+  setTimeout(() => {
+    addToCartLockRef.current = false
+  }, 500)
+}, [showToast])
+
+  const updateQty = useCallback((kode_barang, satuan, newQty, event) => {
     if (newQty < 1) return
 
     if (event) {
@@ -200,12 +204,23 @@ export const useKasir = () => {
 
     setCart(prev =>
       prev.map(item =>
-        item.kode_barang === kode_barang ? { ...item, jumlah: newQty } : item
+        item.kode_barang === kode_barang &&
+        (item.satuan_terpilih || SATUAN_TYPES.SATUAN) === satuan
+          ? { ...item, jumlah: newQty }
+          : item
       )
     )
   }, [])
 
-  const removeItem = useCallback((kode) => {
+  const removeItem = useCallback((kode, satuan) => {
+    setCart(prev =>
+      prev.filter(c =>
+        !(c.kode_barang === kode &&
+          (c.satuan_terpilih || SATUAN_TYPES.SATUAN) === satuan)
+      )
+    )
+  }, [])
+  const removeItemByKode = useCallback((kode) => {
     setCart(prev => prev.filter(c => c.kode_barang !== kode))
   }, [])
 
@@ -213,11 +228,12 @@ export const useKasir = () => {
     return getCurrentPrice(item) * item.jumlah
   }, [])
 
-  const handleChangeSatuan = useCallback((kode_barang, satuan) => {
+  const handleChangeSatuan = useCallback((kode_barang, oldSatuan, newSatuan) => {
     setCart(prevCart =>
       prevCart.map(item =>
-        item.kode_barang === kode_barang
-          ? { ...item, satuan_terpilih: satuan, jumlah: 1 }
+        item.kode_barang === kode_barang &&
+        (item.satuan_terpilih || SATUAN_TYPES.SATUAN) === oldSatuan
+          ? { ...item, satuan_terpilih: newSatuan, jumlah: 1 }
           : item
       )
     )
@@ -236,7 +252,7 @@ export const useKasir = () => {
       ...prev,
       diskon: totalDiskonPromo > 0 ? formatRupiah(totalDiskonPromo) : ""
     }))
-  }, [cart, hargaPromo, promoLoaded, formatRupiah])
+  }, [cart, hargaPromo, promoLoaded])
 
   const handleDiskonChange = useCallback((e) => {
     const rawValue = e.target.value
@@ -287,7 +303,7 @@ export const useKasir = () => {
     }
   }, [transaksi, searchQuery, addProductToCart])
 
-  const handleBarcodeFound = useCallback((barcode) => {
+ const handleBarcodeFound = useCallback((barcode) => {
     const now = Date.now()
 
     const timeSinceLastProcess = now - lastBarcodeProcessedRef.current.timestamp
@@ -457,17 +473,21 @@ export const useKasir = () => {
       if (clearTimer) clearTimeout(clearTimer)
     }
   }, [showSearchResults, searchQuery, searchResults, showBarcodeNotFoundAlert])
+
   useEffect(() => {
     processBarcodeRef.current = processBarcode
   }, [processBarcode])
+
   useEffect(() => {
     searchResultsRef.current = searchResults
   }, [searchResults])
+
   useEffect(() => {
     fetchTransaksi()
     fetchUser()
     setTimeout(() => focusSearchInput(0), 300)
   }, [])
+
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
       const active = document.activeElement
@@ -520,7 +540,7 @@ export const useKasir = () => {
             const isValid = !allSame || scannedBarcode.length <= 3
 
             if (isValid) {
-              processBarcodeRef.current(scannedBarcode) // ← pakai ref
+              processBarcodeRef.current(scannedBarcode)
             } else {
               barcodeBufferRef.current = ''
               if (searchInputRef.current) {
@@ -557,10 +577,10 @@ export const useKasir = () => {
           const isValid = !allSame || scannedBarcode.length <= 3
 
           if (isValid) {
-            processBarcodeRef.current(scannedBarcode) // ← pakai ref
+            processBarcodeRef.current(scannedBarcode)
           }
         }
-        else if (isSearchInput && searchResultsRef.current.length > 0) { // ← pakai ref
+        else if (isSearchInput && searchResultsRef.current.length > 0) {
           return
         }
       }
@@ -585,7 +605,7 @@ export const useKasir = () => {
       document.removeEventListener('keydown', handleGlobalKeyDown, true)
       if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current)
     }
-  }, []) // ← kosong, dipasang sekali selamanya
+  }, [])
 
   function handleQuickAmount(val) {
     const syntheticEvent = {
@@ -621,6 +641,7 @@ export const useKasir = () => {
     addProductToCart,
     updateQty,
     removeItem,
+    removeItemByKode,
     subtotal,
     handleChangeSatuan,
     handleDiskonChange,

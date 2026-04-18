@@ -13,9 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import NotaPembelian from '../Kasir/NotaPembelian'
 import { useListKasir } from '@/hooks/Uselistkasir'
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
+import { SATUAN_TYPES } from '@/utils/kasirUtils'
 function hasRenteng(val) {
   if (val === null || val === undefined) return false
   if (typeof val === 'string' && val.trim() === '') return false
@@ -31,9 +29,6 @@ function SpinnerIcon() {
     </svg>
   )
 }
-
-// ─── Sub-komponen ─────────────────────────────────────────────────────────────
-
 function LiveClock() {
   const [time, setTime] = useState('')
   useEffect(() => {
@@ -64,7 +59,6 @@ function QuickAmounts({ amounts, onSelect }) {
     </div>
   )
 }
-
 function PaymentStatusBanner({ paymentStatus }) {
   if (!paymentStatus || paymentStatus.status === 'empty') return null
   const config = {
@@ -205,9 +199,9 @@ function VariantDropdown({ item, transaksi, addProductToCart }) {
 
   if (!allVariants.length) return null
 
-  const displayed       = showVariant ? allVariants.slice(0, variantLimit) : []
-  const canShowMore     = showVariant && variantLimit < allVariants.length
-  const canShowLess     = showVariant && variantLimit > 5
+  const displayed   = showVariant ? allVariants.slice(0, variantLimit) : []
+  const canShowMore = showVariant && variantLimit < allVariants.length
+  const canShowLess = showVariant && variantLimit > 5
 
   const handleToggle = () => {
     if (!showVariant) { setShowVariant(true); setVariantLimit(5) }
@@ -261,9 +255,25 @@ function VariantDropdown({ item, transaksi, addProductToCart }) {
   )
 }
 
-function CartItemCard({ item, updateQty, removeItem, handleChangeSatuan, subtotal, getCurrentPrice, getSatuanInfo, transaksi, addProductToCart }) {
-  const price      = getCurrentPrice(item)
-  const sub        = subtotal(item)
+// ─── CartItemCard ─────────────────────────────────────────────────────────────
+// updateQty   : (kode, satuan, qty, event)
+// removeItem  : (kode, satuan)
+// handleChangeSatuan : (kode, oldSatuan, newSatuan)
+
+function CartItemCard({
+  item,
+  updateQty,
+  removeItem,
+  handleChangeSatuan,
+  subtotal,
+  getCurrentPrice,
+  getSatuanInfo,
+  transaksi,
+  addProductToCart,
+}) {
+  const currentSatuan = item.satuan_terpilih || SATUAN_TYPES.SATUAN
+  const price = getCurrentPrice(item)
+  const sub   = subtotal(item)
   const showSelect = hasRenteng(item.harga_renteng)
 
   return (
@@ -277,12 +287,13 @@ function CartItemCard({ item, updateQty, removeItem, handleChangeSatuan, subtota
                 {item.kode_barang}
               </Badge>
               <span className="text-[11px] text-gray-500 leading-none">
-                Rp {price.toLocaleString()} / {item.satuan_terpilih || item.satuan}
+                Rp {price.toLocaleString()} / {currentSatuan}
               </span>
             </div>
           </div>
+          {/* removeItem: kode + satuan agar hanya baris ini yang terhapus */}
           <button
-            onClick={() => removeItem(item.kode_barang)}
+            onClick={() => removeItem(item.kode_barang, currentSatuan)}
             className="mt-0.5 flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-red-600 focus:outline-none hover:bg-gray-100 transition-colors"
           >
             <Trash2 className="w-4 h-4" />
@@ -293,7 +304,11 @@ function CartItemCard({ item, updateQty, removeItem, handleChangeSatuan, subtota
 
         {showSelect && (
           <div className="px-4 pt-3 pb-1">
-            <Select value={item.satuan_terpilih || 'satuan'} onValueChange={(v) => handleChangeSatuan(item.kode_barang, v)}>
+            {/* handleChangeSatuan: kode + oldSatuan + newSatuan */}
+            <Select
+              value={currentSatuan}
+              onValueChange={(v) => handleChangeSatuan(item.kode_barang, currentSatuan, v)}
+            >
               <SelectTrigger className="h-9 text-sm rounded-lg border border-gray-200 bg-white w-full focus:border-gray-400 focus:ring-0">
                 <SelectValue />
               </SelectTrigger>
@@ -314,7 +329,11 @@ function CartItemCard({ item, updateQty, removeItem, handleChangeSatuan, subtota
           <div className="flex items-center gap-2">
             <Button
               variant="outline" size="sm"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); updateQty(item.kode_barang, item.jumlah - 1, e) }}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                updateQty(item.kode_barang, currentSatuan, item.jumlah - 1, e)
+              }}
               className="h-9 w-9 p-0 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 hover:border-gray-300 flex-shrink-0"
             >
               <Minus className="w-3.5 h-3.5" />
@@ -322,15 +341,22 @@ function CartItemCard({ item, updateQty, removeItem, handleChangeSatuan, subtota
             <Input
               type="number"
               value={item.jumlah}
-              onChange={(e) => updateQty(item.kode_barang, Math.max(1, Number(e.target.value) || 1), e)}
+              onChange={(e) => updateQty(item.kode_barang, currentSatuan, Math.max(1, Number(e.target.value) || 1), e)}
               onFocus={(e) => e.target.scrollIntoView({ behavior: 'instant', block: 'nearest' })}
-              onBlur={(e) => { if (!e.target.value || parseInt(e.target.value) < 1) updateQty(item.kode_barang, 1, e) }}
+              onBlur={(e) => {
+                if (!e.target.value || parseInt(e.target.value) < 1)
+                  updateQty(item.kode_barang, currentSatuan, 1, e)
+              }}
               className="w-12 h-9 text-center border border-gray-200 rounded-lg font-bold text-sm focus:border-gray-500 focus:ring-0 px-0 bg-white"
               min="1"
             />
             <Button
               variant="outline" size="sm"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); updateQty(item.kode_barang, item.jumlah + 1, e) }}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                updateQty(item.kode_barang, currentSatuan, item.jumlah + 1, e)
+              }}
               className="h-9 w-9 p-0 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 hover:border-gray-300 flex-shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -338,7 +364,7 @@ function CartItemCard({ item, updateQty, removeItem, handleChangeSatuan, subtota
           </div>
           <div className="text-right flex-shrink-0">
             <p className="font-bold text-gray-900 text-sm leading-tight">Rp {sub.toLocaleString()}</p>
-            {item.satuan_terpilih && item.satuan_terpilih !== 'satuan' && (
+            {currentSatuan !== SATUAN_TYPES.SATUAN && (
               <p className="text-[11px] text-gray-500 mt-0.5 truncate max-w-[100px]">{getSatuanInfo(item)}</p>
             )}
           </div>
@@ -608,7 +634,7 @@ export default function ListKasir() {
             >
               {cart.map((item) => (
                 <CartItemCard
-                  key={item.kode_barang}
+                  key={`${item.kode_barang}-${item.satuan_terpilih || SATUAN_TYPES.SATUAN}`}
                   item={item}
                   updateQty={updateQty}
                   removeItem={removeItem}
