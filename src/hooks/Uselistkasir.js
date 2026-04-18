@@ -1,6 +1,5 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useKasir } from '@/hooks/useKasir'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { parseRupiah, getCurrentPrice, formatRupiah as formatRupiahUtil } from '@/utils/kasirUtils'
 import { calculatePromoDiscount } from '@/utils/promoUtils'
 import { postKasir } from '@/api/Kasirapi'
@@ -18,16 +17,46 @@ function hitungTotalHarga(cart) {
   }, 0)
 }
 
+function useWindowWidth() {
+  const [width, setWidth] = useState(() => window.innerWidth)
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+  return width
+}
+
+// ─── Hitung paymentStatus secara mandiri berdasarkan total & total_uang ───────
+function hitungPaymentStatus(total, totalUangRaw, formatRupiah) {
+  const totalUang = parseRupiah(totalUangRaw) || 0
+  if (!totalUang || total === 0) return { status: 'empty' }
+  const selisih = totalUang - total
+  if (selisih < 0) {
+    return { status: 'insufficient', message: formatRupiah(Math.abs(selisih)) }
+  }
+  if (selisih === 0) {
+    return { status: 'exact', message: 'Uang pas' }
+  }
+  return { status: 'overpaid', message: formatRupiah(selisih) }
+}
+
 export function useListKasir() {
   const kasir = useKasir()
-  const isTablet = useMediaQuery('(min-width: 768px) and (max-width: 1023px)')
-  const isDesktop = useMediaQuery('(min-width: 1024px)')
-  const [ringkasanPosition, setRingkasanPosition] = useState('right')
-  const [showPaymentModal, setShowPaymentModal] = useState(false)
 
-  const [holds, setHolds] = useState([])
-  const [cartOverride, setCartOverride] = useState(null)
-  const [diskonOverride, setDiskonOverride] = useState(null)
+  const width     = useWindowWidth()
+  const isTablet  = width >= 768 && width < 1024
+  const isDesktop = width >= 1024
+
+  const [ringkasanPosition, setRingkasanPosition] = useState('right')
+  const [showPaymentModal,  setShowPaymentModal]  = useState(false)
+  const [showHoldModal,     setShowHoldModal]     = useState(false)
+  const [holds,             setHolds]             = useState([])
+  const [cartOverride,      setCartOverride]      = useState(null)
+  const [diskonOverride,    setDiskonOverride]    = useState(null)
+  const [dropdownRect,      setDropdownRect]      = useState(null)
+
+  const searchWrapperRef = useRef(null)
 
   const {
     showPrint, printData,
@@ -35,7 +64,7 @@ export function useListKasir() {
     showSearchResults, setShowSearchResults,
     cart: hookCart, isProcessing, formData: hookFormData, transaksi,
     searchInputRef,
-    searchResults, cartSubtotal: hookCartSubtotal, total: hookTotal, paymentStatus,
+    searchResults, cartSubtotal: hookCartSubtotal, total: hookTotal, paymentStatus: hookPaymentStatus,
     setShowPrint, setPrintData,
     addProductToCart: hookAddProduct,
     updateQty: hookUpdateQty,
@@ -43,9 +72,7 @@ export function useListKasir() {
     subtotal, handleChangeSatuan,
     handleDiskonChange: hookHandleDiskonChange,
     handleTotalUangChange,
-    handleSearchSelect,
     handleSubmit: hookHandleSubmit,
-    postTransaksi: hookPostTransaksi,
     user,
     getCurrentPrice: hookGetCurrentPrice,
     getSatuanInfo, formatRupiah, focusSearchInput,
@@ -53,7 +80,10 @@ export function useListKasir() {
     hargaPromo, promoLoaded,
   } = kasir
 
+  // ─── Derived state ──────────────────────────────────────────────────────────
+
   const cart = cartOverride !== null ? cartOverride : hookCart
+
   const formData = diskonOverride !== null
     ? { ...hookFormData, diskon: diskonOverride }
     : hookFormData
@@ -66,11 +96,29 @@ export function useListKasir() {
     ? Math.max(0, hitungTotalHarga(cartOverride) - (parseRupiah(formData.diskon) || 0))
     : hookTotal
 
-  const handleDiskonChange = useCallback((e) => {
-    const value = e.target.value
+  // ─── FIX: paymentStatus dihitung ulang saat cartOverride aktif ─────────────
+  // Ketika cartOverride aktif, hookPaymentStatus masih menggunakan hookTotal
+  // (total dari hook asli), bukan total override — sehingga kembalian salah.
+  // Solusi: hitung paymentStatus secara mandiri dari `total` yang sudah benar.
+  const paymentStatus = useMemo(() => {
     if (cartOverride !== null) {
-      setDiskonOverride(value)
+      return hitungPaymentStatus(total, hookFormData.total_uang, formatRupiah)
     }
+    return hookPaymentStatus
+  }, [cartOverride, total, hookFormData.total_uang, hookPaymentStatus, formatRupiah])
+
+  // ─── Dropdown rect ──────────────────────────────────────────────────────────
+
+  const updateDropdownRect = useCallback(() => {
+    if (!searchInputRef.current) return
+    const rect = searchInputRef.current.getBoundingClientRect()
+    setDropdownRect({ top: rect.bottom + 6, left: rect.left, width: rect.width })
+  }, [searchInputRef])
+
+  // ─── Cart override handlers ─────────────────────────────────────────────────
+
+  const handleDiskonChange = useCallback((e) => {
+    if (cartOverride !== null) setDiskonOverride(e.target.value)
     hookHandleDiskonChange(e)
   }, [cartOverride, hookHandleDiskonChange])
 
@@ -118,28 +166,42 @@ export function useListKasir() {
     }
   }, [cartOverride, hookAddProduct])
 
-  const handleHold = useCallback(() => {
-    if (cart.length === 0 || holds.length >= MAX_HOLDS) return
+  // ─── Hold ───────────────────────────────────────────────────────────────────
 
-    const snapshot = JSON.parse(JSON.stringify(cart))
-    const currentDiskon = formData.diskon
-    const diskonValue = parseRupiah(currentDiskon) || 0
-    const subtotalValue = hitungTotalHarga(snapshot)
+  const toastConfig = (icon, title, text, color = '#6b7280', progressColor = 'bg-gray-500') => ({
+    toast: true, position: 'top-end', icon,
+    title, text,
+    showConfirmButton: false, timer: 2000, timerProgressBar: true,
+    background: '#ffffff', iconColor: color,
+    customClass: { popup: 'rounded-xl shadow-lg', title: 'text-sm font-semibold text-gray-800', timerProgressBar: progressColor },
+  })
+
+  const handleHold = useCallback(() => {
+    if (cart.length === 0) {
+      Swal.fire(toastConfig('warning', 'Keranjang Kosong!', 'Tidak ada transaksi yang dapat ditahan'))
+      return
+    }
+    if (holds.length >= MAX_HOLDS) {
+      Swal.fire(toastConfig('error', 'Slot Penuh!', `Maksimal ${MAX_HOLDS} transaksi dapat ditahan`))
+      return
+    }
+
+    const snapshot       = JSON.parse(JSON.stringify(cart))
+    const currentDiskon  = formData.diskon
+    const diskonValue    = parseRupiah(currentDiskon) || 0
+    const subtotalValue  = hitungTotalHarga(snapshot)
     const totalSetelahDiskon = Math.max(0, subtotalValue - diskonValue)
 
-    setHolds(prev => [
-      ...prev,
-      {
-        id: Date.now(),
-        cart: snapshot,
-        diskon: currentDiskon,
-        diskonValue,
-        subtotal: subtotalValue,
-        totalHarga: totalSetelahDiskon,
-        heldAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-        totalItems: snapshot.reduce((sum, i) => sum + i.jumlah, 0),
-      },
-    ])
+    setHolds(prev => [...prev, {
+      id: Date.now(),
+      cart: snapshot,
+      diskon: currentDiskon,
+      diskonValue,
+      subtotal: subtotalValue,
+      totalHarga: totalSetelahDiskon,
+      heldAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      totalItems: snapshot.reduce((sum, i) => sum + i.jumlah, 0),
+    }])
 
     if (cartOverride !== null) {
       setCartOverride(null)
@@ -148,15 +210,17 @@ export function useListKasir() {
       snapshot.forEach(item => hookRemoveItem(item.kode_barang))
     }
     hookHandleDiskonChange({ target: { value: '' } })
+
+    setTimeout(() => {
+      Swal.fire(toastConfig('success', 'Transaksi Ditahan!', `Pesanan berhasil disimpan${currentDiskon ? ' dengan diskon' : ''}`, '#10b981', 'bg-black'))
+    }, 100)
   }, [cart, cartOverride, holds, formData.diskon, hookRemoveItem, hookHandleDiskonChange])
 
   const handleRestore = useCallback((holdId) => {
     const target = holds.find(h => h.id === holdId)
     if (!target) return
-
     setHolds(prev => prev.filter(h => h.id !== holdId))
     setCartOverride(JSON.parse(JSON.stringify(target.cart)))
-
     const diskon = target.diskon || ''
     setDiskonOverride(diskon || null)
     hookHandleDiskonChange({ target: { value: diskon } })
@@ -165,36 +229,60 @@ export function useListKasir() {
   const handleDeleteHold = useCallback((holdId) => {
     setHolds(prev => prev.filter(h => h.id !== holdId))
   }, [])
+
+  // ─── Promo auto-apply ───────────────────────────────────────────────────────
+
   useEffect(() => {
     if (cartOverride === null || !promoLoaded) return
-
     if (cartOverride.length === 0) {
       setDiskonOverride(null)
       hookHandleDiskonChange({ target: { value: '' } })
       return
     }
-
     const totalDiskonPromo = calculatePromoDiscount(cartOverride, hargaPromo)
     const newDiskon = totalDiskonPromo > 0 ? formatRupiahUtil(totalDiskonPromo) : ''
     setDiskonOverride(newDiskon || null)
     hookHandleDiskonChange({ target: { value: newDiskon } })
   }, [cartOverride, hargaPromo, promoLoaded, hookHandleDiskonChange])
 
-  const handleOpenPaymentModal = () => {
+  // ─── Fokus otomatis ─────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!showPaymentModal) {
+      const id = setTimeout(() => searchInputRef.current?.focus(), 150)
+      return () => clearTimeout(id)
+    }
+  }, [showPaymentModal, searchInputRef])
+
+  useEffect(() => {
+    if (!showPrint) {
+      const id = setTimeout(() => searchInputRef.current?.focus(), 150)
+      return () => clearTimeout(id)
+    }
+  }, [showPrint, searchInputRef])
+
+  useEffect(() => {
+    if (showSearchResults) updateDropdownRect()
+  }, [showSearchResults, updateDropdownRect])
+
+  // ─── Payment modal ───────────────────────────────────────────────────────────
+
+  const handleOpenPaymentModal = useCallback(() => {
     if (cart.length === 0 || isProcessing) return
     setShowPaymentModal(true)
-  }
+  }, [cart.length, isProcessing])
 
-  const handleModalClose = () => setShowPaymentModal(false)
+  const handleModalClose = useCallback(() => setShowPaymentModal(false), [])
+
   const handleSubmit = useCallback(async (e, isCetak = false) => {
     e.preventDefault()
 
     if (cartOverride !== null && cartOverride.length > 0) {
       const overrideSubtotal = hitungTotalHarga(cartOverride)
-      const diskonValue = parseRupiah(diskonOverride || '') || 0
+      const diskonValue  = parseRupiah(diskonOverride || '') || 0
       const overrideTotal = Math.max(0, overrideSubtotal - diskonValue)
-      const totalUang = parseRupiah(hookFormData.total_uang) || 0
-      const kembalian = totalUang > 0 ? Math.max(0, totalUang - overrideTotal) : 0
+      const totalUang    = parseRupiah(hookFormData.total_uang) || 0
+      const kembalian    = totalUang > 0 ? Math.max(0, totalUang - overrideTotal) : 0
 
       const payload = {
         produk_id: cartOverride.map(i => i.kode_barang),
@@ -206,12 +294,12 @@ export function useListKasir() {
 
       try {
         const res = await postKasir(payload)
-        const transactionData = {
+        setPrintData({
           no_transaksi: res.no_transaksi,
           items: cartOverride.map(item => ({
             jumlah: item.jumlah,
             nama_barang: item.nama_barang,
-            harga: getCurrentPrice(item),  
+            harga: hookGetCurrentPrice(item),
             satuan: item.satuan_terpilih || item.satuan,
           })),
           subtotal: overrideSubtotal,
@@ -219,64 +307,26 @@ export function useListKasir() {
           total: overrideTotal,
           total_uang: totalUang,
           kembalian,
-        }
-        setPrintData(transactionData)
-
+        })
         setCartOverride(null)
         setDiskonOverride(null)
         hookHandleDiskonChange({ target: { value: '' } })
-
-        if (isCetak) {
-          setShowPrint(true)
-        }
-
+        if (isCetak) setShowPrint(true)
         focusSearchInput()
       } catch (error) {
         console.error('Error posting transaksi override:', error)
-        Swal.fire({
-          toast: true,
-          position: 'top-end',
-          icon: 'error',
-          title: 'Gagal',
-          text: 'Terjadi kesalahan saat memproses transaksi',
-          showConfirmButton: false,
-          timer: 3000,
-        })
+        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Gagal', text: 'Terjadi kesalahan saat memproses transaksi', showConfirmButton: false, timer: 3000 })
       }
-
       return
     }
+
     await hookHandleSubmit(e, isCetak)
-  }, [
-    cartOverride, diskonOverride,
-    hookFormData.total_uang,
-    user,
-    setPrintData, setShowPrint,
-    hookHandleDiskonChange, hookHandleSubmit,
-    focusSearchInput,
-  ])
+  }, [cartOverride, diskonOverride, hookFormData.total_uang, user, setPrintData, setShowPrint, hookHandleDiskonChange, hookHandleSubmit, focusSearchInput, hookGetCurrentPrice])
 
   const handleModalOk = useCallback(async () => {
     setShowPaymentModal(false)
     await handleSubmit({ preventDefault: () => {} }, false)
-
-    Swal.fire({
-      toast: true,
-      position: 'top-end',
-      icon: 'success',
-      title: 'Transaksi Berhasil!',
-      text: 'Pesanan sudah tersimpan',
-      showConfirmButton: false,
-      timer: 2500,
-      timerProgressBar: true,
-      background: '#ffffff',
-      iconColor: '#059669',
-      customClass: {
-        popup: 'rounded-xl shadow-lg',
-        title: 'text-sm font-semibold text-gray-800',
-        timerProgressBar: 'bg-emerald-500',
-      },
-    })
+    Swal.fire(toastConfig('success', 'Transaksi Berhasil!', 'Pesanan sudah tersimpan', '#059669', 'bg-emerald-500'))
   }, [handleSubmit])
 
   const handleModalCetak = useCallback(async () => {
@@ -284,22 +334,18 @@ export function useListKasir() {
     await handleSubmit({ preventDefault: () => {} }, true)
   }, [handleSubmit])
 
+  // ─── Search handlers ─────────────────────────────────────────────────────────
+
   const handleSearchChange = useCallback((e) => {
     const value = e.target.value
     setSearchQuery(value)
-
-    if (!value) {
-      setShowSearchResults(false)
-      return
-    }
-
+    if (!value) { setShowSearchResults(false); return }
     setShowSearchResults(true)
-
     if (value.length >= 3) {
       setTimeout(() => {
-        const exactProduct = transaksi.find(p => p.kode_barang.trim() === value.trim())
-        if (exactProduct) {
-          addProductToCart(exactProduct)
+        const exact = transaksi.find(p => p.kode_barang.trim() === value.trim())
+        if (exact) {
+          addProductToCart(exact)
           setSearchQuery('')
           setShowSearchResults(false)
         }
@@ -307,24 +353,19 @@ export function useListKasir() {
     }
   }, [transaksi, addProductToCart, setSearchQuery, setShowSearchResults])
 
-  const handleSearchKeyDown = (e) => {
+  const handleSearchKeyDown = useCallback((e) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       const product = transaksi.find(p => p.kode_barang.trim() === searchQuery.trim())
       if (product) {
-        addProductToCart(product)
-        setSearchQuery('')
-        setShowSearchResults(false)
-        return
+        addProductToCart(product); setSearchQuery(''); setShowSearchResults(false); return
       }
       if (searchResults.length > 0) {
-        addProductToCart(searchResults[0])
-        setSearchQuery('')
-        setShowSearchResults(false)
+        addProductToCart(searchResults[0]); setSearchQuery(''); setShowSearchResults(false)
       }
     }
     if (e.key === 'Escape') setShowSearchResults(false)
-  }
+  }, [transaksi, searchQuery, searchResults, addProductToCart, setSearchQuery, setShowSearchResults])
 
   const handleSearchResultSelect = useCallback((product) => {
     addProductToCart(product)
@@ -332,35 +373,90 @@ export function useListKasir() {
     setShowSearchResults(false)
   }, [addProductToCart, setSearchQuery, setShowSearchResults])
 
-  const handleSearchClear = () => {
+  const handleSearchClear = useCallback(() => {
     setSearchQuery('')
     setShowSearchResults(false)
     searchInputRef.current?.focus()
-  }
+  }, [setSearchQuery, setShowSearchResults, searchInputRef])
 
-  const handleClosePrint = () => {
+  const handleSearchFocus = useCallback(() => {
+    if (searchQuery.length > 0) setShowSearchResults(true)
+    updateDropdownRect()
+  }, [searchQuery, setShowSearchResults, updateDropdownRect])
+
+  const handleSearchBlur = useCallback(() => {
+    setTimeout(() => setShowSearchResults(false), 200)
+  }, [setShowSearchResults])
+
+  // ─── Print ────────────────────────────────────────────────────────────────────
+
+  const handleClosePrint = useCallback(() => {
     setShowPrint(false)
     setPrintData(null)
     focusSearchInput()
-  }
+  }, [setShowPrint, setPrintData, focusSearchInput])
+
+  // ─── Hold modal ───────────────────────────────────────────────────────────────
+
+  const handleOpenHoldModal  = useCallback(() => setShowHoldModal(true),  [])
+  const handleCloseHoldModal = useCallback(() => setShowHoldModal(false), [])
+
+  // ─── Quick amounts ────────────────────────────────────────────────────────────
+
+  const getQuickAmounts = useCallback((totalValue) => {
+    if (!totalValue) return []
+    const rounds = [
+      totalValue,
+      Math.ceil(totalValue / 1000)   * 1000,
+      Math.ceil(totalValue / 5000)   * 5000,
+      Math.ceil(totalValue / 10000)  * 10000,
+      Math.ceil(totalValue / 50000)  * 50000,
+      Math.ceil(totalValue / 100000) * 100000,
+    ]
+    return [...new Set(rounds)].slice(0, 5)
+  }, [])
+
+  // ─── Return ───────────────────────────────────────────────────────────────────
 
   return {
+    // Layout
     isTablet, isDesktop,
     ringkasanPosition, setRingkasanPosition,
+
+    // Payment modal
     showPaymentModal,
     handleOpenPaymentModal, handleModalClose, handleModalOk, handleModalCetak,
+
+    // Hold modal
+    showHoldModal,
+    handleOpenHoldModal, handleCloseHoldModal,
+
+    // Hold
     holds, MAX_HOLDS,
     handleHold, handleRestore, handleDeleteHold,
-    showPrint, printData,
+
+    // Print
+    showPrint, printData, handleClosePrint,
+
+    // Search
     searchQuery, showSearchResults, setShowSearchResults,
+    searchInputRef, searchResults, searchWrapperRef,
+    dropdownRect,
+    handleSearchChange, handleSearchKeyDown, handleSearchResultSelect,
+    handleSearchClear, handleSearchFocus, handleSearchBlur,
+
+    // Cart
     cart, isProcessing, formData, transaksi,
-    searchInputRef, searchResults,
     cartSubtotal, total, paymentStatus,
     addProductToCart, updateQty, removeItem,
     subtotal, handleChangeSatuan,
+
+    // Pembayaran
     handleDiskonChange, handleTotalUangChange, handleQuickAmount,
-    handleSearchChange, handleSearchKeyDown, handleSearchResultSelect,
-    handleSearchClear, handleClosePrint,
-    getCurrentPrice: hookGetCurrentPrice, getSatuanInfo, formatRupiah, parseRupiah,
+    getQuickAmounts,
+
+    // Utils
+    getCurrentPrice: hookGetCurrentPrice,
+    getSatuanInfo, formatRupiah, parseRupiah,
   }
 }

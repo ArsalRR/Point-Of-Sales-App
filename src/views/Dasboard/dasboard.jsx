@@ -1,132 +1,141 @@
 import React from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  CartesianGrid,
+  BarChart, Bar, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, Cell, CartesianGrid,
 } from "recharts"
-import {
-  TrendingUp,
-  TrendingDown,
-  Package,
-  DollarSign,
-  AlertTriangle,
-  Calendar,
-  BarChart3,
-  CheckCircle,
-  RefreshCw,
-} from "lucide-react"
 import { getDasboard } from "@/api/Dasboardapi"
 
-// ─── Loading Skeletons ───────────────────────────────────────
-const LoadingCard = () => (
-  <Card className="shadow-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
-    <CardHeader className="pb-3">
-      <Skeleton className="h-5 w-32 bg-gray-300 dark:bg-gray-700" />
-    </CardHeader>
-    <CardContent>
-      <Skeleton className="h-8 w-24 bg-gray-300 dark:bg-gray-700" />
-      <Skeleton className="h-4 w-20 mt-2 bg-gray-300 dark:bg-gray-700" />
-    </CardContent>
-  </Card>
-)
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const LoadingChart = () => (
-  <Card className="shadow-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 lg:col-span-full">
-    <CardHeader className="pb-3">
-      <Skeleton className="h-6 w-48 bg-gray-300 dark:bg-gray-700" />
-    </CardHeader>
-    <CardContent>
-      <Skeleton className="h-[300px] w-full bg-gray-300 dark:bg-gray-700" />
-    </CardContent>
-  </Card>
-)
-
-// ─── Helpers ─────────────────────────────────────────────────
 const toNumber = (val) => {
   if (!val) return 0
   return Number(String(val).replace(/[^\d.-]/g, "")) || 0
 }
 
-const formatCurrency = (value) => {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+const formatCurrency = (value) =>
+  new Intl.NumberFormat("id-ID", {
+    style: "currency", currency: "IDR",
+    minimumFractionDigits: 0, maximumFractionDigits: 0,
   }).format(toNumber(value))
+
+const formatCompact = (value) => {
+  const n = toNumber(value)
+  const fmt = (v) => (Number.isInteger(v) ? v : v.toFixed(1))
+  if (n >= 1_000_000_000_000) return `Rp ${fmt(n / 1_000_000_000_000)} T`
+  if (n >= 1_000_000_000)     return `Rp ${fmt(n / 1_000_000_000)} M`
+  if (n >= 1_000_000)         return `Rp ${fmt(n / 1_000_000)} Jt`
+  if (n >= 1_000)             return `Rp ${fmt(n / 1_000)} Rb`
+  return `Rp ${n}`
 }
 
-const formatCompactCurrency = (value) => {
-  const number = toNumber(value)
-  const fmt = (n) => (Number.isInteger(n) ? n : n.toFixed(1))
-  if (number >= 1_000_000_000_000) return `Rp ${fmt(number / 1_000_000_000_000)} T`
-  if (number >= 1_000_000_000) return `Rp ${fmt(number / 1_000_000_000)} M`
-  if (number >= 1_000_000) return `Rp ${fmt(number / 1_000_000)} Jt`
-  if (number >= 1_000) return `Rp ${fmt(number / 1_000)} Rb`
-  return `Rp ${number}`
-}
+const MONTHS = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"]
+const getMonthName = (m) => MONTHS[(Number(m) - 1)] ?? "-"
 
-const getMonthName = (monthNumber) => {
-  const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
-  const index = Number(monthNumber) - 1
-  return months[index] ?? "-"
-}
-
-// ─── processChartData — tambahkan originalBulan ──────────────
 const processChartData = (chartData) => {
   if (!Array.isArray(chartData)) return []
   return chartData.map((item, index) => ({
     ...item,
     total_pendapatan: toNumber(item.total_pendapatan),
     bulanName: getMonthName(item.bulan),
-    originalBulan: item.bulan ?? null, // ✅ fix: field yang diakses CustomTooltip
+    originalBulan: item.bulan ?? null,
     isCurrentMonth: index === chartData.length - 1,
   }))
 }
 
-const calculateGrowth = (currentData) => {
-  const grafik = currentData?.grafik
+const calculateGrowth = (data) => {
+  const grafik = data?.grafik
   if (!Array.isArray(grafik) || grafik.length < 2) return null
-  const current = toNumber(grafik[grafik.length - 1]?.total_pendapatan)
-  const previous = toNumber(grafik[grafik.length - 2]?.total_pendapatan)
-  if (previous === 0) return null
-  const growth = ((current - previous) / previous) * 100
+  const curr = toNumber(grafik[grafik.length - 1]?.total_pendapatan)
+  const prev = toNumber(grafik[grafik.length - 2]?.total_pendapatan)
+  if (prev === 0) return null
+  const growth = ((curr - prev) / prev) * 100
   return { value: Math.round(growth * 10) / 10, isPositive: growth >= 0 }
 }
 
-// ─── CustomTooltip — fix payload undefined error ─────────────
-const CustomTooltip = ({ active, payload, label, formatCurrency }) => {
-  // ✅ fix: guard ketat sebelum akses .payload
+// ─── Custom Tooltip ───────────────────────────────────────────────────────────
+
+const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
-
-  const item = payload[0]
-  const originalBulan = item?.payload?.originalBulan // ✅ aman dengan optional chaining
-
   return (
-    <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl">
-      <p className="font-semibold text-gray-900 dark:text-white mb-1">{label}</p>
-      <p className="text-lg font-bold text-gray-900 dark:text-white">
-        {formatCurrency(item?.value ?? 0)}
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 shadow-md">
+      <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{label}</p>
+      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+        {formatCurrency(payload[0]?.value ?? 0)}
       </p>
-      {originalBulan != null && (
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          Bulan ke-{originalBulan}
-        </p>
-      )}
     </div>
   )
 }
 
-// ─── Dashboard ───────────────────────────────────────────────
+// ─── Stat Card ────────────────────────────────────────────────────────────────
+
+function StatCard({ label, value, sub, tag, tagColor = "gray", live = false, spinning = false }) {
+  const tagColors = {
+    gray:  "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
+    green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+    red:   "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400",
+    amber: "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+    blue:  "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  }
+
+  return (
+    <div className="
+      bg-white dark:bg-gray-900
+      border border-gray-200 dark:border-gray-800
+      rounded-2xl p-6
+      shadow-[0_2px_12px_rgba(0,0,0,0.06)]
+      hover:shadow-[0_6px_24px_rgba(0,0,0,0.10)]
+      transition-shadow duration-200
+    ">
+      <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-[0.12em] mb-4">
+        {label}
+      </p>
+      <p className="text-3xl xl:text-4xl font-bold text-gray-900 dark:text-white leading-none mb-3 tabular-nums">
+        {value}
+      </p>
+      <div className="flex items-center gap-2 flex-wrap">
+        {sub && (
+          <span className="text-xs text-gray-400 dark:text-gray-500 truncate">{sub}</span>
+        )}
+        {tag && (
+          <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 ${tagColors[tagColor]}`}>
+            {tag}
+          </span>
+        )}
+        {live && (
+          <span className="flex items-center gap-1.5 text-[11px] font-medium text-blue-500 dark:text-blue-400 shrink-0">
+            <span className={`w-1.5 h-1.5 rounded-full bg-blue-500 ${spinning ? "animate-ping" : "animate-pulse"}`} />
+            Live
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Loading ──────────────────────────────────────────────────────────────────
+
+function LoadingState() {
+  return (
+    <div className="min-h-screen bg-[#f5f5f6] dark:bg-gray-950 p-5 md:p-8">
+      <div className="max-w-screen-xl mx-auto">
+        <Skeleton className="h-8 w-36 mb-1 bg-gray-200 dark:bg-gray-800 rounded-lg" />
+        <Skeleton className="h-4 w-52 mb-10 bg-gray-200 dark:bg-gray-800 rounded-lg" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-36 rounded-2xl bg-gray-200 dark:bg-gray-800" />
+          ))}
+        </div>
+        <Skeleton className="h-96 rounded-2xl bg-gray-200 dark:bg-gray-800 mb-4" />
+        <Skeleton className="h-32 rounded-2xl bg-gray-200 dark:bg-gray-800" />
+      </div>
+    </div>
+  )
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
 export default function Dashboard() {
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["dashboard"],
@@ -135,10 +144,7 @@ export default function Dashboard() {
     refetchOnWindowFocus: false,
   })
 
-  const {
-    data: dailyRevenue,
-    isRefetching: isRefetchingDaily,
-  } = useQuery({
+  const { data: dailyRevenue, isRefetching: isRefetchingDaily } = useQuery({
     queryKey: ["pendapatanHarian"],
     queryFn: getDasboard,
     staleTime: 0,
@@ -146,40 +152,20 @@ export default function Dashboard() {
     refetchOnWindowFocus: true,
   })
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <div className="container mx-auto p-4 md:p-6">
-          <div className="mb-8">
-            <Skeleton className="h-8 w-48 mb-2 bg-gray-300 dark:bg-gray-700" />
-            <Skeleton className="h-4 w-64 bg-gray-300 dark:bg-gray-700" />
-          </div>
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-            <LoadingCard />
-            <LoadingCard />
-            <LoadingCard />
-            <LoadingCard />
-            <LoadingChart />
-          </div>
-        </div>
-      </div>
-    )
-  }
+  if (isLoading) return <LoadingState />
 
   if (isError) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <div className="text-center">
-          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            Terjadi Kesalahan
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            {error?.message ?? "Gagal memuat data dashboard"}
+      <div className="min-h-screen bg-[#f5f5f6] dark:bg-gray-950 flex items-center justify-center p-6">
+        <div className="text-center max-w-sm">
+          <p className="text-4xl mb-4">⚠️</p>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">Gagal memuat data</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
+            {error?.message ?? "Terjadi kesalahan saat mengambil data dashboard."}
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
+            className="px-4 py-2 text-sm font-medium bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg hover:opacity-90 transition-opacity"
           >
             Muat Ulang
           </button>
@@ -188,333 +174,166 @@ export default function Dashboard() {
     )
   }
 
-  const chartData = processChartData(data?.grafik)
-  const growthData = calculateGrowth(data)
-  const lowStockItem = data?.stoksedikit
+  const chartData         = processChartData(data?.grafik)
+  const growthData        = calculateGrowth(data)
+  const lowStockItem      = data?.stoksedikit
   const pendapatanBulanan = toNumber(data?.totalbulanan)
-  const pendapatanBersih = pendapatanBulanan * 0.1
-
-  const totalChart = chartData.reduce((acc, curr) => acc + (curr.total_pendapatan || 0), 0)
-  const avgChart = chartData.length > 0 ? totalChart / chartData.length : 0
-  const bestMonth = chartData.length > 0
-    ? chartData.reduce((max, curr) => curr.total_pendapatan > max.total_pendapatan ? curr : max).bulanName
+  const pendapatanBersih  = pendapatanBulanan * 0.1
+  const totalChart        = chartData.reduce((acc, c) => acc + (c.total_pendapatan || 0), 0)
+  const avgChart          = chartData.length > 0 ? totalChart / chartData.length : 0
+  const bestMonth         = chartData.length > 0
+    ? chartData.reduce((max, c) => c.total_pendapatan > max.total_pendapatan ? c : max).bulanName
     : "-"
 
+  const today = new Date().toLocaleDateString("id-ID", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+  })
+
+  const cardCls = `
+    bg-white dark:bg-gray-900
+    border border-gray-200 dark:border-gray-800
+    rounded-2xl
+    shadow-[0_2px_12px_rgba(0,0,0,0.06)]
+    hover:shadow-[0_6px_24px_rgba(0,0,0,0.10)]
+    transition-shadow duration-200
+  `
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="container mx-auto p-4 md:p-6">
+    <div className="min-h-screen bg-[#f5f5f6] dark:bg-gray-950">
+      <div className="max-w-screen-xl mx-auto p-5 md:p-8">
 
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                Dashboard Overview
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400 flex items-center gap-2 text-sm sm:text-base">
-                <Calendar className="h-4 w-4" />
-                Data Terakhir:{" "}
-                {new Date().toLocaleDateString("id-ID", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </p>
-            </div>
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-1">
+              Dashboard
+            </h1>
+            <p className="text-sm text-gray-400 dark:text-gray-500 capitalize">{today}</p>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 pb-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Data diperbarui setiap 5 detik
           </div>
         </div>
 
         {/* Stat Cards */}
-        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 mb-6 sm:mb-8">
-
-          {/* Total Produk */}
-          <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg hover:shadow-xl transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                  Total Produk
-                </CardTitle>
-                <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800">
-                  <Package className="h-4 w-4 text-gray-700 dark:text-gray-300" />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-                    {data?.totalProduk ?? 0}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Semua kategori produk
-                  </p>
-                </div>
-                <Badge variant="secondary" className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                  Aktif
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Pendapatan Bulan Ini */}
-          <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg hover:shadow-xl transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                  Pendapatan Bulan Ini
-                </CardTitle>
-                <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/30">
-                  <DollarSign className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-                    {formatCompactCurrency(pendapatanBulanan)}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {formatCurrency(pendapatanBulanan)}
-                  </p>
-                </div>
-                {growthData && (
-                  <Badge
-                    variant="outline"
-                    className={`text-xs ${
-                      growthData.isPositive
-                        ? "text-green-600 dark:text-green-400 border-green-200 dark:border-green-900"
-                        : "text-red-600 dark:text-red-400 border-red-200 dark:border-red-900"
-                    }`}
-                  >
-                    {growthData.isPositive ? (
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3 mr-1" />
-                    )}
-                    {growthData.isPositive ? "+" : ""}{growthData.value}%
-                  </Badge>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Pendapatan Hari Ini */}
-          <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg hover:shadow-xl transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                  Pendapatan Hari Ini
-                </CardTitle>
-                <div className="p-2 rounded-lg bg-green-50 dark:bg-green-900/30">
-                  <Calendar className="h-4 w-4 text-green-600 dark:text-green-400" />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-                    {formatCompactCurrency(dailyRevenue?.totalPendapatanHarian ?? 0)}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {formatCurrency(dailyRevenue?.totalPendapatanHarian ?? 0)}
-                    </p>
-                    {isRefetchingDaily && (
-                      <RefreshCw className="h-3 w-3 animate-spin text-blue-500" />
-                    )}
-                  </div>
-                </div>
-                <Badge variant="outline" className="text-xs text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900">
-                  Live
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Status Stok */}
-          <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg hover:shadow-xl transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                  Status Stok
-                </CardTitle>
-                <div className={`p-2 rounded-lg ${lowStockItem ? "bg-amber-50 dark:bg-amber-900/30" : "bg-green-50 dark:bg-green-900/30"}`}>
-                  {lowStockItem ? (
-                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                  ) : (
-                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {lowStockItem ? (
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                    {lowStockItem.nama_barang}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                        {lowStockItem.stok}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Sisa stok ({lowStockItem.satuan_barang})
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="text-xs text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-900">
-                      Perlu Restok
-                    </Badge>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">0</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Produk stok menipis</p>
-                  <Badge variant="outline" className="text-xs text-green-600 dark:text-green-400 border-green-200 dark:border-green-900">
-                    Semua aman
-                  </Badge>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
+          <StatCard
+            label="Total Produk"
+            value={data?.totalProduk ?? 0}
+            sub="Semua kategori"
+            tag="Aktif"
+            tagColor="gray"
+          />
+          <StatCard
+            label="Pendapatan Bulan Ini"
+            value={formatCompact(pendapatanBulanan)}
+            sub={formatCurrency(pendapatanBulanan)}
+            tag={growthData ? `${growthData.isPositive ? "+" : ""}${growthData.value}% vs bulan lalu` : undefined}
+            tagColor={growthData?.isPositive ? "green" : "red"}
+          />
+          <StatCard
+            label="Pendapatan Hari Ini"
+            value={formatCompact(dailyRevenue?.totalPendapatanHarian ?? 0)}
+            sub={formatCurrency(dailyRevenue?.totalPendapatanHarian ?? 0)}
+            live
+            spinning={isRefetchingDaily}
+          />
+          <StatCard
+            label="Status Stok"
+            value={lowStockItem ? lowStockItem.stok : "Aman"}
+            sub={
+              lowStockItem
+                ? `${lowStockItem.nama_barang} · ${lowStockItem.satuan_barang}`
+                : "Tidak ada stok menipis"
+            }
+            tag={lowStockItem ? "Perlu Restok" : "Semua Aman"}
+            tagColor={lowStockItem ? "amber" : "green"}
+          />
         </div>
 
         {/* Chart */}
-        <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg hover:shadow-xl transition-shadow mb-6 sm:mb-8">
-          <CardHeader className="pb-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800">
-                  <BarChart3 className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
-                    Tren Pendapatan 6 Bulan Terakhir
-                  </CardTitle>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Perkembangan pendapatan bulanan
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400">
-                  {chartData.length} bulan
-                </Badge>
-                {growthData && (
-                  <Badge
-                    variant="outline"
-                    className={`text-xs ${
-                      growthData.isPositive
-                        ? "text-green-600 dark:text-green-400 border-green-200 dark:border-green-900"
-                        : "text-red-600 dark:text-red-400 border-red-200 dark:border-red-900"
-                    }`}
-                  >
-                    {growthData.isPositive ? "+" : ""}{growthData.value}% growth
-                  </Badge>
-                )}
-              </div>
+        <div className={`${cardCls} p-6 mb-5`}>
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
+            <div>
+              <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-[0.12em] mb-1">
+                Tren Pendapatan
+              </p>
+              <p className="text-xl font-bold text-gray-900 dark:text-white">
+                6 Bulan Terakhir
+              </p>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] sm:h-[400px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="#e5e7eb"
-                    strokeOpacity={0.3}
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="bulanName"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12, fill: "#6b7280" }}
-                    tickMargin={10}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12, fill: "#6b7280" }}
-                    tickFormatter={(value) => formatCompactCurrency(value)}
-                    width={60}
-                  />
-                  {/* ✅ fix: pass formatCurrency sebagai prop ke CustomTooltip */}
-                  <Tooltip
-                    content={<CustomTooltip formatCurrency={formatCurrency} />}
-                    cursor={{ fill: "rgba(0, 0, 0, 0.05)" }}
-                  />
-                  <Bar dataKey="total_pendapatan" radius={[4, 4, 0, 0]} barSize={40}>
-                    {chartData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        className="transition-all duration-300 hover:opacity-80"
-                        fill={entry.isCurrentMonth ? "#3b82f6" : index % 2 === 0 ? "#4b5563" : "#6b7280"}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                {chartData.length} bulan
+              </span>
+              {growthData && (
+                <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${
+                  growthData.isPositive
+                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                    : "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                }`}>
+                  {growthData.isPositive ? "▲" : "▼"} {Math.abs(growthData.value)}%
+                </span>
+              )}
             </div>
-            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-              <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-sm bg-blue-500" />
-                  <span>Bulan Berjalan</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-sm bg-gray-600" />
-                  <span>Bulan Sebelumnya</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-sm bg-gray-400" />
-                  <span>Bulan Lainnya</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Informasi Performa */}
-        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-1">
-          <Card className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">
-                Informasi Performa
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Rata-rata Pendapatan/Bulan</span>
-                <span className="font-semibold text-gray-900 dark:text-white">
-                  {formatCurrency(avgChart)}
-                </span>
+          <div className="h-[300px] md:h-[380px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="4 4" stroke="#e5e7eb" strokeOpacity={0.6} vertical={false} />
+                <XAxis
+                  dataKey="bulanName"
+                  axisLine={false} tickLine={false}
+                  tick={{ fontSize: 12, fill: "#9ca3af" }} tickMargin={10}
+                />
+                <YAxis
+                  axisLine={false} tickLine={false}
+                  tick={{ fontSize: 11, fill: "#9ca3af" }}
+                  tickFormatter={(v) => formatCompact(v)}
+                  width={76}
+                />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.03)" }} />
+                <Bar dataKey="total_pendapatan" radius={[5, 5, 0, 0]} barSize={40}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.isCurrentMonth ? "#111827" : "#d1d5db"} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="flex items-center gap-6 mt-5 pt-4 border-t border-gray-100 dark:border-gray-800">
+            <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
+              <span className="w-3 h-3 rounded-sm bg-gray-900 dark:bg-white inline-block" />
+              Bulan berjalan
+            </div>
+            <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
+              <span className="w-3 h-3 rounded-sm bg-gray-300 dark:bg-gray-600 inline-block" />
+              Bulan sebelumnya
+            </div>
+          </div>
+        </div>
+
+        {/* Performance Summary — horizontal di desktop */}
+        <div className={`${cardCls} p-6`}>
+          <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-[0.12em] mb-6">
+            Ringkasan Performa
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 xl:gap-0 xl:divide-x divide-gray-100 dark:divide-gray-800">
+            {[
+              { label: "Rata-rata / Bulan",       value: formatCurrency(avgChart) },
+              { label: "Bulan Terbaik",            value: bestMonth },
+              { label: "Total 6 Bulan",            value: formatCurrency(totalChart) },
+              { label: "Est. Bersih (10% margin)", value: formatCurrency(pendapatanBersih) },
+            ].map(({ label, value }) => (
+              <div key={label} className="xl:px-6 xl:first:pl-0 xl:last:pr-0 flex flex-col gap-1.5">
+                <span className="text-xs text-gray-400 dark:text-gray-500">{label}</span>
+                <span className="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{value}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Bulan Terbaik</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{bestMonth}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Total Pendapatan 6 Bulan</span>
-                <span className="font-semibold text-gray-900 dark:text-white">
-                  {formatCurrency(totalChart)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Est. Bersih Bulan Ini
-                  <span className="ml-1.5 text-xs text-gray-500 dark:text-gray-400">(10% margin)</span>
-                </span>
-                <span className="font-semibold text-gray-900 dark:text-gray-400">
-                  {formatCurrency(pendapatanBersih)}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+            ))}
+          </div>
         </div>
 
       </div>
