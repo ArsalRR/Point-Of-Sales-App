@@ -32,6 +32,8 @@ import { Link, useLocation } from 'react-router-dom'
 import BottomNav from '@/components/ui/spesialcomponent/BottomNav'
 import { getDasboard } from '@/api/Dasboardapi'
 
+const isAndroid = () => /Android/i.test(navigator.userAgent)
+
 export default function ShadcnSidebar({ children }) {
   const location = useLocation()
   const [totalProduk, setTotalProduk] = useState(0)
@@ -45,9 +47,24 @@ export default function ShadcnSidebar({ children }) {
   useEffect(() => {
     const check = () => {
       const w = window.innerWidth
-      if (w < 600) setScreenType('phone')
-      else if (w < 1024) setScreenType('tablet')
-      else setScreenType('desktop')
+      const android = isAndroid()
+
+      if (android) {
+        const dpr = window.devicePixelRatio || 1
+        const sw = window.screen.width / dpr
+        const sh = window.screen.height / dpr
+        const inch = Math.sqrt(sw * sw + sh * sh) / 96
+
+        if ((inch >= 10 && inch <= 13) || w >= 768) {
+          setScreenType('android-tablet')
+        } else {
+          setScreenType('phone')
+        }
+      } else {
+        if (w < 600) setScreenType('phone')
+        else if (w < 1024) setScreenType('tablet')
+        else setScreenType('desktop')
+      }
     }
     check()
     window.addEventListener('resize', check)
@@ -266,6 +283,37 @@ export default function ShadcnSidebar({ children }) {
           </header>
         )}
 
+        {screenType === 'android-tablet' && (
+          <header className="flex h-14 border-b bg-background items-center justify-between px-4 sticky top-0 z-30 w-full shadow-sm">
+            <div className="flex items-center gap-2">
+              <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
+                <Package className="h-3.5 w-3.5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="font-semibold text-sm leading-tight">Toko IFA</h1>
+                <p className="text-xs text-muted-foreground leading-tight">Admin Panel</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Avatar className="h-8 w-8">
+                <AvatarImage
+                  src="https://images.unsplash.com/photo-1600486913747-55e5470d6f40?auto=format&fit=crop&w=1770&q=80"
+                  alt="User"
+                />
+                <AvatarFallback>U</AvatarFallback>
+              </Avatar>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-lg"
+                onClick={() => setMobileMenuOpen(true)}
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </div>
+          </header>
+        )}
+
         {screenType === 'phone' && (
           <div className="flex items-center justify-between px-4 pt-4 pb-2">
             <div className="flex items-center gap-2">
@@ -295,16 +343,15 @@ export default function ShadcnSidebar({ children }) {
           </div>
         )}
 
-        {mobileMenuOpen && screenType === 'tablet' && (
-          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm">
+        {mobileMenuOpen && (screenType === 'tablet' || screenType === 'android-tablet') && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-6">
             <div
               ref={menuRef}
-              className="absolute bottom-0 left-0 right-0 bg-background rounded-t-2xl shadow-xl px-5 pt-4 pb-8"
+              className="bg-background rounded-2xl shadow-2xl w-full max-w-md p-6"
             >
-              <div className="w-10 h-1 rounded-full bg-muted mx-auto mb-4" />
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-9 w-9">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
                     <AvatarImage
                       src="https://images.unsplash.com/photo-1600486913747-55e5470d6f40?auto=format&fit=crop&w=1770&q=80"
                       alt="User"
@@ -327,7 +374,8 @@ export default function ShadcnSidebar({ children }) {
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="grid grid-cols-3 gap-2 mb-4">
+
+              <div className="grid grid-cols-3 gap-3 mb-5">
                 {allMenuItems.map((item) => {
                   const active = location.pathname === item.href
                   return (
@@ -341,7 +389,7 @@ export default function ShadcnSidebar({ children }) {
                           : 'bg-muted/50 text-foreground hover:bg-muted'
                       }`}
                     >
-                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      <item.icon className="h-6 w-6 flex-shrink-0" />
                       <span className="text-xs font-medium leading-tight">{item.title}</span>
                       {item.badge ? (
                         <Badge
@@ -355,7 +403,8 @@ export default function ShadcnSidebar({ children }) {
                   )
                 })}
               </div>
-              <div className="border-t pt-3">
+
+              <div className="border-t pt-4">
                 <Button
                   variant="ghost"
                   className="w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-xl px-4 py-3 h-auto"
@@ -369,7 +418,7 @@ export default function ShadcnSidebar({ children }) {
           </div>
         )}
 
-        <main className="flex-1 p-3 md:p-6 pb-20 md:pb-6 overflow-y-auto w-full">
+        <main className="flex-1 p-3 md:p-6 pb-6 overflow-y-auto w-full">
           {children}
         </main>
 
