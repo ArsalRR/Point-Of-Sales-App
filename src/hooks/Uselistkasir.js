@@ -137,8 +137,6 @@ export function useListKasir() {
       hookUpdateQty(kodeBarang, satuan, qty, e)
     }
   }, [cartOverride, hookUpdateQty])
-
-  // removeItem: hapus hanya baris yang cocok kode_barang + satuan (untuk tombol hapus per baris)
   const removeItem = useCallback((kodeBarang, satuan) => {
     if (cartOverride !== null) {
       setCartOverride(prev => {

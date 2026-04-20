@@ -240,20 +240,17 @@ export const useKasir = () => {
   }, [])
 
   const checkAndApplyPromo = useCallback(() => {
-    if (!promoLoaded) return
-
-    if (cart.length === 0 || hargaPromo.length === 0) {
-      setFormData(prev => ({ ...prev, diskon: "" }))
-      return
-    }
-
-    const totalDiskonPromo = calculatePromoDiscount(cart, hargaPromo)
-    setFormData(prev => ({
-      ...prev,
-      diskon: totalDiskonPromo > 0 ? formatRupiah(totalDiskonPromo) : ""
-    }))
-  }, [cart, hargaPromo, promoLoaded])
-
+  if (!promoLoaded) return
+  if (cart.length === 0) {
+    setFormData(prev => ({ ...prev, diskon: "" }))
+    return
+  }
+  if (hargaPromo.length === 0) return
+  const totalDiskonPromo = calculatePromoDiscount(cart, hargaPromo)
+  if (totalDiskonPromo > 0) {
+    setFormData(prev => ({ ...prev, diskon: formatRupiah(totalDiskonPromo) }))
+  }
+}, [cart, hargaPromo, promoLoaded])
   const handleDiskonChange = useCallback((e) => {
     const rawValue = e.target.value
     if (rawValue === "") {

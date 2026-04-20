@@ -422,11 +422,12 @@ function PaymentModal({
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wider block">Potongan Harga</Label>
               <Input
-                id="diskon" type="text" name="diskon"
+                id="diskon" name="diskon"
                 value={formData.diskon} onChange={handleDiskonChange}
                 placeholder="Contoh: 5000"
                 className="border border-gray-300 focus:border-black focus:ring-1 focus:ring-black/20 h-10 text-sm rounded-lg bg-white"
                 autoComplete="off"
+                 inputMode="numeric"
               />
             </div>
             {hasDiskon && (
@@ -444,13 +445,14 @@ function PaymentModal({
 
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wider block">Uang Dibayar</Label>
-            <Input
-              id="total_uang" type="text" name="total_uang"
-              value={formData.total_uang} onChange={handleTotalUangChange}
-              placeholder="Masukkan jumlah uang"
-              className="h-14 text-xl font-bold border-2 border-black rounded-xl focus:border-black focus:ring-2 focus:ring-black/10 bg-white tracking-tight"
-              autoComplete="off" autoFocus
-            />
+           <Input
+  id="total_uang" type="text" name="total_uang"
+  value={formData.total_uang} onChange={handleTotalUangChange}
+  placeholder="Masukkan jumlah uang"
+  inputMode="numeric"
+  className="h-14 text-xl font-bold border-2 border-black rounded-xl focus:border-black focus:ring-2 focus:ring-black/10 bg-white tracking-tight"
+  autoComplete="off" autoFocus
+/>
             <QuickAmounts amounts={quickAmounts} onSelect={handleQuickAmount} />
           </div>
 
