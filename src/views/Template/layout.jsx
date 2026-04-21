@@ -4,8 +4,6 @@ import {
   Album,
   BookOpenCheck,
   Package,
-  NotebookText,
-  Settings,
   ChevronDown,
   Bell,
   User,
@@ -14,6 +12,7 @@ import {
   BadgeDollarSign,
   X,
   Menu,
+  Settings,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -48,13 +47,11 @@ export default function ShadcnSidebar({ children }) {
     const check = () => {
       const w = window.innerWidth
       const android = isAndroid()
-
       if (android) {
         const dpr = window.devicePixelRatio || 1
         const sw = window.screen.width / dpr
         const sh = window.screen.height / dpr
         const inch = Math.sqrt(sw * sw + sh * sh) / 96
-
         if ((inch >= 10 && inch <= 13) || w >= 768) {
           setScreenType('android-tablet')
         } else {
@@ -75,15 +72,24 @@ export default function ShadcnSidebar({ children }) {
     let scrollTimeout
     const handleScroll = () => {
       const currentScrollY = window.scrollY
-      if (currentScrollY > lastScrollY && currentScrollY > 50) {
+      const windowHeight = window.innerHeight
+      const documentHeight = document.documentElement.scrollHeight
+      const distanceFromBottom = documentHeight - (currentScrollY + windowHeight)
+      const isNearBottom = distanceFromBottom < 50
+
+      if (isNearBottom) {
+        setVisible(false)
+      } else if (currentScrollY > lastScrollY && currentScrollY > 50) {
         setVisible(false)
       } else if (currentScrollY < lastScrollY) {
         setVisible(true)
       }
+
       setLastScrollY(currentScrollY)
       clearTimeout(scrollTimeout)
       scrollTimeout = setTimeout(() => setVisible(true), 200)
     }
+
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => {
       window.removeEventListener('scroll', handleScroll)
@@ -152,11 +158,11 @@ export default function ShadcnSidebar({ children }) {
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col min-h-screen">
+      <div className={`flex min-h-screen ${screenType === 'desktop' ? 'flex-row' : 'flex-col'}`}>
 
         {screenType === 'desktop' && (
-          <header className="flex h-16 border-b bg-background items-center justify-between px-6 sticky top-0 z-30 w-full shadow-sm">
-            <div className="flex items-center gap-3 flex-shrink-0">
+          <aside className="w-60 flex-shrink-0 border-r bg-background sticky top-0 h-screen flex flex-col z-30 shadow-sm">
+            <div className="flex items-center gap-3 px-5 py-5 border-b">
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
                 <Package className="h-4 w-4 text-primary-foreground" />
               </div>
@@ -165,21 +171,22 @@ export default function ShadcnSidebar({ children }) {
                 <p className="text-xs text-muted-foreground leading-tight">Admin Panel</p>
               </div>
             </div>
-            <nav className="flex items-center gap-1">
+
+            <nav className="flex-1 flex flex-col gap-1 px-3 py-4 overflow-y-auto">
               {navigationItems.map((item) => {
                 const active = location.pathname === item.href
                 return (
                   <Button
                     key={item.title}
                     variant={active ? 'secondary' : 'ghost'}
-                    className="h-10 px-4 gap-2 rounded-lg"
+                    className="w-full justify-start h-10 px-3 gap-3 rounded-lg"
                     asChild
                   >
                     <Link to={item.href}>
                       <item.icon className="h-4 w-4 flex-shrink-0" />
-                      <span className="text-sm font-medium">{item.title}</span>
+                      <span className="text-sm font-medium flex-1 text-left">{item.title}</span>
                       {item.badge ? (
-                        <Badge variant="secondary" className="ml-1 text-xs">
+                        <Badge variant="secondary" className="text-xs">
                           {item.badge}
                         </Badge>
                       ) : null}
@@ -187,40 +194,35 @@ export default function ShadcnSidebar({ children }) {
                   </Button>
                 )
               })}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+
+              <div className="mt-3 mb-1 px-1">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Laporan
+                </p>
+              </div>
+
+              {teamItems.map((item) => {
+                const active = location.pathname === item.href
+                return (
                   <Button
-                    variant={
-                      teamItems.some((i) => location.pathname === i.href)
-                        ? 'secondary'
-                        : 'ghost'
-                    }
-                    className="h-10 px-4 gap-2 rounded-lg"
+                    key={item.title}
+                    variant={active ? 'secondary' : 'ghost'}
+                    className="w-full justify-start h-10 px-3 gap-3 rounded-lg"
+                    asChild
                   >
-                    <NotebookText className="h-4 w-4 flex-shrink-0" />
-                    <span className="text-sm font-medium">Laporan</span>
-                    <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                    <Link to={item.href}>
+                      <item.icon className="h-4 w-4 flex-shrink-0" />
+                      <span className="text-sm font-medium">{item.title}</span>
+                    </Link>
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-52">
-                  <DropdownMenuLabel>Laporan Penjualan</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {teamItems.map((item) => (
-                    <DropdownMenuItem key={item.title} asChild className="py-2.5">
-                      <Link to={item.href} className="flex items-center">
-                        <item.icon className="mr-3 h-4 w-4" />
-                        <span className="text-sm">{item.title}</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                )
+              })}
             </nav>
-            <div className="flex items-center gap-3 flex-shrink-0">
-              <div className="h-8 w-px bg-border" />
+
+            <div className="border-t px-3 py-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+                  <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted transition-colors">
                     <Avatar className="h-8 w-8">
                       <AvatarImage
                         src="https://images.unsplash.com/photo-1600486913747-55e5470d6f40?auto=format&fit=crop&w=1770&q=80"
@@ -228,9 +230,16 @@ export default function ShadcnSidebar({ children }) {
                       />
                       <AvatarFallback>U</AvatarFallback>
                     </Avatar>
-                  </Button>
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="text-sm font-semibold leading-tight truncate">
+                        {user?.nama ?? user?.name ?? 'Admin'}
+                      </p>
+                      <p className="text-xs text-muted-foreground leading-tight">Toko IFA</p>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent side="top" align="start" className="w-52 mb-1">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem>
@@ -249,41 +258,10 @@ export default function ShadcnSidebar({ children }) {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          </header>
+          </aside>
         )}
 
-        {screenType === 'tablet' && (
-          <header className="flex h-14 border-b bg-background items-center justify-between px-4 sticky top-0 z-30 w-full shadow-sm">
-            <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
-                <Package className="h-3.5 w-3.5 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="font-semibold text-sm leading-tight">Toko IFA</h1>
-                <p className="text-xs text-muted-foreground leading-tight">Admin Panel</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Avatar className="h-8 w-8">
-                <AvatarImage
-                  src="https://images.unsplash.com/photo-1600486913747-55e5470d6f40?auto=format&fit=crop&w=1770&q=80"
-                  alt="User"
-                />
-                <AvatarFallback>U</AvatarFallback>
-              </Avatar>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 rounded-lg"
-                onClick={() => setMobileMenuOpen(true)}
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            </div>
-          </header>
-        )}
-
-        {screenType === 'android-tablet' && (
+        {(screenType === 'tablet' || screenType === 'android-tablet') && (
           <header className="flex h-14 border-b bg-background items-center justify-between px-4 sticky top-0 z-30 w-full shadow-sm">
             <div className="flex items-center gap-2">
               <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
@@ -344,75 +322,82 @@ export default function ShadcnSidebar({ children }) {
         )}
 
         {mobileMenuOpen && (screenType === 'tablet' || screenType === 'android-tablet') && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-6">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-5">
             <div
               ref={menuRef}
-              className="bg-background rounded-2xl shadow-2xl w-full max-w-md p-6"
+              className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-zinc-200 dark:border-zinc-700"
             >
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
+                  <Avatar className="h-10 w-10 border-2 border-zinc-200 dark:border-zinc-700">
                     <AvatarImage
                       src="https://images.unsplash.com/photo-1600486913747-55e5470d6f40?auto=format&fit=crop&w=1770&q=80"
                       alt="User"
                     />
-                    <AvatarFallback>U</AvatarFallback>
+                    <AvatarFallback className="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold">
+                      U
+                    </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="text-sm font-semibold leading-tight">
+                    <p className="text-sm font-semibold leading-tight text-zinc-900 dark:text-zinc-100">
                       {user?.nama ?? user?.name ?? 'Admin'}
                     </p>
-                    <p className="text-xs text-muted-foreground leading-tight">Toko IFA</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-tight">Toko IFA</p>
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-full"
+                <button
                   onClick={() => setMobileMenuOpen(false)}
+                  className="h-8 w-8 flex items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
                 >
-                  <X className="h-4 w-4" />
-                </Button>
+                  <X className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
+                </button>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 mb-5">
-                {allMenuItems.map((item) => {
-                  const active = location.pathname === item.href
-                  return (
-                    <Link
-                      key={item.title}
-                      to={item.href}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={`flex flex-col items-center gap-2 px-3 py-4 rounded-xl transition-colors text-center ${
-                        active
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted/50 text-foreground hover:bg-muted'
-                      }`}
-                    >
-                      <item.icon className="h-6 w-6 flex-shrink-0" />
-                      <span className="text-xs font-medium leading-tight">{item.title}</span>
-                      {item.badge ? (
-                        <Badge
-                          variant={active ? 'outline' : 'secondary'}
-                          className="text-xs px-1.5"
-                        >
-                          {item.badge}
-                        </Badge>
-                      ) : null}
-                    </Link>
-                  )
-                })}
+              <div className="p-4">
+                <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-3 px-1">
+                  Menu
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {allMenuItems.map((item) => {
+                    const active = location.pathname === item.href
+                    return (
+                      <Link
+                        key={item.title}
+                        to={item.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`relative flex flex-col items-center gap-2 px-2 py-4 rounded-xl transition-all text-center group ${
+                          active
+                            ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 shadow-md'
+                            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                        }`}
+                      >
+                        <item.icon className="h-5 w-5 flex-shrink-0" />
+                        <span className="text-xs font-medium leading-tight">{item.title}</span>
+                        {item.badge ? (
+                          <span
+                            className={`absolute top-2 right-2 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold px-1 ${
+                              active
+                                ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white'
+                                : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
+                            }`}
+                          >
+                            {item.badge}
+                          </span>
+                        ) : null}
+                      </Link>
+                    )
+                  })}
+                </div>
               </div>
 
-              <div className="border-t pt-4">
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-xl px-4 py-3 h-auto"
+              <div className="px-4 pb-4">
+                <button
                   onClick={handleLogout}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors text-sm font-medium"
                 >
                   <LogOut className="h-4 w-4" />
-                  <span className="text-sm font-medium">Logout</span>
-                </Button>
+                  Logout
+                </button>
               </div>
             </div>
           </div>

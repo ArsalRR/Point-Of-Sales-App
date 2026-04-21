@@ -579,12 +579,6 @@ export default function EditHargaPromo() {
             </form>
           </CardContent>
         </Card>
-
-        <div className="mt-6 p-4 bg-white border-2 border-gray-200 rounded-lg">
-          <p className="text-sm text-gray-600 text-center">
-            💡 <strong>Info:</strong> Perubahan akan langsung diterapkan setelah disimpan.
-          </p>
-        </div>
       </div>
     </div>
   )

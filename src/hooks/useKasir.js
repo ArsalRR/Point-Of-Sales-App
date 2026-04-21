@@ -36,6 +36,10 @@ export const useKasir = () => {
   const [user, setUser] = useState(null)
   const [hargaPromo, setHargaPromo] = useState([])
   const [promoLoaded, setPromoLoaded] = useState(false)
+
+  // Track diskon yang diketik manual oleh user (tanpa promo)
+  const [manualDiskon, setManualDiskon] = useState(0)
+
   const searchInputRef = useRef(null)
   const barcodeBufferRef = useRef('')
   const lastKeyTimeRef = useRef(0)
@@ -152,47 +156,46 @@ export const useKasir = () => {
       console.error("Gagal ambil transaksi:", error)
     }
   }, [])
- const addProductToCart = useCallback((product, quantity = 1) => {
-  if (!product) return
-  if (addToCartLockRef.current) return
-  addToCartLockRef.current = true
 
-  setCart(prevCart => {
-    // Cari item yang sama: kode_barang sama DAN satuan_terpilih == 'satuan' (atau belum dipilih)
-    const exist = prevCart.find(c => {
-      if (c.kode_barang !== product.kode_barang) return false
-      const satuanItem = c.satuan_terpilih || SATUAN_TYPES.SATUAN
-      // Hanya merge jika satuan saat ini adalah 'satuan'
-      return satuanItem === SATUAN_TYPES.SATUAN
+  const addProductToCart = useCallback((product, quantity = 1) => {
+    if (!product) return
+    if (addToCartLockRef.current) return
+    addToCartLockRef.current = true
+
+    setCart(prevCart => {
+      const exist = prevCart.find(c => {
+        if (c.kode_barang !== product.kode_barang) return false
+        const satuanItem = c.satuan_terpilih || SATUAN_TYPES.SATUAN
+        return satuanItem === SATUAN_TYPES.SATUAN
+      })
+
+      if (exist) {
+        return prevCart.map(c => {
+          if (c.kode_barang !== product.kode_barang) return c
+          const satuanItem = c.satuan_terpilih || SATUAN_TYPES.SATUAN
+          if (satuanItem === SATUAN_TYPES.SATUAN) {
+            return { ...c, jumlah: c.jumlah + quantity }
+          }
+          return c
+        })
+      }
+
+      return [
+        {
+          ...product,
+          jumlah: quantity,
+          satuan_terpilih: SATUAN_TYPES.SATUAN
+        },
+        ...prevCart
+      ]
     })
 
-    if (exist) {
-      return prevCart.map(c => {
-        if (c.kode_barang !== product.kode_barang) return c
-        const satuanItem = c.satuan_terpilih || SATUAN_TYPES.SATUAN
-        if (satuanItem === SATUAN_TYPES.SATUAN) {
-          return { ...c, jumlah: c.jumlah + quantity }
-        }
-        return c
-      })
-    }
+    showToast("Berhasil", `${product.nama_barang} ditambahkan (+${quantity})`, "success", 1500)
 
-    return [
-      {
-        ...product,
-        jumlah: quantity,
-        satuan_terpilih: SATUAN_TYPES.SATUAN
-      },
-      ...prevCart
-    ]
-  })
-
-  showToast("Berhasil", `${product.nama_barang} ditambahkan (+${quantity})`, "success", 1500)
-
-  setTimeout(() => {
-    addToCartLockRef.current = false
-  }, 500)
-}, [showToast])
+    setTimeout(() => {
+      addToCartLockRef.current = false
+    }, 500)
+  }, [showToast])
 
   const updateQty = useCallback((kode_barang, satuan, newQty, event) => {
     if (newQty < 1) return
@@ -220,6 +223,7 @@ export const useKasir = () => {
       )
     )
   }, [])
+
   const removeItemByKode = useCallback((kode) => {
     setCart(prev => prev.filter(c => c.kode_barang !== kode))
   }, [])
@@ -239,29 +243,48 @@ export const useKasir = () => {
     )
   }, [])
 
+  // ─── FIX: checkAndApplyPromo menggabungkan diskon manual + promo ──────────
   const checkAndApplyPromo = useCallback(() => {
-  if (!promoLoaded) return
-  if (cart.length === 0) {
-    setFormData(prev => ({ ...prev, diskon: "" }))
-    return
-  }
-  if (hargaPromo.length === 0) return
-  const totalDiskonPromo = calculatePromoDiscount(cart, hargaPromo)
-  if (totalDiskonPromo > 0) {
-    setFormData(prev => ({ ...prev, diskon: formatRupiah(totalDiskonPromo) }))
-  }
-}, [cart, hargaPromo, promoLoaded])
+    if (!promoLoaded) return
+    if (cart.length === 0) {
+      setManualDiskon(0)
+      setFormData(prev => ({ ...prev, diskon: "" }))
+      return
+    }
+    if (hargaPromo.length === 0) return
+
+    const totalDiskonPromo = calculatePromoDiscount(cart, hargaPromo)
+
+    // Gabungkan diskon manual user + promo otomatis, jangan timpa salah satunya
+    const combined = Math.min(manualDiskon + totalDiskonPromo, cartSubtotal)
+    if (combined > 0) {
+      setFormData(prev => ({ ...prev, diskon: formatRupiah(combined) }))
+    }
+  }, [cart, hargaPromo, promoLoaded, manualDiskon, cartSubtotal])
+
+  // ─── FIX: handleDiskonChange menjumlahkan dengan promo yg sudah ada ───────
   const handleDiskonChange = useCallback((e) => {
     const rawValue = e.target.value
     if (rawValue === "") {
+      setManualDiskon(0)
       setFormData(prev => ({ ...prev, diskon: "" }))
       return
     }
 
     const numericValue = parseRupiah(rawValue)
-    const finalDiskon = Math.min(numericValue, cartSubtotal)
-    setFormData(prev => ({ ...prev, diskon: formatRupiah(finalDiskon) }))
-  }, [cartSubtotal])
+
+    // Hitung diskon promo yang berlaku saat ini
+    const totalDiskonPromo = hargaPromo.length > 0
+      ? calculatePromoDiscount(cart, hargaPromo)
+      : 0
+
+    // Simpan nilai manual murni (tanpa promo) agar checkAndApplyPromo bisa pakai
+    setManualDiskon(numericValue)
+
+    // Tampilkan total gabungan: manual + promo, tidak melebihi subtotal
+    const combined = Math.min(numericValue + totalDiskonPromo, cartSubtotal)
+    setFormData(prev => ({ ...prev, diskon: formatRupiah(combined) }))
+  }, [cartSubtotal, cart, hargaPromo])
 
   const handleTotalUangChange = useCallback((e) => {
     const rawValue = e.target.value
@@ -300,7 +323,7 @@ export const useKasir = () => {
     }
   }, [transaksi, searchQuery, addProductToCart])
 
- const handleBarcodeFound = useCallback((barcode) => {
+  const handleBarcodeFound = useCallback((barcode) => {
     const now = Date.now()
 
     const timeSinceLastProcess = now - lastBarcodeProcessedRef.current.timestamp
@@ -381,6 +404,7 @@ export const useKasir = () => {
 
       setPrintData(transactionData)
       setCart([])
+      setManualDiskon(0)
       setFormData({
         produk_id: '',
         jumlah_terjual_per_hari: '',

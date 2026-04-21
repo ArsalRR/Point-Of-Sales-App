@@ -706,14 +706,6 @@ export default function CreateHargaPromo() {
             </form>
           </CardContent>
         </Card>
-
-        {/* Info Footer */}
-        <div className="mt-6 p-4 bg-white border-2 border-gray-200 rounded-lg">
-          <p className="text-sm text-gray-600 text-center">
-            💡 <strong>Tips:</strong> Promo akan langsung aktif setelah
-            disimpan. Pastikan data yang dimasukkan sudah benar.
-          </p>
-        </div>
       </div>
     </div>
   )
