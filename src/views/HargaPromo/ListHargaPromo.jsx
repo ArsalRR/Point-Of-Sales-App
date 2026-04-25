@@ -127,7 +127,7 @@ export default function ListHargaPromo() {
       <Card className="shadow-lg border border-gray-100 rounded-2xl overflow-hidden">
         <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gradient-to-r from-gray-50 to-white">
           <CardTitle className="text-xl md:text-2xl font-semibold text-gray-800">
-            Daftar Harga Promo
+            Daftar Potongan Harga
           </CardTitle>
           <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
             <div className="relative flex-1 md:w-64">
@@ -148,12 +148,67 @@ export default function ListHargaPromo() {
         </CardHeader>
 
         <CardContent className="p-4 md:p-6">
-          {loading ? (
-            <div className="flex flex-col justify-center items-center py-16">
-              <Spinner className="w-8 h-8 animate-spin text-blue-500 mb-3" />
-              <span className="text-gray-600 font-medium">Memuat data...</span>
+        {loading ? (
+  <div className="p-4 md:p-6 space-y-4">
+    {/* Desktop skeleton */}
+    <div className="hidden md:block rounded-lg border border-gray-200 overflow-hidden">
+      <div className="bg-gray-50 px-6 py-3 flex gap-6">
+        {['w-8', 'w-40', 'w-28', 'w-24', 'w-32', 'w-24', 'w-28', 'w-20'].map((w, i) => (
+          <div key={i} className={`h-3 ${w} bg-gray-200 rounded animate-pulse`} />
+        ))}
+      </div>
+      <div className="divide-y divide-gray-200">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className={`px-6 py-4 flex items-center gap-6 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+            <div className="h-4 w-8 bg-gray-100 rounded animate-pulse" />
+            <div className="h-4 w-40 bg-gray-100 rounded animate-pulse" />
+            <div className="h-6 w-28 bg-gray-200 rounded-full animate-pulse" />
+            <div className="h-4 w-24 bg-gray-100 rounded animate-pulse" />
+            <div className="h-6 w-16 bg-blue-100 rounded-full animate-pulse" />
+            <div className="h-4 w-24 bg-gray-100 rounded animate-pulse" />
+            <div className="h-4 w-28 bg-red-100 rounded animate-pulse" />
+            <div className="flex gap-2 ml-auto">
+              <div className="h-8 w-16 bg-blue-50 rounded-lg animate-pulse" />
+              <div className="h-8 w-16 bg-red-50 rounded-lg animate-pulse" />
             </div>
-          ) : filteredData.length === 0 ? (
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* Mobile skeleton */}
+    <div className="md:hidden space-y-3">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="border border-gray-200 rounded-xl p-4 space-y-3">
+          <div className="pb-3 border-b border-gray-100 space-y-2">
+            <div className="h-2 w-20 bg-gray-100 rounded animate-pulse" />
+            <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse" />
+          </div>
+          <div className="pb-3 border-b border-gray-100 space-y-2">
+            <div className="h-2 w-16 bg-gray-100 rounded animate-pulse" />
+            <div className="h-6 w-28 bg-gray-200 rounded-full animate-pulse" />
+          </div>
+          <div className="pb-3 border-b border-gray-100 space-y-2">
+            <div className="h-2 w-16 bg-gray-100 rounded animate-pulse" />
+            <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            {Array.from({ length: 3 }).map((_, j) => (
+              <div key={j} className={`space-y-1 ${j === 2 ? 'col-span-2' : ''}`}>
+                <div className="h-2 w-20 bg-gray-100 rounded animate-pulse" />
+                <div className="h-6 w-16 bg-gray-200 rounded-full animate-pulse" />
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 pt-3 border-t border-gray-100">
+            <div className="flex-1 h-9 bg-blue-50 rounded-lg animate-pulse" />
+            <div className="flex-1 h-9 bg-red-50 rounded-lg animate-pulse" />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+) : filteredData.length === 0 ? (
             <div className="text-center py-16">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Search className="w-8 h-8 text-gray-400" />
@@ -169,7 +224,7 @@ export default function ListHargaPromo() {
             </div>
           ) : (
             <>
-              {/* Desktop Table View */}
+         
               <div className="hidden md:block rounded-lg border border-gray-200 overflow-hidden">
                 <Table>
                   <TableHeader>
@@ -187,7 +242,7 @@ export default function ListHargaPromo() {
                   <TableBody>
                     {currentData.map((item, index) => {
                       const displayPrice = getDisplayPrice(item)
-                      const priceType = getPriceTypeLabel(item.tipe_harga) // Perbaiki: gunakan item.tipe_harga
+                      const priceType = getPriceTypeLabel(item.tipe_harga)
                       
                       return (
                         <TableRow

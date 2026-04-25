@@ -18,7 +18,6 @@ import {
 import {
   Package,
   Save,
-  DollarSign,
   Hash,
   Box,
   AlertCircle,
@@ -349,16 +348,13 @@ export default function CreateProduk() {
               <p className="text-gray-600 text-xs md:text-sm mt-1">Lengkapi informasi produk di bawah ini</p>
             </div>
           </div>
-          <Package className="w-8 h-8 md:w-10 md:h-10 text-gray-700" />
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
-          {/* Card 1: Informasi Dasar */}
           <Card className="shadow-sm border border-gray-200 bg-white">
             <CardHeader className="pb-3 md:pb-4 border-b border-gray-100">
               <CardTitle className="flex items-center gap-2 text-base md:text-lg text-gray-800">
-                <Hash className="w-4 h-4 md:w-5 md:h-5" />
                 Informasi Dasar
               </CardTitle>
             </CardHeader>
@@ -524,14 +520,12 @@ export default function CreateProduk() {
             </CardContent>
           </Card>
           <Card className="shadow-sm border border-gray-200 bg-white">
-            <CardHeader className="pb-3 md:pb-4 border-b border-gray-100">
+            <CardHeader className="pb-3 md:pb-3 border-b border-gray-100">
               <CardTitle className="flex items-center gap-2 text-base md:text-lg text-gray-800">
-                <DollarSign className="w-4 h-4 md:w-5 md:h-5" />
                 Informasi Harga
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 md:space-y-6 pt-4">
-              {/* Harga Jual */}
+            <CardContent className="space-y-3 md:space-y-3 pt-3">
               <div className="space-y-2">
                 <Label htmlFor="harga" className="text-sm font-medium">
                   Harga Jual *
@@ -673,7 +667,6 @@ export default function CreateProduk() {
           <Card className="shadow-sm border border-gray-200 bg-white">
             <CardHeader className="pb-3 md:pb-4 border-b border-gray-100">
               <CardTitle className="flex items-center gap-2 text-base md:text-lg text-gray-800">
-                <Box className="w-4 h-4 md:w-5 md:h-5" />
                 Stok & Satuan
               </CardTitle>
             </CardHeader>

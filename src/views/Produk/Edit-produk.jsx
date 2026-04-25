@@ -219,7 +219,7 @@ export default function EditProduk() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white-50 to-indigo-100 p-6">
         <Card className="max-w-4xl mx-auto">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin mb-4 text-muted-foreground" />
@@ -232,7 +232,7 @@ export default function EditProduk() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white-50 to-dark-100 p-6">
         <Card className="max-w-4xl mx-auto">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <AlertCircle className="h-8 w-8 mb-4 text-destructive" />
@@ -245,26 +245,34 @@ export default function EditProduk() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white-50 to-dark-100 p-6">
       <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Edit Produk</h1>
-            <p className="text-muted-foreground">Perbarui informasi produk</p>
-          </div>
-          <Package className="w-12 h-12 text-blue-600" />
-        </div>
+       <div className="flex items-center justify-between gap-4">
+  {/* Bagian kiri */}
+  <div className="flex items-center gap-3">
+    {/* Tombol back - hanya tampil di mobile (md:hidden) */}
+    <Link to="/produk" className="md:hidden">
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className="h-10 w-10 p-0 rounded-full hover:bg-gray-100 hover:scale-105 transition-all duration-200"
+      >
+        <ArrowLeft className="w-5 h-5 text-gray-700" />
+      </Button>
+    </Link>
 
-        {/* Mobile Back Button */}
-        <div className="block md:hidden">
-          <Link to="/produk">
-            <Button variant="outline" size="lg" className="w-full mb-4">
-              <ArrowLeft className="w-6 h-6 mr-2" />
-              Kembali ke Daftar Produk
-            </Button>
-          </Link>
-        </div>
-
+    <div className="flex items-center gap-2">
+      <div className="h-7 w-1 bg-dark rounded-full hidden sm:block"></div>
+      <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-600 bg-clip-text text-transparent">
+        Edit Produk
+      </h1>
+    </div>
+  </div>
+  <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white-50 rounded-full border border-dark-100">
+  
+  </div>
+</div>
+      
         {submitError && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />

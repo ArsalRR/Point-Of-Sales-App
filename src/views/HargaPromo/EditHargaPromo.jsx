@@ -13,7 +13,7 @@ import AsyncSelect from "react-select/async"
 import CreatableSelect from "react-select/creatable"
 import { getProduk } from "@/api/Produkapi"
 import { editHargaPromo, getHargaPromoById, getHargaPromo } from "@/api/HargaPromoapi"
-import { Tag, PackageOpen, Percent, ArrowLeft, Loader2, FolderOpen } from "lucide-react"
+import {  ArrowLeft, Loader2} from "lucide-react"
 
 const formatCurrency = (value) => {
   const numericValue = String(value).replace(/[^0-9]/g, "")
@@ -140,8 +140,6 @@ export default function EditHargaPromo() {
         } else if (res?.data?.data && Array.isArray(res.data.data)) {
           dataArray = res.data.data
         }
-
-        // Fetch existing promos to get kat_promo options
         try {
           const promoRes = await getHargaPromo()
           let promoData = []
@@ -152,8 +150,6 @@ export default function EditHargaPromo() {
           } else if (promoRes?.data?.data && Array.isArray(promoRes.data.data)) {
             promoData = promoRes.data.data
           }
-
-          // Extract unique kat_promo
           const uniqueKatPromo = [...new Set(
             promoData
               .map(promo => promo.kat_promo)
@@ -294,7 +290,7 @@ export default function EditHargaPromo() {
       min_qty: Number(data.min_qty),
       potongan_harga: parseCurrency(data.potongan_harga),
       kat_promo: data.kat_promo || null,
-      tipe_harga: data.tipe_harga, // Tambahkan tipe_harga ke payload
+      tipe_harga: data.tipe_harga,
     }
 
     console.log("Payload update:", payload)
@@ -346,16 +342,10 @@ export default function EditHargaPromo() {
           <span className="font-medium">Kembali</span>
         </button>
 
-        <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-black rounded-2xl mb-4">
-            <Percent className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Edit Harga Promo
+        <div className="mb-8 text-left">
+          <h1 className="text-3xl font-bold text-gray-900 mb-5">
+            Edit Potongan Harga
           </h1>
-          <p className="text-gray-600">
-            Perbarui informasi promo untuk produk Anda
-          </p>
         </div>
 
         <Card className="border-2 border-gray-200 shadow-lg">
@@ -364,7 +354,7 @@ export default function EditHargaPromo() {
               {/* Select Produk */}
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  <Tag className="w-4 h-4" />
+               
                   Pilih Produk
                   <span className="text-red-500">*</span>
                 </Label>
@@ -407,7 +397,7 @@ export default function EditHargaPromo() {
               {/* Radio Group untuk Tipe Harga */}
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  <PackageOpen className="w-4 h-4" />
+           
                   Pilih Tipe Harga untuk Potongan
                   <span className="text-red-500">*</span>
                 </Label>
@@ -455,7 +445,6 @@ export default function EditHargaPromo() {
               {/* Kategori Promo */}
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  <FolderOpen className="w-4 h-4" />
                   Kategori Promo
                 </Label>
                 <Controller
@@ -484,14 +473,11 @@ export default function EditHargaPromo() {
                   Opsional. Pilih dari daftar atau buat kategori baru untuk mengelompokkan promo
                 </p>
               </div>
-
-              {/* Minimal Quantity */}
               <div className="space-y-2">
                 <Label 
                   htmlFor="min_qty" 
                   className="text-sm font-semibold text-gray-900 flex items-center gap-2"
                 >
-                  <PackageOpen className="w-4 h-4" />
                   Minimal Pembelian
                   <span className="text-red-500">*</span>
                 </Label>
@@ -519,7 +505,6 @@ export default function EditHargaPromo() {
                   htmlFor="potongan_harga" 
                   className="text-sm font-semibold text-gray-900 flex items-center gap-2"
                 >
-                  <Percent className="w-4 h-4" />
                   Potongan Harga
                   <span className="text-red-500">*</span>
                 </Label>
@@ -545,9 +530,7 @@ export default function EditHargaPromo() {
                     {errors.potongan_harga.message}
                   </p>
                 )}
-                <p className="text-xs text-gray-500">
-                  Nilai potongan harga yang akan diberikan per produk
-                </p>
+            
               </div>
 
               <div className="border-t-2 border-gray-200 my-6"></div>

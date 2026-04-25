@@ -45,4 +45,4 @@ export const getlaporanbulanan = async (bulan, tahun, tglAwal = "") => {
   } catch (error) {
     throw error;
   }
-};
+}

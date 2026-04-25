@@ -165,17 +165,74 @@ const getStockBadge = (stok, limit_stok) => {
       minimumFractionDigits: 0,
     }).format(amount)
 
-  if (isLoading) {
-    return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-           <Spinner />
+ if (isLoading) {
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="border-b border-gray-200 p-4 sm:p-6 flex items-center justify-between">
+        <div className="h-6 w-32 bg-gray-200 rounded animate-pulse" />
+        <div className="h-9 w-28 bg-gray-200 rounded animate-pulse" />
+      </div>
+      <div className="p-4 sm:p-6 space-y-3">
+        {/* Search bar skeleton */}
+        <div className="h-10 w-full bg-gray-200 rounded-lg animate-pulse mb-6" />
+        
+        {/* Desktop table skeleton */}
+        <div className="hidden lg:block rounded-md border overflow-hidden">
+          <div className="bg-gray-50 px-6 py-3 flex gap-6">
+            {['w-8', 'w-24', 'w-40', 'w-24', 'w-28', 'w-16', 'w-20', 'w-20', 'w-16'].map((w, i) => (
+              <div key={i} className={`h-3 ${w} bg-gray-200 rounded animate-pulse`} />
+            ))}
+          </div>
+          <div className="divide-y divide-gray-200">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="px-6 py-4 flex items-center gap-6">
+                <div className="h-4 w-8 bg-gray-100 rounded animate-pulse" />
+                <div className="h-4 w-24 bg-gray-100 rounded animate-pulse font-mono" />
+                <div className="h-4 w-40 bg-gray-100 rounded animate-pulse" />
+                <div className="h-4 w-24 bg-gray-100 rounded animate-pulse ml-auto" />
+                <div className="h-4 w-28 bg-gray-100 rounded animate-pulse" />
+                <div className="h-4 w-16 bg-gray-100 rounded animate-pulse" />
+                <div className="h-4 w-20 bg-gray-100 rounded animate-pulse" />
+                <div className="h-5 w-16 bg-gray-200 rounded-full animate-pulse" />
+                <div className="flex gap-2">
+                  <div className="h-8 w-8 bg-gray-100 rounded animate-pulse" />
+                  <div className="h-8 w-8 bg-gray-100 rounded animate-pulse" />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
+
+        {/* Mobile card skeleton */}
+        <div className="block lg:hidden space-y-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="border border-gray-200 rounded-xl p-5 space-y-4">
+              <div className="flex justify-between items-start">
+                <div className="space-y-2 flex-1">
+                  <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-3 w-1/3 bg-gray-100 rounded animate-pulse" />
+                </div>
+                <div className="h-5 w-16 bg-gray-200 rounded-full animate-pulse" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {Array.from({ length: 4 }).map((_, j) => (
+                  <div key={j} className="space-y-1">
+                    <div className="h-2 w-12 bg-gray-100 rounded animate-pulse" />
+                    <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-3 pt-3 border-t border-gray-100">
+                <div className="flex-1 h-10 bg-blue-50 rounded-lg animate-pulse" />
+                <div className="flex-1 h-10 bg-red-50 rounded-lg animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-    )
-  }
+    </div>
+  )
+}
   if (isError) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -201,7 +258,6 @@ const getStockBadge = (stok, limit_stok) => {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="border-b border-gray-200 p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
             <h2 className="text-xl font-semibold">List Produk</h2>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
               {filteredAndSortedProduk.length} produk

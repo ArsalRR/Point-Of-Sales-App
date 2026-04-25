@@ -138,15 +138,13 @@ export default function Login() {
               Masuk<br />Akun
             </h1>
             <p className="text-zinc-400 text-sm mt-3 font-light leading-relaxed">
-              Isi email dan password untuk mengakses dashboard.
+              Silahkan Isi Email dan Password yang Benar
             </p>
           </div>
-
-          {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <div className="space-y-2">
               <label className="block text-[10px] font-semibold tracking-[0.15em] uppercase text-zinc-500">
-                Alamat Email
+                 Email
               </label>
               <input
                 type="email"
@@ -207,7 +205,7 @@ export default function Login() {
                 </>
               ) : (
                 <>
-                  <span>Masuk Sekarang</span>
+                  <span>Login </span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}

@@ -6,9 +6,6 @@ import {
   ResponsiveContainer, Cell, CartesianGrid,
 } from "recharts"
 import { getDasboard } from "@/api/Dasboardapi"
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const toNumber = (val) => {
   if (!val) return 0
   return Number(String(val).replace(/[^\d.-]/g, "")) || 0
@@ -53,9 +50,6 @@ const calculateGrowth = (data) => {
   const growth = ((curr - prev) / prev) * 100
   return { value: Math.round(growth * 10) / 10, isPositive: growth >= 0 }
 }
-
-// ─── Custom Tooltip ───────────────────────────────────────────────────────────
-
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
@@ -67,9 +61,6 @@ const CustomTooltip = ({ active, payload, label }) => {
     </div>
   )
 }
-
-// ─── Stat Card ────────────────────────────────────────────────────────────────
-
 function StatCard({ label, value, sub, tag, tagColor = "gray", live = false, spinning = false }) {
   const tagColors = {
     gray:  "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
@@ -113,9 +104,6 @@ function StatCard({ label, value, sub, tag, tagColor = "gray", live = false, spi
     </div>
   )
 }
-
-// ─── Loading ──────────────────────────────────────────────────────────────────
-
 function LoadingState() {
   return (
     <div className="min-h-screen bg-[#f5f5f6] dark:bg-gray-950 p-5 md:p-8">
@@ -244,7 +232,7 @@ export default function Dashboard() {
             value={lowStockItem ? lowStockItem.stok : "Aman"}
             sub={
               lowStockItem
-                ? `${lowStockItem.nama_barang} · ${lowStockItem.satuan_barang}`
+                ? `${lowStockItem.nama_barang}`
                 : "Tidak ada stok menipis"
             }
             tag={lowStockItem ? "Perlu Restok" : "Semua Aman"}
@@ -315,8 +303,6 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-
-        {/* Performance Summary — horizontal di desktop */}
         <div className={`${cardCls} p-6`}>
           <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-[0.12em] mb-6">
             Ringkasan Performa

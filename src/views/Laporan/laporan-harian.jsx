@@ -352,13 +352,105 @@ export default function LaporanHarian() {
   }, [detailScrollArea])
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-80">
-        <Loader2 className="h-6 w-6 animate-spin mr-2 text-gray-700" />
-        <span className="text-gray-700">Memuat data laporan...</span>
-      </div>
-    )
-  }
+  return (
+    <div className="space-y-6">
+      {/* Search card skeleton */}
+      <Card className="border border-gray-300">
+        <CardContent className="p-6">
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2 mb-2">
+              <div className="h-5 w-5 bg-gray-200 rounded animate-pulse" />
+              <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+            </div>
+            <div className="h-10 w-full bg-gray-100 rounded animate-pulse" />
+            <div className="h-3 w-64 bg-gray-100 rounded animate-pulse" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Main table card skeleton */}
+      <Card className="border border-gray-300">
+        <CardHeader className="border-b border-gray-300">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="h-5 w-48 bg-gray-200 rounded animate-pulse" />
+            <div className="flex items-center gap-3">
+              <div className="h-6 w-28 bg-gray-200 rounded-full animate-pulse" />
+              <div className="h-6 w-32 bg-gray-900/10 rounded-full animate-pulse" />
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          {/* Desktop table skeleton */}
+          <div className="hidden md:block overflow-x-auto">
+            <div className="border border-gray-200 rounded-md overflow-hidden">
+              <div className="bg-gray-50 px-4 py-3 flex gap-6">
+                {['w-8', 'w-28', 'w-40', 'w-28', 'w-20', 'w-24', 'w-16'].map((w, i) => (
+                  <div key={i} className={`h-3 ${w} bg-gray-200 rounded animate-pulse`} />
+                ))}
+              </div>
+              <div className="divide-y divide-gray-200">
+                {Array.from({ length: 7 }).map((_, i) => (
+                  <div key={i} className={`px-4 py-4 flex items-center gap-6 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                    <div className="h-4 w-8 bg-gray-100 rounded animate-pulse" />
+                    <div className="h-4 w-28 bg-gray-100 rounded animate-pulse font-mono" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 w-40 bg-gray-100 rounded animate-pulse" />
+                      <div className="h-3 w-24 bg-gray-100 rounded animate-pulse" />
+                    </div>
+                    <div className="h-4 w-28 bg-gray-100 rounded animate-pulse" />
+                    <div className="h-6 w-20 bg-gray-100 rounded-full animate-pulse" />
+                    <div className="h-4 w-24 bg-gray-100 rounded animate-pulse" />
+                    <div className="h-8 w-16 bg-gray-100 rounded-lg animate-pulse" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile card skeleton */}
+          <div className="md:hidden space-y-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} className="border border-gray-300">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className="h-5 w-8 bg-gray-200 rounded-full animate-pulse" />
+                      <div className="h-5 w-28 bg-gray-200 rounded-full animate-pulse" />
+                    </div>
+                    <div className="h-6 w-24 bg-gray-200 rounded animate-pulse" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <div className="h-4 w-4 bg-gray-200 rounded animate-pulse" />
+                      <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+                    </div>
+                    {Array.from({ length: 2 }).map((_, j) => (
+                      <div key={j} className="flex items-center justify-between">
+                        <div className="h-4 w-36 bg-gray-100 rounded animate-pulse" />
+                        <div className="h-5 w-10 bg-gray-100 rounded-full animate-pulse" />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <div className="h-4 w-32 bg-gray-100 rounded animate-pulse" />
+                      <div className="h-4 w-24 bg-gray-100 rounded animate-pulse" />
+                    </div>
+                    <div className="h-4 w-40 bg-gray-100 rounded animate-pulse" />
+                  </div>
+                  <div className="pt-3 border-t border-gray-200">
+                    <div className="h-9 w-full bg-gray-100 rounded-md animate-pulse" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
 
   if (error) {
     return (
@@ -421,7 +513,6 @@ export default function LaporanHarian() {
         <CardHeader className="border-b border-gray-300">
           <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center space-x-2">
-              <Receipt className="h-5 w-5 text-gray-900" />
               <span className="text-gray-900">Laporan Penjualan Harian</span>
             </div>
             <div className="flex items-center space-x-3 mt-2 sm:mt-0">

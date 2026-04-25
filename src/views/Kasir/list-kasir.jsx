@@ -480,8 +480,6 @@ function PaymentModal({
   )
 }
 
-// ─── Komponen utama ───────────────────────────────────────────────────────────
-
 export default function ListKasir() {
   const {
     isTablet, isDesktop,

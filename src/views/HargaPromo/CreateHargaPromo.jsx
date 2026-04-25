@@ -12,7 +12,7 @@ import AsyncSelect from "react-select/async"
 import CreatableSelect from "react-select/creatable"
 import { getProduk } from "@/api/Produkapi"
 import { postHargaPromo, getHargaPromo } from "@/api/HargaPromoapi"
-import { Tag, PackageOpen, Percent, Search, ArrowLeft, FolderOpen, DollarSign } from "lucide-react"
+import { Search, ArrowLeft} from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
@@ -331,7 +331,7 @@ export default function CreateHargaPromo() {
       min_qty: Number(data.min_qty),
       potongan_harga: parseCurrency(data.potongan_harga),
       kat_promo: data.kat_promo || null,
-      tipe_harga: data.tipe_harga, // Mengirim tipe_harga ke backend
+      tipe_harga: data.tipe_harga, 
     }
 
     console.log("Payload yang dikirim:", payload)
@@ -388,8 +388,6 @@ export default function CreateHargaPromo() {
   }
   
   const duplicateCheck = validateDuplicatePromo(selectedProducts, minQty, tipeHarga)
-
-  // Helper untuk mendapatkan harga yang akan dipotong
   const getTargetHarga = () => {
     if (!selectedProducts || selectedProducts.length === 0) return null
     if (selectedProducts.length === 1) {
@@ -412,26 +410,17 @@ export default function CreateHargaPromo() {
           <span className="font-medium">Kembali</span>
         </button>
 
-        <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-black rounded-2xl mb-4">
-            <Percent className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Tambah Harga Promo
+        <div className="mb-8 text-left">
+          <h1 className="text-3xl font-bold text-gray-900 mb-5">
+            Tambah Potongan Harga
           </h1>
-          <p className="text-gray-600">
-            Buat penawaran menarik untuk meningkatkan penjualan produk Anda
-          </p>
         </div>
-
         {/* Form Card */}
         <Card className="border-2 border-gray-200 shadow-lg">
           <CardContent className="p-6 md:p-8">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              {/* Pilih Produk */}
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  <Tag className="w-4 h-4" />
                   Pilih Produk
                   <span className="text-red-500">*</span>
                 </Label>
@@ -506,7 +495,6 @@ export default function CreateHargaPromo() {
               {/* Radio Group untuk Pilih Tipe Harga */}
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  <DollarSign className="w-4 h-4" />
                   Pilih Tipe Harga untuk Potongan
                   <span className="text-red-500">*</span>
                 </Label>
@@ -564,7 +552,6 @@ export default function CreateHargaPromo() {
               {/* Kategori Promo */}
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  <FolderOpen className="w-4 h-4" />
                   Kategori Promo
                 </Label>
                 <Controller
@@ -600,7 +587,6 @@ export default function CreateHargaPromo() {
                   htmlFor="min_qty"
                   className="text-sm font-semibold text-gray-900 flex items-center gap-2"
                 >
-                  <PackageOpen className="w-4 h-4" />
                   Minimal Pembelian
                   <span className="text-red-500">*</span>
                 </Label>
@@ -646,7 +632,6 @@ export default function CreateHargaPromo() {
                   htmlFor="potongan_harga"
                   className="text-sm font-semibold text-gray-900 flex items-center gap-2"
                 >
-                  <Percent className="w-4 h-4" />
                   Potongan Harga
                   <span className="text-red-500">*</span>
                 </Label>
