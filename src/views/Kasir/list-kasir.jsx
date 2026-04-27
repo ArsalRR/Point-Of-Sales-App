@@ -14,6 +14,7 @@ import { Separator } from '@/components/ui/separator'
 import NotaPembelian from '../Kasir/NotaPembelian'
 import { useListKasir } from '@/hooks/Uselistkasir'
 import { SATUAN_TYPES } from '@/utils/kasirUtils'
+
 function hasRenteng(val) {
   if (val === null || val === undefined) return false
   if (typeof val === 'string' && val.trim() === '') return false
@@ -29,6 +30,7 @@ function SpinnerIcon() {
     </svg>
   )
 }
+
 function LiveClock() {
   const [time, setTime] = useState('')
   useEffect(() => {
@@ -59,6 +61,7 @@ function QuickAmounts({ amounts, onSelect }) {
     </div>
   )
 }
+
 function PaymentStatusBanner({ paymentStatus }) {
   if (!paymentStatus || paymentStatus.status === 'empty') return null
   const config = {
@@ -256,10 +259,6 @@ function VariantDropdown({ item, transaksi, addProductToCart }) {
 }
 
 // ─── CartItemCard ─────────────────────────────────────────────────────────────
-// updateQty   : (kode, satuan, qty, event)
-// removeItem  : (kode, satuan)
-// handleChangeSatuan : (kode, oldSatuan, newSatuan)
-
 function CartItemCard({
   item,
   updateQty,
@@ -291,7 +290,6 @@ function CartItemCard({
               </span>
             </div>
           </div>
-          {/* removeItem: kode + satuan agar hanya baris ini yang terhapus */}
           <button
             onClick={() => removeItem(item.kode_barang, currentSatuan)}
             className="mt-0.5 flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-red-600 focus:outline-none hover:bg-gray-100 transition-colors"
@@ -304,7 +302,6 @@ function CartItemCard({
 
         {showSelect && (
           <div className="px-4 pt-3 pb-1">
-            {/* handleChangeSatuan: kode + oldSatuan + newSatuan */}
             <Select
               value={currentSatuan}
               onValueChange={(v) => handleChangeSatuan(item.kode_barang, currentSatuan, v)}
@@ -376,6 +373,80 @@ function CartItemCard({
   )
 }
 
+// ─── ProductCardGrid ──────────────────────────────────────────────────────────
+function ProductCardGrid({ searchResults, onSelect, searchQuery }) {
+  if (!searchQuery || searchQuery.trim().length < 1 || searchResults.length === 0) return null
+
+  const displayed = searchResults.slice(0, 5)
+
+  return (
+    <div className="mt-2 border border-gray-200 rounded-xl bg-white overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gray-50">
+        <span className="text-[11px] text-gray-500 font-medium">
+          {displayed.length} produk ditemukan
+          {searchResults.length > 5 && (
+            <span className="text-gray-400"> (dari {searchResults.length})</span>
+          )}
+        </span>
+        <span className="text-[10px] text-gray-400">Klik untuk tambah ke keranjang</span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2.5 p-2.5">
+        {displayed.map((product, index) => {
+          const stokNum = Number(product.stok ?? 0)
+          const stokBadgeClass =
+            stokNum === 0
+              ? 'bg-red-600 text-white'
+              : stokNum <= 10
+              ? 'bg-amber-800 text-white'
+              : 'bg-gray-900 text-white'
+
+          return (
+            <button
+              key={product.kode_barang}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onSelect(product)}
+              className="flex flex-col text-left rounded-xl border border-gray-200 bg-gray-50 hover:border-gray-500 hover:bg-white hover:shadow-sm transition-all active:scale-[0.97] group"
+            >
+              <div className="flex flex-col gap-1 p-3 flex-1">
+                <p className="text-[13px] font-semibold text-gray-900 leading-snug line-clamp-2 min-h-[38px]">
+                  {product.nama_barang}
+                </p>
+                <p className="text-[11px] font-mono text-gray-400">{product.kode_barang}</p>
+                <div className="border-t border-gray-200 pt-2 mt-1 flex flex-col gap-1.5">
+                  <p className="text-[15px] font-semibold text-gray-900">
+                    Rp {Number(product.harga).toLocaleString('id-ID')}
+                  </p>
+                  {hasRenteng(product.harga_renteng) && (
+                    <p className="text-[11px] text-gray-500 leading-tight">
+                      Renteng&nbsp;
+                      <span className="font-medium text-gray-700">
+                        Rp {Number(product.harga_renteng).toLocaleString('id-ID')}
+                      </span>
+                    </p>
+                  )}
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-[11px] text-gray-400">Stok</span>
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${stokBadgeClass}`}>
+                      {product.stok ?? 0}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-1.5 w-full py-2.5 border-t border-gray-200 bg-white text-gray-500 group-hover:bg-gray-900 group-hover:text-white group-hover:border-gray-900 rounded-b-xl text-[12px] font-medium transition-colors">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Tambah
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function PaymentModal({
   isOpen, onClose, onOk, onCetak,
   total, cartSubtotal, cartLength, formData,
@@ -427,7 +498,7 @@ function PaymentModal({
                 placeholder="Contoh: 5000"
                 className="border border-gray-300 focus:border-black focus:ring-1 focus:ring-black/20 h-10 text-sm rounded-lg bg-white"
                 autoComplete="off"
-                 inputMode="numeric"
+                inputMode="numeric"
               />
             </div>
             {hasDiskon && (
@@ -445,14 +516,14 @@ function PaymentModal({
 
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wider block">Uang Dibayar</Label>
-           <Input
-  id="total_uang" type="text" name="total_uang"
-  value={formData.total_uang} onChange={handleTotalUangChange}
-  placeholder="Masukkan jumlah uang"
-  inputMode="numeric"
-  className="h-14 text-xl font-bold border-2 border-black rounded-xl focus:border-black focus:ring-2 focus:ring-black/10 bg-white tracking-tight"
-  autoComplete="off" autoFocus
-/>
+            <Input
+              id="total_uang" type="text" name="total_uang"
+              value={formData.total_uang} onChange={handleTotalUangChange}
+              placeholder="Masukkan jumlah uang"
+              inputMode="numeric"
+              className="h-14 text-xl font-bold border-2 border-black rounded-xl focus:border-black focus:ring-2 focus:ring-black/10 bg-white tracking-tight"
+              autoComplete="off" autoFocus
+            />
             <QuickAmounts amounts={quickAmounts} onSelect={handleQuickAmount} />
           </div>
 
@@ -484,6 +555,7 @@ export default function ListKasir() {
   const {
     isTablet, isDesktop,
     ringkasanPosition, setRingkasanPosition,
+    cartContainerRef,
     showPaymentModal,
     handleOpenPaymentModal, handleModalClose, handleModalOk, handleModalCetak,
     showHoldModal, handleOpenHoldModal, handleCloseHoldModal,
@@ -493,7 +565,6 @@ export default function ListKasir() {
     searchQuery, showSearchResults, setShowSearchResults,
     cart, isProcessing, formData, transaksi,
     searchInputRef, searchResults, searchWrapperRef,
-    dropdownRect,
     cartSubtotal, total, paymentStatus,
     addProductToCart, updateQty, removeItem,
     subtotal, handleChangeSatuan,
@@ -507,38 +578,8 @@ export default function ListKasir() {
     return <NotaPembelian transactionData={printData} onClose={handleClosePrint} />
   }
 
-  const SearchDropdown = showSearchResults && searchResults.length > 0 && dropdownRect
-    ? createPortal(
-        <div
-          className="fixed bg-white border border-gray-200 rounded-xl shadow-2xl overflow-y-auto z-[99999]"
-          style={{ top: dropdownRect.top, left: dropdownRect.left, width: dropdownRect.width, maxHeight: 260 }}
-        >
-          {searchResults.map((product, index) => (
-            <button
-              key={product.kode_barang}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => handleSearchResultSelect(product)}
-              className={`flex items-center gap-3 w-full text-left px-4 py-2.5 transition-colors ${
-                index < searchResults.length - 1 ? 'border-b border-gray-100' : ''
-              } ${index === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-gray-100`}
-            >
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm text-gray-900 truncate">{product.nama_barang}</p>
-                <div className="flex gap-2 mt-0.5">
-                  <span className="font-mono text-xs text-gray-500">{product.kode_barang}</span>
-                  <span className="text-xs text-gray-500">· Rp {product.harga.toLocaleString()} / {product.satuan}</span>
-                </div>
-              </div>
-              <Badge className="bg-black text-white text-xs font-semibold flex-shrink-0">{product.stok}</Badge>
-            </button>
-          ))}
-        </div>,
-        document.body
-      )
-    : null
-
-  const CartColumn = (
-    <div className="flex flex-col gap-3 col-span-3">
+  const LeftColumn = (
+    <div className="flex flex-col gap-3 col-span-3 transition-all duration-300 ease-in-out">
       <div ref={searchWrapperRef}>
         <Card className="border border-gray-200 bg-white rounded-xl shadow-sm">
           <CardContent className="px-4 py-3">
@@ -568,25 +609,49 @@ export default function ListKasir() {
                 </Button>
               )}
             </div>
+
+            <ProductCardGrid
+              searchResults={searchResults}
+              onSelect={handleSearchResultSelect}
+              searchQuery={searchQuery}
+            />
           </CardContent>
         </Card>
       </div>
-      {SearchDropdown}
+    </div>
+  )
 
-      <Card className="border border-gray-200 bg-white rounded-xl shadow-sm flex-1">
-        <CardHeader className="pb-3 pt-3.5 px-4 flex flex-row items-center justify-between border-b border-gray-200">
+   const RightColumn = (
+    <div className={`flex flex-col gap-3 col-span-2 transition-all duration-300 ease-in-out ${isDesktop ? 'sticky top-6' : ''}`}>
+      <Card
+        ref={cartContainerRef} 
+        className="border border-gray-200 bg-white rounded-xl shadow-sm flex flex-col"
+        style={{ height: isDesktop ? 'calc(100vh - 48px)' : 'calc(100vh - 260px)', maxHeight: '720px' }}
+      >
+        <div className="flex items-center justify-between px-4 pt-2.5 pb-2 border-b border-gray-100 bg-gray-50 rounded-t-xl flex-shrink-0">
+          <div className="flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 text-gray-400" />
+            <LiveClock />
+          </div>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={() => setRingkasanPosition('left')} disabled={ringkasanPosition === 'left'} className="h-7 w-7 p-0 rounded-lg"><ChevronLeft className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="sm" onClick={() => setRingkasanPosition('right')} disabled={ringkasanPosition === 'right'} className="h-7 w-7 p-0 rounded-lg"><ChevronRight className="h-4 w-4" /></Button>
+          </div>
+        </div>
+
+        <CardHeader className="pb-3 pt-3.5 px-4 flex flex-row items-center justify-between border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-black flex items-center justify-center">
               <ShoppingCart className="w-4 h-4 text-white" />
             </div>
             <CardTitle className="text-sm font-semibold text-gray-900">Keranjang Belanja</CardTitle>
-          </div>
-          <div className="flex items-center gap-2">
             {cart.length > 0 && (
               <Badge className="bg-gray-100 text-gray-600 border border-gray-200 font-semibold text-xs px-2">
                 {cart.length} item
               </Badge>
             )}
+          </div>
+          <div className="flex items-center gap-2">
             <button
               onClick={handleHold}
               disabled={cart.length === 0}
@@ -619,7 +684,7 @@ export default function ListKasir() {
           </div>
         </CardHeader>
 
-        <CardContent className="p-3">
+        <div className="flex-1 overflow-y-auto px-3 py-3 min-h-0">
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-14 text-center gap-3">
               <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center">
@@ -628,10 +693,7 @@ export default function ListKasir() {
               <p className="font-semibold text-gray-500 text-sm">Keranjang masih kosong</p>
             </div>
           ) : (
-            <div
-              className="space-y-2.5 overflow-y-auto"
-              style={{ maxHeight: isDesktop ? 'calc(100vh - 280px)' : '440px', paddingRight: '2px' }}
-            >
+            <div className="space-y-2.5">
               {cart.map((item) => (
                 <CartItemCard
                   key={`${item.kode_barang}-${item.satuan_terpilih || SATUAN_TYPES.SATUAN}`}
@@ -648,64 +710,44 @@ export default function ListKasir() {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
-    </div>
-  )
-
-  const RingkasanColumn = (
-    <div className={`flex flex-col gap-0 ${isTablet ? 'col-span-1' : 'col-span-2'}`}>
-      <Card
-        className={`border border-gray-200 bg-white rounded-xl shadow-sm flex flex-col ${isDesktop ? 'sticky top-6' : ''}`}
-        style={{ maxHeight: isDesktop ? 'calc(100vh - 48px)' : undefined }}
-      >
-        <CardHeader className="pb-3 pt-4 px-4 border-b border-gray-200 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold text-gray-900">Ringkasan</CardTitle>
-            <div className="flex items-center gap-1.5">
-              <LiveClock />
-              <Button variant="ghost" size="sm" onClick={() => setRingkasanPosition('left')}  disabled={ringkasanPosition === 'left'}  className="h-7 w-7 p-0 rounded-lg"><ChevronLeft  className="h-4 w-4" /></Button>
-              <Button variant="ghost" size="sm" onClick={() => setRingkasanPosition('right')} disabled={ringkasanPosition === 'right'} className="h-7 w-7 p-0 rounded-lg"><ChevronRight className="h-4 w-4" /></Button>
-            </div>
-          </div>
-        </CardHeader>
-
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 space-y-2">
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-600">Subtotal ({cart.length} item)</span>
-              <span className="font-semibold text-gray-900">Rp {cartSubtotal.toLocaleString()}</span>
-            </div>
-            {cart.length > 0 && parseRupiah(formData.diskon) > 0 && (
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-600">Diskon</span>
-                <span className="text-red-500 font-medium">- {formatRupiah(parseRupiah(formData.diskon))}</span>
-              </div>
-            )}
-            <Separator className="bg-gray-300" />
-            <div className="flex justify-between items-baseline">
-              <span className="font-bold text-gray-900 text-base">TOTAL</span>
-              <span className="font-black text-gray-900 text-2xl">Rp {total.toLocaleString()}</span>
-            </div>
-            <p className="text-[11px] text-gray-500 text-center pt-1">Harga akan otomatis terpotong jika ada diskon.</p>
-          </div>
         </div>
 
-        <div className="flex-shrink-0 px-4 pb-4 pt-2 border-t border-gray-200 bg-white rounded-b-xl">
-          <Button
-            onClick={handleOpenPaymentModal}
-            disabled={cart.length === 0 || isProcessing}
-            className="w-full h-12 text-base font-bold text-white rounded-xl border-0 bg-black hover:bg-gray-800 transition-all disabled:opacity-40"
-            size="lg"
-          >
-            <span className="flex items-center gap-2">
-              <CreditCard className="w-5 h-5" />
-              Simpan Transaksi
-            </span>
-          </Button>
-          {cart.length === 0 && (
-            <p className="mt-2 text-center text-gray-400 text-xs">Tambahkan produk untuk melanjutkan</p>
-          )}
+        <div className="flex-shrink-0 border-t border-gray-200">
+          <div className="px-4 pb-4 pt-3 space-y-2">
+            <div className="bg-gray-50 rounded-xl p-3 border border-gray-200 space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600">Subtotal ({cart.length} item)</span>
+                <span className="font-semibold text-gray-900">Rp {cartSubtotal.toLocaleString()}</span>
+              </div>
+              {cart.length > 0 && parseRupiah(formData.diskon) > 0 && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600">Diskon</span>
+                  <span className="text-red-500 font-medium">- {formatRupiah(parseRupiah(formData.diskon))}</span>
+                </div>
+              )}
+              <Separator className="bg-gray-300" />
+              <div className="flex justify-between items-baseline">
+                <span className="font-bold text-gray-900 text-sm">TOTAL</span>
+                <span className="font-black text-gray-900 text-xl">Rp {total.toLocaleString()}</span>
+              </div>
+              <p className="text-[11px] text-gray-500 text-center">Harga akan otomatis terpotong jika ada diskon.</p>
+            </div>
+
+            <Button
+              onClick={handleOpenPaymentModal}
+              disabled={cart.length === 0 || isProcessing}
+              className="w-full h-12 text-base font-bold text-white rounded-xl border-0 bg-black hover:bg-gray-800 transition-all disabled:opacity-40"
+              size="lg"
+            >
+              <span className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5" />
+                Simpan Transaksi
+              </span>
+            </Button>
+            {cart.length === 0 && (
+              <p className="text-center text-gray-400 text-xs">Tambahkan produk untuk melanjutkan</p>
+            )}
+          </div>
         </div>
       </Card>
     </div>
@@ -743,18 +785,16 @@ export default function ListKasir() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center gap-3 mb-4">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="text-sm font-medium text-gray-700">Kasir POS</span>
           </div>
           <span className="text-gray-400">·</span>
           <span className="text-xs text-gray-500">{cart.length} item di keranjang</span>
         </div>
 
-        <div className={`grid gap-4 ${isTablet ? 'grid-cols-4' : 'grid-cols-5'}`}>
-          {ringkasanPosition === 'right'
-            ? <>{CartColumn}{RingkasanColumn}</>
-            : <>{RingkasanColumn}{CartColumn}</>}
-        </div>
+       <div className={`grid gap-4 transition-all duration-300 ease-in-out ${isTablet ? 'grid-cols-4' : 'grid-cols-5'}`}>
+  {ringkasanPosition === 'right'
+    ? <>{LeftColumn}{RightColumn}</>
+    : <>{RightColumn}{LeftColumn}</>}
+</div>
       </div>
     </div>
   )

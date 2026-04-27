@@ -637,7 +637,7 @@ export default function CreateHargaPromo() {
                 </Label>
                 <Input
                   id="potongan_harga"
-                  type="text"
+                  inputMode="numeric"
                   placeholder="Rp 0"
                   value={formattedHarga}
                   onChange={(e) => {

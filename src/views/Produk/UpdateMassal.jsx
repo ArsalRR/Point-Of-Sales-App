@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { getProduk, updateMassal } from '@/api/Produkapi'
 
-// Schema untuk mode multiple (semua produk harga sama)
 const schemaMultiple = yup.object({
   produk_id: yup
     .array()
@@ -582,7 +581,7 @@ export default function UpdateMassal() {
                             <div className="relative">
                               <Input
                                 {...field}
-                                type="text"
+                                inputmode="numeric"
                                 placeholder="Contoh: 50000"
                                 className="border-2 border-gray-300 focus:border-black h-10 sm:h-11 text-sm sm:text-base"
                                 onChange={(e) => {

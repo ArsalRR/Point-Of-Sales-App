@@ -367,18 +367,20 @@ export default function EditProduk() {
               name="harga"
               control={control}
               render={({ field }) => (
-                <Input
-                  {...field}
-                  id="harga"
-                  value={formatCurrency(field.value)}
-                  onChange={(e) => {
-                    const numericValue = parseCurrency(e.target.value).toString()
-                    field.onChange(numericValue)
-                  }}
-                  placeholder="Masukkan Harga"
-                  autoComplete="off"
-                  className={`pl-10 ${errors.harga ? 'border-red-500' : ''}`}
-                />
+              <Input
+  {...field}
+  id="harga"
+  value={formatCurrency(field.value)}
+  onChange={(e) => {
+    const numericValue = parseCurrency(e.target.value).toString()
+    field.onChange(numericValue)
+  }}
+  placeholder="Masukkan Harga"
+  autoComplete="off"
+  className={`pl-10 ${errors.harga ? 'border-red-500' : ''}`}
+  inputMode="numeric"
+/>
+
               )}
             />
           </div>
@@ -386,8 +388,6 @@ export default function EditProduk() {
             <p className="text-sm text-red-500">{errors.harga.message}</p>
           )}
         </div>
-
-        {/* Harga Rentengan */}
         <div className="space-y-2">
           <Label htmlFor="harga_renteng">Harga Rentengan</Label>
           <div className="relative">
@@ -396,18 +396,20 @@ export default function EditProduk() {
               name="harga_renteng"
               control={control}
               render={({ field }) => (
-                <Input
-                  {...field}
-                  id="harga_renteng"
-                  value={formatCurrency(field.value)}
-                  onChange={(e) => {
-                    const numericValue = parseCurrency(e.target.value).toString()
-                    field.onChange(numericValue)
-                  }}
-                  placeholder="Masukkan Harga Rentengan"
-                  autoComplete="off"
-                  className={`pl-10 ${errors.harga_renteng ? 'border-red-500' : ''}`}
-                />
+              <Input
+  {...field}
+  id="harga_renteng"
+  value={formatCurrency(field.value)}
+  onChange={(e) => {
+    const numericValue = parseCurrency(e.target.value).toString()
+    field.onChange(numericValue)
+  }}
+  placeholder="Masukkan Harga Rentengan"
+  autoComplete="off"
+  className={`pl-10 ${errors.harga_renteng ? 'border-red-500' : ''}`}
+  inputMode="numeric"
+/>
+
               )}
             />
           </div>

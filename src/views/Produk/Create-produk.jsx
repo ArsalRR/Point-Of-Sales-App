@@ -536,18 +536,20 @@ export default function CreateProduk() {
                     name="harga"
                     control={control}
                     render={({ field }) => (
-                      <Input
-                        {...field}
-                        id="harga"
-                        onChange={(e) => {
-                          const formattedValue = formatCurrency(e.target.value)
-                          field.onChange(formattedValue)
-                        }}
-                        value={field.value ? `Rp ${field.value}` : ''}
-                        placeholder="Masukkan Harga"
-                        className={`h-12 pl-10 ${errors.harga ? 'border-red-500' : ''}`}
-                        autoComplete="off"
-                      />
+                    <Input
+  {...field}
+  id="harga"
+  inputMode="numeric"
+  onChange={(e) => {
+    const raw = e.target.value.replace(/\D/g, '')
+    field.onChange(raw)
+  }}
+  value={field.value ? `Rp ${Number(field.value).toLocaleString('id-ID')}` : ''}
+  placeholder="Masukkan Harga"
+  className={`h-12 pl-10 ${errors.harga ? 'border-red-500' : ''}`}
+  autoComplete="off"
+/>
+
                     )}
                   />
                 </div>
@@ -616,18 +618,20 @@ export default function CreateProduk() {
                           name="harga_renteng"
                           control={control}
                           render={({ field }) => (
-                            <Input
-                              {...field}
-                              id="harga_renteng"
-                              onChange={(e) => {
-                                const formattedValue = formatCurrency(e.target.value)
-                                field.onChange(formattedValue)
-                              }}
-                              value={field.value ? `Rp ${field.value}` : ''}
-                              placeholder="Masukkan Harga Rentengan/Box DLL"
-                              className={`h-12 pl-10 ${errors.harga_renteng ? 'border-red-500' : ''}`}
-                              autoComplete="off"
-                            />
+                         <Input
+  {...field}
+  id="harga_renteng"
+  onChange={(e) => {
+    const formattedValue = formatCurrency(e.target.value)
+    field.onChange(formattedValue)
+  }}
+  value={field.value ? `Rp ${field.value}` : ''}
+  placeholder="Masukkan Harga Rentengan/Box DLL"
+  className={`h-12 pl-10 ${errors.harga_renteng ? 'border-red-500' : ''}`}
+  autoComplete="off"
+  inputMode="numeric"
+/>
+
                           )}
                         />
                       </div>
