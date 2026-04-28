@@ -258,7 +258,7 @@ const getStockBadge = (stok, limit_stok) => {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="border-b border-gray-200 p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-semibold">List Produk</h2>
+            <h2 className="text-xl font-semibold">Daftar Produk</h2>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
               {filteredAndSortedProduk.length} produk
             </span>

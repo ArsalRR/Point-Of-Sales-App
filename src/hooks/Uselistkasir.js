@@ -37,178 +37,17 @@ function hitungPaymentStatus(total, totalUangRaw, formatRupiah) {
 export function useListKasir() {
   const kasir = useKasir()
 
-  const width = useWindowWidth()
-  const isTablet = width >= 768 && width < 1024
+  const width     = useWindowWidth()
+  const isTablet  = width >= 768 && width < 1024
   const isDesktop = width >= 1024
 
-  // Auto-pindah posisi keranjang jika card keranjang ketutup keyboard
-  const [ringkasanPosition, setRingkasanPosition] = useState('right')
-  const cartContainerRef = useRef(null)
-
-  // Deteksi apakah card keranjang ketutup keyboard
-  useEffect(() => {
-    const vv = window.visualViewport
-    if (!vv) return
-
-    let animationFrameId = null
-    let lastPosition = null
-    let lastIsCovered = false
-
-    const checkCartVisibility = () => {
-      if (!cartContainerRef.current) return
-
-      const cartRect = cartContainerRef.current.getBoundingClientRect()
-      const viewportTop = vv.offsetTop || 0
-      const viewportHeight = vv.height
-      const viewportBottom = viewportTop + viewportHeight
-
-      // Ambil posisi TOP dan BOTTOM dari card keranjang
-      const cartTop = cartRect.top
-      const cartBottom = cartRect.bottom
-
-      // Hitung berapa banyak bagian keranjang yang terlihat di viewport
-      const visibleTop = Math.max(cartTop, viewportTop)
-      const visibleBottom = Math.min(cartBottom, viewportBottom)
-      const visibleHeight = Math.max(0, visibleBottom - visibleTop)
-      const totalHeight = cartBottom - cartTop
-      
-      // Hitung persentase keranjang yang terlihat
-      const visiblePercentage = totalHeight > 0 ? (visibleHeight / totalHeight) * 100 : 0
-      
-      // Keyboard dianggap menutupi jika kurang dari 70% keranjang yang terlihat
-      const isCovered = visiblePercentage < 70
-
-      // Debounce: hanya update jika status berubah
-      if (isCovered !== lastIsCovered) {
-        lastIsCovered = isCovered
-        
-        if (isCovered) {
-          // Keranjang ketutup keyboard → pindah ke kiri
-          if (lastPosition !== 'left') {
-            lastPosition = 'left'
-            setRingkasanPosition('left')
-          }
-        } else {
-          // Keranjang tidak ketutup → kembali ke kanan
-          if (lastPosition !== 'right') {
-            lastPosition = 'right'
-            setRingkasanPosition('right')
-          }
-        }
-      }
-    }
-
-    const handleResize = () => {
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId)
-      }
-      animationFrameId = requestAnimationFrame(checkCartVisibility)
-    }
-
-    // Juga deteksi scroll (karena keyboard bisa menyebabkan scroll)
-    const handleScroll = () => {
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId)
-      }
-      animationFrameId = requestAnimationFrame(checkCartVisibility)
-    }
-
-    vv.addEventListener('resize', handleResize)
-    window.addEventListener('scroll', handleScroll, true)
-    
-    // Initial check
-    handleResize()
-    
-    return () => {
-      vv.removeEventListener('resize', handleResize)
-      window.removeEventListener('scroll', handleScroll, true)
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId)
-      }
-    }
-  }, [])
-
-  // Deteksi fokus pada input untuk keyboard kecil yang tidak mengubah viewport
-  useEffect(() => {
-    let checkInterval = null
-    let lastPosition = null
-
-    const checkIfCartIsCovered = () => {
-      if (!cartContainerRef.current) return
-
-      const cartRect = cartContainerRef.current.getBoundingClientRect()
-      const viewportHeight = window.innerHeight
-      const cartBottom = cartRect.bottom
-      const cartTop = cartRect.top
-      
-      // Cek apakah ada element yang terfokus (biasanya keyboard muncul saat fokus)
-      const activeElement = document.activeElement
-      const isInputFocused = activeElement?.matches?.('input, textarea, select, [contenteditable="true"]')
-      
-      if (!isInputFocused) {
-        // Tidak ada input fokus, kembali ke kanan
-        if (lastPosition !== 'right') {
-          lastPosition = 'right'
-          setRingkasanPosition('right')
-        }
-        return
-      }
-
-      // Cek posisi input yang difokuskan
-      const inputRect = activeElement?.getBoundingClientRect()
-      if (inputRect) {
-        // Jika input yang difokuskan BERADA DI DALAM keranjang
-        const isInputInsideCart = cartContainerRef.current.contains(activeElement)
-        
-        if (isInputInsideCart) {
-          // Input di dalam keranjang, kemungkinan keyboard menutupi
-          // Hitung jarak input ke bottom viewport
-          const distanceToBottom = viewportHeight - inputRect.bottom
-          
-          // Jika input dekat dengan bottom (< 200px) maka kemungkinan ketutup keyboard
-          if (distanceToBottom < 200) {
-            if (lastPosition !== 'left') {
-              lastPosition = 'left'
-              setRingkasanPosition('left')
-            }
-            return
-          }
-        }
-        
-        // Cek juga posisi bottom keranjang
-        const distanceCartToBottom = viewportHeight - cartBottom
-        
-        // Jika bagian bawah keranjang sudah sangat dekat dengan bottom (< 50px)
-        if (distanceCartToBottom < 50) {
-          if (lastPosition !== 'left') {
-            lastPosition = 'left'
-            setRingkasanPosition('left')
-          }
-          return
-        }
-      }
-      
-      // Kondisi aman, kembali ke kanan
-      if (lastPosition !== 'right') {
-        lastPosition = 'right'
-        setRingkasanPosition('right')
-      }
-    }
-
-    // Cek setiap 100ms untuk mendeteksi perubahan
-    checkInterval = setInterval(checkIfCartIsCovered, 100)
-    
-    return () => {
-      if (checkInterval) clearInterval(checkInterval)
-    }
-  }, [])
-
-  const [showPaymentModal, setShowPaymentModal] = useState(false)
-  const [showHoldModal, setShowHoldModal] = useState(false)
-  const [holds, setHolds] = useState([])
-  const [cartOverride, setCartOverride] = useState(null)
-  const [diskonOverride, setDiskonOverride] = useState(null)
-  const [dropdownRect, setDropdownRect] = useState(null)
+  const [ringkasanPosition, setRingkasanPosition] = useState('left')
+  const [showPaymentModal,  setShowPaymentModal]  = useState(false)
+  const [showHoldModal,     setShowHoldModal]     = useState(false)
+  const [holds,             setHolds]             = useState([])
+  const [cartOverride,      setCartOverride]      = useState(null)
+  const [diskonOverride,    setDiskonOverride]    = useState(null)
+  const [dropdownRect,      setDropdownRect]      = useState(null)
 
   const searchWrapperRef = useRef(null)
 
@@ -273,6 +112,7 @@ export function useListKasir() {
     hookHandleDiskonChange(e)
   }, [cartOverride, hookHandleDiskonChange])
 
+  // updateQty: spesifik per kode_barang + satuan
   const updateQty = useCallback((kodeBarang, satuan, qty, e) => {
     if (cartOverride !== null) {
       if (qty < 1) {
@@ -297,7 +137,6 @@ export function useListKasir() {
       hookUpdateQty(kodeBarang, satuan, qty, e)
     }
   }, [cartOverride, hookUpdateQty])
-
   const removeItem = useCallback((kodeBarang, satuan) => {
     if (cartOverride !== null) {
       setCartOverride(prev => {
@@ -312,6 +151,7 @@ export function useListKasir() {
     }
   }, [cartOverride, hookRemoveItem])
 
+  // addProductToCart: key unik = kode_barang + satuan 'satuan'
   const addProductToCart = useCallback((product) => {
     if (cartOverride !== null) {
       setCartOverride(prev => {
@@ -334,6 +174,7 @@ export function useListKasir() {
     }
   }, [cartOverride, hookAddProduct])
 
+  // handleChangeSatuan: spesifik per kode_barang + oldSatuan
   const handleChangeSatuan = useCallback((kodeBarang, oldSatuan, newSatuan) => {
     if (cartOverride !== null) {
       setCartOverride(prev =>
@@ -373,9 +214,9 @@ export function useListKasir() {
       return
     }
 
-    const snapshot = JSON.parse(JSON.stringify(cart))
+    const snapshot      = JSON.parse(JSON.stringify(cart))
     const currentDiskon = formData.diskon
-    const diskonValue = parseRupiah(currentDiskon) || 0
+    const diskonValue   = parseRupiah(currentDiskon) || 0
     const subtotalValue = hitungTotalHarga(snapshot)
     const totalSetelahDiskon = Math.max(0, subtotalValue - diskonValue)
 
@@ -391,9 +232,12 @@ export function useListKasir() {
     }])
 
     if (cartOverride !== null) {
+      // Cart override: cukup reset override
       setCartOverride(null)
       setDiskonOverride(null)
     } else {
+      // Hook cart: hapus semua baris per unique kode_barang
+      // hookRemoveItemByKode menghapus SEMUA baris dengan kode_barang tsb (satuan & renteng sekaligus)
       const uniqueKodes = [...new Set(snapshot.map(i => i.kode_barang))]
       uniqueKodes.forEach(kode => hookRemoveItemByKode(kode))
     }
@@ -468,10 +312,10 @@ export function useListKasir() {
 
     if (cartOverride !== null && cartOverride.length > 0) {
       const overrideSubtotal = hitungTotalHarga(cartOverride)
-      const diskonValue = parseRupiah(diskonOverride || '') || 0
+      const diskonValue  = parseRupiah(diskonOverride || '') || 0
       const overrideTotal = Math.max(0, overrideSubtotal - diskonValue)
-      const totalUang = parseRupiah(hookFormData.total_uang) || 0
-      const kembalian = totalUang > 0 ? Math.max(0, totalUang - overrideTotal) : 0
+      const totalUang    = parseRupiah(hookFormData.total_uang) || 0
+      const kembalian    = totalUang > 0 ? Math.max(0, totalUang - overrideTotal) : 0
 
       const payload = {
         produk_id: cartOverride.map(i => i.kode_barang),
@@ -591,7 +435,7 @@ export function useListKasir() {
 
   // ─── Hold modal ───────────────────────────────────────────────────────────────
 
-  const handleOpenHoldModal = useCallback(() => setShowHoldModal(true), [])
+  const handleOpenHoldModal  = useCallback(() => setShowHoldModal(true),  [])
   const handleCloseHoldModal = useCallback(() => setShowHoldModal(false), [])
 
   // ─── Quick amounts ─────────────────────────────────────────────────────────────
@@ -600,10 +444,10 @@ export function useListKasir() {
     if (!totalValue) return []
     const rounds = [
       totalValue,
-      Math.ceil(totalValue / 1000) * 1000,
-      Math.ceil(totalValue / 5000) * 5000,
-      Math.ceil(totalValue / 10000) * 10000,
-      Math.ceil(totalValue / 50000) * 50000,
+      Math.ceil(totalValue / 1000)   * 1000,
+      Math.ceil(totalValue / 5000)   * 5000,
+      Math.ceil(totalValue / 10000)  * 10000,
+      Math.ceil(totalValue / 50000)  * 50000,
       Math.ceil(totalValue / 100000) * 100000,
     ]
     return [...new Set(rounds)].slice(0, 5)
@@ -615,7 +459,6 @@ export function useListKasir() {
     // Layout
     isTablet, isDesktop,
     ringkasanPosition, setRingkasanPosition,
-    cartContainerRef,
 
     // Payment modal
     showPaymentModal,

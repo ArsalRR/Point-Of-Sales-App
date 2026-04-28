@@ -624,7 +624,6 @@ export default function ListKasir() {
    const RightColumn = (
     <div className={`flex flex-col gap-3 col-span-2 transition-all duration-300 ease-in-out ${isDesktop ? 'sticky top-6' : ''}`}>
       <Card
-        ref={cartContainerRef} 
         className="border border-gray-200 bg-white rounded-xl shadow-sm flex flex-col"
         style={{ height: isDesktop ? 'calc(100vh - 48px)' : 'calc(100vh - 260px)', maxHeight: '720px' }}
       >
@@ -791,9 +790,9 @@ export default function ListKasir() {
         </div>
 
        <div className={`grid gap-4 transition-all duration-300 ease-in-out ${isTablet ? 'grid-cols-4' : 'grid-cols-5'}`}>
-  {ringkasanPosition === 'right'
-    ? <>{LeftColumn}{RightColumn}</>
-    : <>{RightColumn}{LeftColumn}</>}
+  {ringkasanPosition === 'left'
+    ? <>{RightColumn}{LeftColumn}</>
+    : <>{LeftColumn}{RightColumn}</>}
 </div>
       </div>
     </div>
